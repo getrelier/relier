@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     database_url: PostgresDsn = Field(
         default="postgresql+asyncpg://relier:relier_dev@localhost:5433/relier"
     )  # type: ignore[assignment]
+
+    @property
+    def database_url_str(self) -> str:
+        return str(self.database_url)
+
     db_pool_size: int = Field(default=2, gt=0)
     db_max_overflow: int = Field(default=5, ge=0)
 
