@@ -53,6 +53,9 @@ packages = ["src/relier"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "--cov=src/relier --cov-report=term-missing --cov-fail-under=90"
+filterwarnings = [
+    "ignore::DeprecationWarning:testcontainers.*:"
+]
 
 [tool.ruff]
 # Set the maximum line length to 88 (standard Black compatibility)

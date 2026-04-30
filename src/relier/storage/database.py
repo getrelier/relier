@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from relier.config import get_settings
+from relier.config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -29,10 +29,18 @@ class DatabaseManager:
     """
 
     def __init__(self) -> None:
-        self.settings = get_settings()
         self._engine: AsyncEngine | None = None
         self._sessionmaker: async_sessionmaker[AsyncSession] | None = None
         self._pid: int | None = None
+
+    @property
+    def settings(self) -> Settings:
+        """Lazy-load settings to avoid circular imports and ensure environment variables are read."""
+        return get_settings()
+
+    async def _test_reset(self) -> None:
+        """TESTING ONLY: Forcibly dispose of the engine and clear state."""
+        await self.close()
 
     def _get_safe_log_url(self) -> str:
         """Returns a sanitized Postgres URL for logging (masks the password)."""

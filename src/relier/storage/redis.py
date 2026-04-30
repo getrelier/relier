@@ -12,7 +12,7 @@ import logging
 import redis.asyncio as redis
 from redis.asyncio.client import Redis
 
-from relier.config import get_settings
+from relier.config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -32,15 +32,26 @@ class RedisManager:
     """
 
     def __init__(self) -> None:
-        self.settings = get_settings()
         # Dictionary mappings to tie clients and locks to specific event loops
         self._clients: dict[int, Redis] = {}
         self._locks: dict[int, asyncio.Lock] = {}
+
+    @property
+    def settings(self) -> Settings:
+        """Lazy-load settings to avoid circular imports and ensure environment variables are read."""
+        return get_settings()
 
     def _get_safe_log_url(self) -> str:
         """Returns a sanitized Redis URL for logging (masks the password)."""
         url_obj = self.settings.redis_url
         return f"redis://***@{url_obj.host}:{url_obj.port}{url_obj.path or '/0'}"
+
+    async def _test_reset(self) -> None:
+        """TESTING ONLY: Forcibly close all connections and clear state."""
+        for client in self._clients.values():
+            await client.aclose()
+        self._clients.clear()
+        self._locks.clear()
 
     async def get_client(self) -> Redis:
         """
