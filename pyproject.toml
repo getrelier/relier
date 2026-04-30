@@ -27,7 +27,6 @@ dependencies = [
     "rich>=13.7.0",
     "pydantic-settings>=2.2.0",
     "prometheus-client>=0.20.0",
-    "pgvector>=0.3.0",
 ]
 
 [dependency-groups]
@@ -35,6 +34,7 @@ dev = [
     "mypy>=1.20.2",
     "pytest>=9.0.3",
     "pytest-asyncio>=1.3.0",
+    "pytest-cov>=6.0.0",
     "ruff>=0.15.12",
     "testcontainers[postgres,redis]>=4.13.3",
 ]
@@ -49,13 +49,13 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/relier"]
 
-[tool.hatch.metadata]
-allow-direct-references = true
-
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "--cov=src/relier --cov-report=term-missing --cov-fail-under=90"
+filterwarnings = [
+    "ignore::DeprecationWarning:testcontainers.*:"
+]
 
 [tool.ruff]
 # Set the maximum line length to 88 (standard Black compatibility)
@@ -65,7 +65,7 @@ target-version = "py311"
 
 [tool.ruff.lint]
 # Enable Pyflakes (`F`), pycodestyle (`E`, `W`), and isort (`I`)
-select = ["E", "F", "W", "I"]
+select = ["E", "F", "W", "I", "B", "UP", "C4", "SIM"]
 ignore = ["E501"]
 
 # Allow autofix for all enabled rules
@@ -82,13 +82,17 @@ indent-style = "space"
 python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+strict_optional = true
+check_untyped_defs = true
 disallow_untyped_defs = true
-ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-# Ignore missing stubs for third-party packages that don't have them
 module = [
     "celery.*",
     "kombu.*",
 ]
 ignore_missing_imports = true
+
+

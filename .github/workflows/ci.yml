@@ -1,0 +1,86 @@
+name: Relier CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, "feat/*", "fix/*"]
+
+jobs:
+  lint-and-typecheck:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+          
+      - name: Install dependencies
+        run: uv sync --all-groups
+          
+      - name: Run Ruff Linter
+        run: uv run ruff check src/
+        
+      - name: Run Ruff Formatter (Check)
+        run: uv run ruff format --check src/
+        
+      - name: Run Mypy Type Checker
+        run: uv run mypy src/ 
+
+  test-integration:
+    name: Integration Tests & Coverage
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: relier
+          POSTGRES_PASSWORD: relier_dev
+          POSTGRES_DB: relier
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+        
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+        
+      - name: Install Relier and Dev Dependencies
+        run: uv sync --all-groups
+        
+      - name: Run Pytest with 90% Coverage Requirement
+        env:
+          RELIER_REDIS_URL: redis://localhost:6379/0
+          RELIER_DATABASE_URL: postgresql+asyncpg://relier:relier_dev@localhost:5432/relier
+        run: |
+          uv run pytest tests/ \
+            --cov=src/relier \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-fail-under=90
