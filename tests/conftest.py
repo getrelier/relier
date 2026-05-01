@@ -1,7 +1,8 @@
 import os
+
 import pytest
 import pytest_asyncio
-
+from relier.storage.redis import get_relier_redis
 
 # ==========================================
 # Container Lifecycle Management
@@ -77,8 +78,6 @@ async def clean_db_state(setup_env):
     yield
     await db_manager._test_reset()
 
-
-from relier.storage.redis import get_relier_redis
 
 
 @pytest_asyncio.fixture

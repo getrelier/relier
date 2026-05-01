@@ -1,8 +1,8 @@
-import pytest
 import fnmatch
-import json
 import sys
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Global mock for tasks module to ensure unit tests never depend on it
 sys.modules["relier.tasks"] = MagicMock()
