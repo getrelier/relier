@@ -94,12 +94,15 @@ async def test_release_success(mock_redis):
     await mock_redis.hset(DeadLetterQueue.DLQ_HASH_KEY, "123", json.dumps(entry))
 
     # We mock Celery so we don't actually send a message to a broker
-    with patch("relier.tasks.app.celery_app") as mock_celery:
-        result = await DeadLetterQueue.release("123")
+    from relier.tasks.app import celery_app
 
-        assert result is True
-        mock_celery.send_task.assert_called_once()
-        assert not await mock_redis.hexists(DeadLetterQueue.DLQ_HASH_KEY, "123")
+    celery_app.send_task.reset_mock()
+
+    result = await DeadLetterQueue.release("123")
+
+    assert result is True
+    celery_app.send_task.assert_called_once()
+    assert not await mock_redis.hexists(DeadLetterQueue.DLQ_HASH_KEY, "123")
 
 
 async def test_release_not_found(mock_redis):
@@ -127,4 +130,4 @@ async def test_purge(mock_redis):
 
 async def test_purge_empty(mock_redis):
     count = await DeadLetterQueue.purge()
-    assert count == 0
+    assert count == 0

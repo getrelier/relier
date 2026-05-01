@@ -12,6 +12,7 @@ import pytest_asyncio
 def postgres_url():
     """Spin up Postgres once per test session, or use CI provided URL."""
     from testcontainers.postgres import PostgresContainer
+
     if ci_url := os.environ.get("RELIER_DATABASE_URL"):
         yield ci_url
         return
@@ -28,6 +29,7 @@ def postgres_url():
 def redis_url():
     """Spin up Redis once per test session, or use CI provided URL."""
     from testcontainers.redis import RedisContainer
+
     if ci_url := os.environ.get("RELIER_REDIS_URL"):
         yield ci_url
         return

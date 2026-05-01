@@ -1,31 +1,42 @@
 import pytest
 import fnmatch
 import json
-from unittest.mock import AsyncMock, patch
+import sys
+from unittest.mock import AsyncMock, patch, MagicMock
+
+# Global mock for tasks module to ensure unit tests never depend on it
+sys.modules["relier.tasks"] = MagicMock()
+sys.modules["relier.tasks.app"] = MagicMock()
 
 # ==========================================
 # Overrides (Disable Testcontainers for Unit Tests)
 # ==========================================
+
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_env():
     """Override conftest.py fixture to prevent starting containers."""
     pass
 
+
 @pytest.fixture(scope="session")
 def postgres_url():
     return "postgresql+asyncpg://user:pass@localhost:5432/db"
+
 
 @pytest.fixture(scope="session")
 def redis_url():
     return "redis://localhost:6379/0"
 
+
 # ==========================================
 # Mocks & Helpers
 # ==========================================
 
+
 class FakeRedis:
     """In-memory Redis mock for unit testing."""
+
     def __init__(self):
         self.data = {}
         self.hdata = {}
@@ -77,7 +88,9 @@ class FakeRedis:
         return key in self.data or key in self.hdata or key in self.zdata
 
     async def scan_iter(self, match=None, count=None):
-        all_keys = list(self.data.keys()) + list(self.hdata.keys()) + list(self.zdata.keys())
+        all_keys = (
+            list(self.data.keys()) + list(self.hdata.keys()) + list(self.zdata.keys())
+        )
         matched_keys = [k for k in all_keys if not match or fnmatch.fnmatch(k, match)]
         for k in matched_keys:
             yield k
@@ -153,6 +166,7 @@ class FakeRedis:
             return 0
         return None
 
+
 class FakePipeline:
     def __init__(self, redis):
         self.redis = redis
@@ -184,11 +198,12 @@ class FakePipeline:
             await method(*args, **kwargs)
         self.commands = []
 
+
 @pytest.fixture
 async def mock_redis():
     """Provides a FakeRedis instance and patches get_relier_redis in core modules."""
     mock = FakeRedis()
-    
+
     # Define the modules to patch
     modules = [
         "relier.core.phoenix",
@@ -197,13 +212,15 @@ async def mock_redis():
         "relier.core.slo",
         "relier.storage.redis",
     ]
-    
-    patches = [patch(f"{m}.get_relier_redis", AsyncMock(return_value=mock)) for m in modules]
-    
+
+    patches = [
+        patch(f"{m}.get_relier_redis", AsyncMock(return_value=mock)) for m in modules
+    ]
+
     for p in patches:
         p.start()
-        
+
     yield mock
-    
+
     for p in patches:
         p.stop()

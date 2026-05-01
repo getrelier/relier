@@ -11,6 +11,7 @@ pytestmark = pytest.mark.asyncio
 # Tests
 # ==========================================
 
+
 class TestPhoenixRegistry:
     async def test_registration_sets_keys_and_starts_refresh(self, mock_redis):
         """Test that task registration creates heartbeat and payload keys."""
@@ -55,29 +56,27 @@ class TestPhoenixRegistry:
 
         # Payload exists, but NO heartbeat
         await mock_redis.set(f"rl:payload:{task_id}", json.dumps(payload))
-        
+
         # Patch the Celery app where PhoenixRegistry looks for it
         with patch("relier.tasks.app.celery_app") as mock_celery:
             mock_dlq = AsyncMock()
-            
+
             # Execute resurrection pass
-            await PhoenixRegistry._scan_and_resurrect(
-                mock_redis, mock_dlq, mock_celery
-            )
+            await PhoenixRegistry._scan_and_resurrect(mock_redis, mock_dlq, mock_celery)
 
             # Wait for the background task (_bg_send) to cycle
             for _ in range(5):
                 await asyncio.sleep(0.1)
                 if mock_celery.send_task.called:
                     break
-            
+
             # Assert the receipt
             mock_celery.send_task.assert_called_once_with(
                 "requeue_me",
                 args=[1, 2],
                 kwargs={"foo": "bar"},
                 queue="high",
-                task_id=task_id
+                task_id=task_id,
             )
 
     async def test_max_resurrections_routes_to_dlq(self, mock_redis):
@@ -124,14 +123,12 @@ class TestPhoenixRegistry:
         # Patch settings to make the loop interval very short
         with patch.object(PhoenixRegistry, "_get_settings") as mock_settings:
             mock_settings.return_value = MagicMock(heartbeat_ttl=0.2)
-            
-            task = asyncio.create_task(
-                PhoenixRegistry._refresh_loop(task_id, "worker")
-            )
+
+            task = asyncio.create_task(PhoenixRegistry._refresh_loop(task_id, "worker"))
 
             # Wait for the loop to start and perform its first sleep
             await asyncio.sleep(0.1)
-            
+
             # Delete the key — the NEXT loop iteration should see this and exit
             await mock_redis.delete(f"rl:hb:{task_id}")
 
@@ -140,6 +137,7 @@ class TestPhoenixRegistry:
 
             assert task.done() is True
 
+
 class TestPhoenixGaps:
     async def test_monitor_cleanup_on_payload_loss(self, mock_redis):
         """Test that the monitor removes a task if its payload is gone."""
@@ -147,9 +145,9 @@ class TestPhoenixGaps:
         # State 1 (Alive) but the payload key was deleted (task finished)
         await mock_redis.hset(PhoenixRegistry.MONITOR_KEY, task_id, "1")
         # No payload key exists in Redis
-        
+
         await PhoenixRegistry._monitor_resurrected_tasks(mock_redis)
-        
+
         # Monitor should detect payload loss and del the monitor key
         assert await mock_redis.hexists(PhoenixRegistry.MONITOR_KEY, task_id) == 0
 
@@ -158,7 +156,7 @@ class TestPhoenixGaps:
         task_id = "contested_task"
         # Setup: Task is dead (payload exists, no heartbeat)
         await mock_redis.set(f"rl:payload:{task_id}", json.dumps({"task_name": "t"}))
-        
+
         # Setup: Another resurrector ALREADY holds the lock
         lock_key = PhoenixRegistry.RESURRECT_LOCK.format(task_id=task_id)
         # set(nx=True) should fail if key exists
@@ -168,7 +166,7 @@ class TestPhoenixGaps:
             await PhoenixRegistry._scan_and_resurrect(
                 mock_redis, AsyncMock(), mock_celery
             )
-            
+
             # Wait a beat for background tasks
             await asyncio.sleep(0.1)
             # Should NOT have called send_task because it couldn't get the lock
@@ -181,9 +179,9 @@ class TestPhoenixGaps:
         await mock_redis.hset(PhoenixRegistry.MONITOR_KEY, task_id, "1")
         # Heartbeat is gone again (new worker died)
         await mock_redis.set(f"rl:payload:{task_id}", "{}")
-        
+
         await PhoenixRegistry._monitor_resurrected_tasks(mock_redis)
-        
+
         # Monitor should DEL the monitor key so the main scan can pick it up again
         assert await mock_redis.hexists(PhoenixRegistry.MONITOR_KEY, task_id) == 0
 
@@ -192,30 +190,30 @@ class TestPhoenixGaps:
         task_id = "healthy_task"
         await mock_redis.set(f"rl:payload:{task_id}", "{}")
         await mock_redis.set(f"rl:hb:{task_id}", "worker-alive")
-        
+
         with patch("relier.tasks.app.celery_app") as mock_celery:
             await PhoenixRegistry._scan_and_resurrect(
                 mock_redis, AsyncMock(), mock_celery
             )
             assert mock_celery.send_task.called is False
 
+
 class TestPhoenixResurrectionEdgeCases:
     async def test_refresh_loop_handles_unexpected_error(self, mock_redis):
         """Test that the loop logs error but doesn't crash global registry."""
         task_id = "error_task"
         # We trigger an error by patching expire to raise an exception
-        with patch.object(mock_redis, 'expire', side_effect=Exception("Redis Down")):
+        with patch.object(mock_redis, "expire", side_effect=Exception("Redis Down")):
             await PhoenixRegistry._refresh_loop(task_id, "worker-1")
-
 
     async def test_monitor_cleanup_on_task_completion(self, mock_redis):
         """Test that the monitor cleans up when payload is gone."""
         task_id = "finished_task"
         # Setup: Task is in monitor but payload is deleted (standard completion)
         await mock_redis.hset(PhoenixRegistry.MONITOR_KEY, task_id, "1")
-        
+
         await PhoenixRegistry._monitor_resurrected_tasks(mock_redis)
-        
+
         # Monitor should detect payload absence and delete the monitoring key
         exists = await mock_redis.hexists(PhoenixRegistry.MONITOR_KEY, task_id)
         assert exists == 0
@@ -227,9 +225,9 @@ class TestPhoenixResurrectionEdgeCases:
         await mock_redis.hset(PhoenixRegistry.MONITOR_KEY, task_id, "1")
         # Simulate new worker death (Payload remains, heartbeat gone)
         await mock_redis.set(f"rl:payload:{task_id}", "{}")
-        
+
         await PhoenixRegistry._monitor_resurrected_tasks(mock_redis)
-        
+
         # Monitor should DEL from monitoring so _scan_and_resurrect can find it again
         exists = await mock_redis.hexists(PhoenixRegistry.MONITOR_KEY, task_id)
         assert exists == 0
@@ -237,13 +235,15 @@ class TestPhoenixResurrectionEdgeCases:
     async def test_resurrection_loop_handles_iteration_error(self, mock_redis):
         """Test that the main loop survives a single pass failure."""
         # Patch a core pass helper to raise an error
-        with patch.object(PhoenixRegistry, '_monitor_resurrected_tasks', 
-                        side_effect=ValueError("Simulated Pass Failure")):
-            
+        with patch.object(
+            PhoenixRegistry,
+            "_monitor_resurrected_tasks",
+            side_effect=ValueError("Simulated Pass Failure"),
+        ):
             # Patch sleep so the loop moves instantly
             with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
                 # we expect the CancelledError to propagate
                 try:
                     await PhoenixRegistry.resurrection_loop()
                 except asyncio.CancelledError:
-                    pass 
+                    pass

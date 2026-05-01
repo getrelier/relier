@@ -6,17 +6,18 @@ from relier.core.exceptions import IdempotencyInFlightError
 
 pytestmark = pytest.mark.asyncio
 
+
 class TestIdempotencyManager:
     async def test_claim_and_record_lifecycle(self, mock_redis):
         """Test that a key can be claimed, executed, and cached."""
         key = "test_task:123"
         ttl = 60
-        
+
         # 1. First call should claim the lock
         result = await idempotency_manager.check_or_claim(key, ttl)
         assert result.already_executed is False
         assert "IN_FLIGHT" in result._lock_id
-        
+
         # Verify Redis state is indeed IN_FLIGHT
         val = await mock_redis.get(f"rl:idem:{key}")
         assert val == result._lock_id
@@ -33,21 +34,21 @@ class TestIdempotencyManager:
     async def test_concurrent_execution_raises_inflight_error(self, mock_redis):
         """Test that while one worker has a lock, others receive InFlightError."""
         key = "concurrent_task:999"
-        
+
         # Worker A claims it
         await idempotency_manager.check_or_claim(key, 60)
 
         # Worker B tries to claim the same key
         with pytest.raises(IdempotencyInFlightError) as exc:
             await idempotency_manager.check_or_claim(key, 60)
-        
+
         assert key in str(exc.value)
 
     async def test_clear_lock_compare_and_delete(self, mock_redis):
         """Test that we only delete a lock if we own the specific lock_id."""
         key = "lock_test"
         full_key = f"rl:idem:{key}"
-        
+
         # Set a fake lock manually
         await mock_redis.set(full_key, "IN_FLIGHT:owner_1")
 
@@ -59,11 +60,12 @@ class TestIdempotencyManager:
         await idempotency_manager.clear_lock(key, "IN_FLIGHT:owner_1")
         assert await mock_redis.exists(full_key) == 0
 
+
 class TestIdempotencyContextManager:
     async def test_lock_happy_path(self, mock_redis):
         """Test that the context manager records results on success."""
         key = "ctx_key"
-        
+
         async with idempotency_lock(key=key, ttl=30) as result:
             assert result.already_executed is False
             output = "processed_data"
