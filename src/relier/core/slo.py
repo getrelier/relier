@@ -84,4 +84,3 @@ class SLOMetrics:
 
 # Global instance
 slo_metrics = SLOMetrics()
-
