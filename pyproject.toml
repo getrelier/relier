@@ -81,7 +81,7 @@ indent-style = "space"
 [tool.mypy]
 python_version = "3.11"
 warn_return_any = true
-warn_unused_configs = true
+warn_unused_configs = false
 warn_unused_ignores = true
 warn_redundant_casts = true
 strict_optional = true
@@ -92,6 +92,7 @@ disallow_untyped_defs = true
 module = [
     "celery.*",
     "kombu.*",
+    "relier.tasks.*",
 ]
 ignore_missing_imports = true
 

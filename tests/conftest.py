@@ -1,8 +1,7 @@
 import os
 import pytest
 import pytest_asyncio
-from testcontainers.postgres import PostgresContainer
-from testcontainers.redis import RedisContainer
+
 
 # ==========================================
 # Container Lifecycle Management
@@ -12,6 +11,8 @@ from testcontainers.redis import RedisContainer
 @pytest.fixture(scope="session")
 def postgres_url():
     """Spin up Postgres once per test session, or use CI provided URL."""
+    from testcontainers.postgres import PostgresContainer
+
     if ci_url := os.environ.get("RELIER_DATABASE_URL"):
         yield ci_url
         return
@@ -27,6 +28,8 @@ def postgres_url():
 @pytest.fixture(scope="session")
 def redis_url():
     """Spin up Redis once per test session, or use CI provided URL."""
+    from testcontainers.redis import RedisContainer
+
     if ci_url := os.environ.get("RELIER_REDIS_URL"):
         yield ci_url
         return
@@ -65,10 +68,28 @@ async def clean_redis_state(setup_env):
     yield
     await redis_manager._test_reset()
 
+
 @pytest_asyncio.fixture(autouse=True)
 async def clean_db_state(setup_env):
     """Ensure global DatabaseManager state is wiped between tests."""
     from relier.storage.database import db_manager
-    
+
     yield
     await db_manager._test_reset()
+
+
+from relier.storage.redis import get_relier_redis
+
+
+@pytest_asyncio.fixture
+async def redis_client(setup_env):
+    """
+    Provides a live, connected Redis client for the test.
+    The database is flushed after every test to ensure isolation.
+    """
+    # This uses your actual library code to connect to the testcontainer
+    client = await get_relier_redis()
+    yield client
+
+    # Crucial: Clean up keys after every test so they don't leak into the next one
+    await client.flushdb()

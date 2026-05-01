@@ -9,6 +9,7 @@ from relier.core.exceptions import (
     AdmissionRejectedError,
 )
 
+
 def test_custom_exceptions():
     """
     Ensure all custom exceptions instantiate correctly, hold their
