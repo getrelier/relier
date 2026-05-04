@@ -98,46 +98,64 @@ class SchemaRegistry:
         try:
             valid_envelope = TaskEnvelope.model_validate(envelope)
         except Exception as e:
-            logger.critical(f"Invalid envelope structure: {e}")
+            logger.critical(
+                "Invalid envelope structure.",
+                extra={"error": str(e)},
+            )
             raise PayloadIntegrityError(f"Invalid envelope structure: {e}") from e
 
         version = valid_envelope.schema_version
         payload = valid_envelope.payload
         task_id = valid_envelope.task_id
 
-        # 1. Verify Cryptographic Integrity (Fail fast on corruption)
+        # Verify Cryptographic Integrity (Fail fast on corruption)
         expected_checksum = cls._generate_checksum(payload)
         if expected_checksum != valid_envelope.checksum:
             logger.critical(
-                f"Integrity check failed for task {task_id}. "
-                f"Expected {expected_checksum}, got {envelope.get('checksum')}"
+                "Integrity check failed.",
+                extra={
+                    "task_id": task_id,
+                    "expected": expected_checksum,
+                    "actual": envelope.get("checksum"),
+                },
             )
             # Raise here to prevent processing corrupted data.
             # The Relier DLQ mechanism will catch this and quarantine the payload.
             raise PayloadIntegrityError(f"Payload checksum mismatch for task {task_id}")
 
-        # 2. Extract arguments (JSON decodes tuples as lists, so we cast args back)
+        # Extract arguments (JSON decodes tuples as lists, so we cast args back)
         args = tuple(payload.get("args", []))
         kwargs = payload.get("kwargs", {})
 
-        # 3. Apply migrations sequentially until we reach CURRENT_VERSION
+        # Apply migrations sequentially until we reach CURRENT_VERSION
         while version < cls.CURRENT_VERSION:
             if task_name in cls._migrations and version in cls._migrations[task_name]:
                 logger.info(
-                    f"Migrating payload for {task_name} from v{version} to v{version + 1}"
+                    "Migrating payload.",
+                    extra={
+                        "task_name": task_name,
+                        "from_version": version,
+                        "to_version": version + 1,
+                    },
                 )
                 migrator = cls._migrations[task_name][version]
                 try:
                     args, kwargs = migrator(args, kwargs)
                 except Exception as e:
                     logger.error(
-                        f"Migration v{version}->v{version + 1} failed for {task_name}: {e}"
+                        "Migration failed.",
+                        extra={
+                            "task_name": task_name,
+                            "from_version": version,
+                            "to_version": version + 1,
+                            "error": str(e),
+                        },
                     )
                     raise  # Let it fail so it goes to the DLQ
             else:
                 logger.warning(
-                    f"No migration found for {task_name} v{version}. "
-                    "Passing arguments as-is. This may cause schema validation failures downstream."
+                    "No migration found. Passing arguments as-is.",
+                    extra={"task_name": task_name, "version": version},
                 )
             version += 1
 

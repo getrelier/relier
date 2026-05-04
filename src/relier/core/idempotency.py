@@ -88,6 +88,7 @@ class IdempotencyResult:
     _key: str = field(default="", repr=False)
     _lock_id: str = field(default="", repr=False)
     _ttl: int = field(default=3600, repr=False)
+    _recorded: bool = field(default=False, repr=False)
 
     async def record_result(self, result: Any) -> None:
         """Persist the task's return value for future duplicate requests.
@@ -100,6 +101,7 @@ class IdempotencyResult:
             return
         redis = await get_relier_redis()
         await redis.set(self._key, json.dumps(result), ex=self._ttl)
+        self._recorded = True
         logger.debug("Idempotency result cached.", extra={"key": self._key})
 
 
@@ -214,3 +216,13 @@ async def idempotency_lock(
         if not result.already_executed:
             await idempotency_manager.clear_lock(result._key, result._lock_id)
         raise
+    finally:
+        # Safety net: if the caller succeeded but forgot to call record_result(),
+        # clear the IN_FLIGHT sentinel so duplicates aren't blocked for the full TTL.
+        if not result.already_executed and not result._recorded:
+            logger.warning(
+                "Idempotency lock released without recording a result. "
+                "Call `result.record_result(value)` before exiting the context.",
+                extra={"key": result._key},
+            )
+            await idempotency_manager.clear_lock(result._key, result._lock_id)

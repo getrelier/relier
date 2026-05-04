@@ -3,13 +3,12 @@ Unit tests for Relier Core - Schema Versioning.
 Covers task envelopes, payload integrity checks, and schema migrations.
 """
 
-import json
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from pydantic import ValidationError
+import pytest
+
 from relier.core.exceptions import PayloadIntegrityError
-from relier.core.schema import SchemaRegistry, TaskEnvelope
+from relier.core.schema import SchemaRegistry
 
 # ==========================================
 # Test Isolation
@@ -73,7 +72,7 @@ class TestEnvelopeCreation:
         assert "enqueued_at" in envelope
         # Verify it parses cleanly back to a timezone-aware UTC datetime
         dt = datetime.fromisoformat(envelope["enqueued_at"])
-        assert dt.tzinfo == timezone.utc
+        assert dt.tzinfo == UTC
 
 
 class TestSchemaMigration:
@@ -90,7 +89,7 @@ class TestSchemaMigration:
             "task_id": "my_task",
             "schema_version": 1,
             "payload": payload,
-            "enqueued_at": datetime.now(timezone.utc).isoformat(),
+            "enqueued_at": datetime.now(UTC).isoformat(),
             "checksum": SchemaRegistry._generate_checksum(payload),
         }
 
@@ -115,7 +114,7 @@ class TestSchemaMigration:
             "task_id": "my_task",
             "schema_version": 2,  # Matches CURRENT_VERSION
             "payload": payload,
-            "enqueued_at": datetime.now(timezone.utc).isoformat(),
+            "enqueued_at": datetime.now(UTC).isoformat(),
             "checksum": SchemaRegistry._generate_checksum(payload),
         }
 
@@ -142,7 +141,7 @@ class TestSchemaMigration:
             "task_id": "chain_task",
             "schema_version": 1,
             "payload": payload,
-            "enqueued_at": datetime.now(timezone.utc).isoformat(),
+            "enqueued_at": datetime.now(UTC).isoformat(),
             "checksum": SchemaRegistry._generate_checksum(payload),
         }
 
@@ -162,7 +161,7 @@ class TestSchemaMigration:
             "task_id": "bad_version_task",
             "schema_version": 999,  # Invalid according to Pydantic Field(le=100)
             "payload": payload,
-            "enqueued_at": datetime.now(timezone.utc).isoformat(),
+            "enqueued_at": datetime.now(UTC).isoformat(),
             "checksum": SchemaRegistry._generate_checksum(payload),
         }
 
@@ -182,7 +181,7 @@ class TestSchemaMigration:
             "task_id": "preserve_task",
             "schema_version": 1,
             "payload": payload,
-            "enqueued_at": datetime.now(timezone.utc).isoformat(),
+            "enqueued_at": datetime.now(UTC).isoformat(),
             "checksum": SchemaRegistry._generate_checksum(payload),
         }
 
@@ -206,7 +205,7 @@ class TestSchemaMigration:
             "task_id": "crash_task",
             "schema_version": 1,
             "payload": payload,
-            "enqueued_at": datetime.now(timezone.utc).isoformat(),
+            "enqueued_at": datetime.now(UTC).isoformat(),
             "checksum": SchemaRegistry._generate_checksum(payload),
         }
 

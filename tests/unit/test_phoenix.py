@@ -1,7 +1,9 @@
-import json
-import pytest
 import asyncio
-from unittest.mock import AsyncMock, patch, MagicMock
+import json
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from relier.core.phoenix import PhoenixRegistry
 
 pytestmark = pytest.mark.asyncio
@@ -50,7 +52,7 @@ class TestPhoenixRegistry:
             "task_name": "requeue_me",
             "args": [1, 2],
             "kwargs": {"foo": "bar"},
-            "queue": "high",
+            "queue": "high-priority",
             "worker_id": "ghost_worker",
         }
 
@@ -75,7 +77,7 @@ class TestPhoenixRegistry:
                 "requeue_me",
                 args=[1, 2],
                 kwargs={"foo": "bar"},
-                queue="high",
+                queue="high-priority",
                 task_id=task_id,
             )
 
@@ -235,15 +237,16 @@ class TestPhoenixResurrectionEdgeCases:
     async def test_resurrection_loop_handles_iteration_error(self, mock_redis):
         """Test that the main loop survives a single pass failure."""
         # Patch a core pass helper to raise an error
-        with patch.object(
-            PhoenixRegistry,
-            "_monitor_resurrected_tasks",
-            side_effect=ValueError("Simulated Pass Failure"),
+        import contextlib
+
+        with (
+            patch.object(
+                PhoenixRegistry,
+                "_monitor_resurrected_tasks",
+                side_effect=ValueError("Simulated Pass Failure"),
+            ),
+            patch("asyncio.sleep", side_effect=asyncio.CancelledError),
+            contextlib.suppress(asyncio.CancelledError),
         ):
-            # Patch sleep so the loop moves instantly
-            with patch("asyncio.sleep", side_effect=asyncio.CancelledError):
-                # we expect the CancelledError to propagate
-                try:
-                    await PhoenixRegistry.resurrection_loop()
-                except asyncio.CancelledError:
-                    pass
+            # we expect the CancelledError to propagate
+            await PhoenixRegistry.resurrection_loop()

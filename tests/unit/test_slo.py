@@ -1,6 +1,7 @@
-import pytest
 import time
-from unittest.mock import patch
+
+import pytest
+
 from relier.core.slo import SLOMetrics
 
 pytestmark = pytest.mark.asyncio

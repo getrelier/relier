@@ -1,6 +1,7 @@
 import pytest
-from relier.storage.redis import RedisManager
+
 from relier.storage.database import DatabaseManager
+from relier.storage.redis import RedisManager
 
 # Mark all tests in this file as async
 pytestmark = pytest.mark.asyncio

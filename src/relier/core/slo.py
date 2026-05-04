@@ -67,6 +67,10 @@ class SLOMetrics:
         allowed_error_rate = 1.0 - target_slo
 
         if allowed_error_rate == 0:
+            logger.warning(
+                "Burn rate is infinite (target_slo=1.0 allows zero errors).",
+                extra={"window": window, "failures": failures},
+            )
             return 100.0  # Division by zero protection
 
         return float(actual_error_rate / allowed_error_rate)

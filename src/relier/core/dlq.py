@@ -88,15 +88,21 @@ class DeadLetterQueue:
     async def list_tasks(cls, count: int = 100) -> list[dict[str, Any]]:
         """Return up to *count* quarantined tasks, sorted newest-first."""
         redis = await get_relier_redis()
-        _cursor, data = await redis.hscan(cls.DLQ_HASH_KEY, count=count)
 
         results: list[dict[str, Any]] = []
-        for raw_json in data.values():
-            if raw_json:
-                try:
-                    results.append(json.loads(raw_json))
-                except json.JSONDecodeError:
-                    logger.warning("Skipping malformed DLQ entry.")
+        cursor = 0
+        while True:
+            cursor, data = await redis.hscan(
+                cls.DLQ_HASH_KEY, cursor=cursor, count=count
+            )
+            for raw_json in data.values():
+                if raw_json:
+                    try:
+                        results.append(json.loads(raw_json))
+                    except json.JSONDecodeError:
+                        logger.warning("Skipping malformed DLQ entry.")
+            if cursor == 0:
+                break
 
         results.sort(key=lambda x: x.get("quarantined_at", ""), reverse=True)
         return results
@@ -117,7 +123,7 @@ class DeadLetterQueue:
         Returns:
             ``True`` on success, ``False`` if the task was not found.
         """
-        from relier.tasks.app import celery_app  # avoid circular import
+        from relier.tasks.app import celery_app
 
         redis = await get_relier_redis()
         raw = await redis.hget(cls.DLQ_HASH_KEY, task_id)  # type: ignore[misc]
@@ -145,6 +151,12 @@ class DeadLetterQueue:
             task_id=task_id,  # Preserve original ID so Phoenix tracking continues.
         )
 
+        # Preserve the resurrection count so poison-pill tasks can't cycle
+        # through DLQ releases indefinitely.
+        prev_count = entry.get("resurrections", 0)
+        if prev_count > 0:
+            await redis.set(f"rl:resurrections:{task_id}", str(prev_count))
+
         await redis.hdel(cls.DLQ_HASH_KEY, task_id)  # type: ignore[misc]
         logger.info(
             "Task released from DLQ.",
@@ -166,5 +178,4 @@ class DeadLetterQueue:
         return int(count) if count else 0
 
 
-# Module-level singleton.
 dead_letter_queue = DeadLetterQueue()

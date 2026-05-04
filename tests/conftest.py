@@ -2,6 +2,7 @@ import os
 
 import pytest
 import pytest_asyncio
+
 from relier.storage.redis import get_relier_redis
 
 # ==========================================
@@ -55,6 +56,34 @@ def setup_env(postgres_url, redis_url):
     os.environ["RELIER_DATABASE_URL"] = postgres_url
     os.environ["RELIER_REDIS_URL"] = redis_url
 
+    # CRITICAL: Clear the settings cache so the new environment variables are picked up.
+    from relier.config import get_settings
+
+    get_settings.cache_clear()
+
+    # Also ensure the global managers are reset to pick up new settings
+    # We use run_until_complete if we were in an async context, but this is a sync session fixture.
+    # The managers will lazy-reinitialize on next access.
+    import asyncio
+
+    from relier.storage.database import db_manager
+    from relier.storage.redis import redis_manager
+
+    loop = asyncio.new_event_loop()
+    loop.run_until_complete(redis_manager._test_reset())
+    loop.run_until_complete(db_manager._test_reset())
+    loop.close()
+
+    # Reconfigure Celery app if it has been imported already
+    try:
+        from relier.tasks.app import celery_app
+
+        settings = get_settings()
+        celery_app.conf.broker_url = str(settings.redis_url)
+        celery_app.conf.result_backend = str(settings.redis_url)
+    except (ImportError, AttributeError):
+        pass
+
 
 # ==========================================
 # Test Isolation (Clean State)
@@ -77,7 +106,6 @@ async def clean_db_state(setup_env):
 
     yield
     await db_manager._test_reset()
-
 
 
 @pytest_asyncio.fixture

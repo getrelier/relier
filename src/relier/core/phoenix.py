@@ -37,7 +37,10 @@ class PhoenixRegistry:
     MONITOR_KEY = "rl:monitoring"
 
     # Tracks the asyncio Task running each heartbeat refresh loop.
-    _active_loops: dict[str, asyncio.Task] = {}
+    # Intentionally class-level: shared across all coroutines in the same
+    # worker process so that complete() can cancel any task's refresh loop.
+    # Safe because a single Celery worker is single-process with one event loop.
+    _active_loops: dict[str, "asyncio.Task[None]"] = {}
 
     @classmethod
     def _get_settings(cls) -> Settings:
@@ -146,7 +149,7 @@ class PhoenixRegistry:
         Intended to run in a dedicated ``guardian`` / ``resurrector`` container.
         Exits only if the process is killed.
         """
-        from relier.core.dlq import dead_letter_queue  # avoid circular import
+        from relier.core.dlq import DeadLetterQueue  # avoid circular import
         from relier.tasks.app import celery_app  # avoid circular import
 
         settings = cls._get_settings()
@@ -156,7 +159,7 @@ class PhoenixRegistry:
         while True:
             try:
                 await cls._monitor_resurrected_tasks(redis)
-                await cls._scan_and_resurrect(redis, dead_letter_queue, celery_app)
+                await cls._scan_and_resurrect(redis, DeadLetterQueue, celery_app)
                 logger.debug("Resurrector pass complete.")
             except Exception as exc:
                 logger.error(
@@ -219,8 +222,8 @@ class PhoenixRegistry:
         celery_app: Any,
     ) -> None:
         """Phase 2: Scan for new dead tasks and re-queue them."""
+        settings = cls._get_settings()
         async for p_key in redis.scan_iter(match="rl:payload:*", count=100):
-            settings = cls._get_settings()
             if isinstance(p_key, bytes):
                 p_key = p_key.decode("utf-8")
 
@@ -276,31 +279,34 @@ class PhoenixRegistry:
             # Mark for monitoring BEFORE sending to prevent any detection gap.
             await redis.hset(cls.MONITOR_KEY, t_id, 0)
 
-            # Capture loop variables explicitly to avoid late-binding closure bugs.
-            async def _bg_send(
-                _t_id: str = t_id,
-                _payload: dict = payload,
-            ) -> None:
-                try:
-                    loop = asyncio.get_running_loop()
-                    await asyncio.wait_for(
-                        loop.run_in_executor(
-                            None,
-                            lambda: celery_app.send_task(
-                                _payload["task_name"],
-                                args=_payload.get("args", []),
-                                kwargs=_payload.get("kwargs", {}),
-                                queue=_payload.get("queue", "default"),
-                                task_id=_t_id,
-                            ),
-                        ),
-                        timeout=10.0,
-                    )
-                    logger.info("Task re-queued.", extra={"task_id": _t_id})
-                except Exception as exc:
-                    logger.error(
-                        "Failed to re-queue task.",
-                        extra={"task_id": _t_id, "error": str(exc)},
-                    )
+            asyncio.create_task(cls._bg_send(t_id, payload, celery_app))
 
-            asyncio.create_task(_bg_send())
+    @classmethod
+    async def _bg_send(
+        cls,
+        task_id: str,
+        payload: dict[str, Any],
+        celery_app: Any,
+    ) -> None:
+        """Re-queue a dead task on the Celery broker in a background task."""
+        try:
+            loop = asyncio.get_running_loop()
+            await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    lambda: celery_app.send_task(
+                        payload["task_name"],
+                        args=payload.get("args", []),
+                        kwargs=payload.get("kwargs", {}),
+                        queue=payload.get("queue", "default"),
+                        task_id=task_id,
+                    ),
+                ),
+                timeout=10.0,
+            )
+            logger.info("Task re-queued.", extra={"task_id": task_id})
+        except Exception as exc:
+            logger.error(
+                "Failed to re-queue task.",
+                extra={"task_id": task_id, "error": str(exc)},
+            )

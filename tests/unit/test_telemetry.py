@@ -1,4 +1,6 @@
-from unittest.mock import MagicMock, patch
+import asyncio
+import concurrent.futures
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -7,23 +9,51 @@ from relier.telemetry.metrics import _inflight_tasks_callback
 from relier.telemetry.setup import setup_telemetry
 from relier.telemetry.spans import record_exception, trace_sync, trace_task
 
+
+def mock_run_coroutine(coro, loop=None):
+    """Manually mark the coroutine as exhausted properly and return a concurrent Future."""
+    if asyncio.iscoroutine(coro):
+        while True:
+            try:
+                coro.send(None)
+            except StopIteration as e:
+                f = concurrent.futures.Future()
+                f.set_result(e.value)
+                return f
+            except Exception as e:
+                f = concurrent.futures.Future()
+                f.set_exception(e)
+                return f
+    else:
+        # Fallback for mock objects or non-coroutines
+        f = concurrent.futures.Future()
+        f.set_result(None)
+        return f
+
+
 # ===========================================================================
 # Test Logging
 # ===========================================================================
 
 
 class TestLogging:
-    def test_inject_otel_context_no_span(self):
+    @pytest.mark.asyncio
+    async def test_inject_otel_context_no_span(self):
         """Verify that injecting OTEL context with no active span returns the dict unchanged."""
         event_dict = {"msg": "hello"}
         # Mock get_current_span to return a non-recording span
-        with patch("opentelemetry.trace.get_current_span") as mock_get_span:
+        with (
+            patch("relier.storage.redis.RedisManager.close", new_callable=AsyncMock),
+            patch("opentelemetry.trace.get_current_span") as mock_get_span,
+        ):
             mock_span = MagicMock()
             mock_span.get_span_context().is_valid = False
             mock_get_span.return_value = mock_span
 
             result = inject_otel_context(None, None, event_dict.copy())
             assert result == event_dict
+
+        await asyncio.sleep(0)
 
     def test_inject_otel_context_with_valid_span(self):
         """Verify that trace and span IDs are injected when a valid span is active."""
@@ -99,13 +129,22 @@ class TestSpans:
             mock_span
         )
 
-        with patch("relier.telemetry.spans.tracer", mock_tracer):
-            async with trace_task("test_span", "task_123", {"extra": "val"}) as span:
+        with (
+            patch("relier.storage.redis.RedisManager.close", new_callable=AsyncMock),
+            patch(
+                "relier.storage.database.DatabaseManager.close", new_callable=AsyncMock
+            ),
+            patch("relier.telemetry.spans.tracer", mock_tracer),
+        ):
+            async with trace_task("test_task", "task_123", {"extra": "val"}) as span:
                 assert span == mock_span
                 mock_span.set_attribute.assert_any_call("rl.task.id", "task_123")
                 mock_span.set_attribute.assert_any_call("extra", "val")
 
-    def test_trace_sync_context_manager(self):
+        await asyncio.sleep(0)
+
+    @pytest.mark.asyncio
+    async def test_trace_sync_context_manager(self):
         """Verify that trace_sync creates a span."""
         mock_tracer = MagicMock()
         mock_span = MagicMock()
@@ -114,11 +153,18 @@ class TestSpans:
         )
 
         with (
+            patch("relier.storage.redis.RedisManager.close", new_callable=AsyncMock),
+            patch(
+                "relier.storage.database.DatabaseManager.close", new_callable=AsyncMock
+            ),
             patch("relier.telemetry.spans.tracer", mock_tracer),
             trace_sync("sync_span", {"attr": 1}) as span,
         ):
             assert span == mock_span
             mock_span.set_attribute.assert_any_call("attr", 1)
+
+        # Allow background cleanup coroutines to finish
+        await asyncio.sleep(0)
 
     @pytest.mark.asyncio
     async def test_trace_task_exception(self):
@@ -130,12 +176,14 @@ class TestSpans:
             mock_span
         )
 
-        with patch("relier.telemetry.spans.tracer", mock_tracer):
-            with pytest.raises(ValueError, match="fail"):
-                async with trace_task("test", "id"):
-                    raise ValueError("fail")
+        with (
+            patch("relier.telemetry.spans.tracer", mock_tracer),
+            pytest.raises(ValueError, match="fail"),
+        ):
+            async with trace_task("test", "id"):
+                raise ValueError("fail")
 
-            mock_span.record_exception.assert_called_once()
+        mock_span.record_exception.assert_called_once()
 
     def test_trace_sync_exception(self):
         """Verify that trace_sync records exceptions."""
