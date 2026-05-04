@@ -1,8 +1,9 @@
 import json
+
 import pytest
-import asyncio
-from relier.core.idempotency import idempotency_manager, idempotency_lock
+
 from relier.core.exceptions import IdempotencyInFlightError
+from relier.core.idempotency import idempotency_lock, idempotency_manager
 
 pytestmark = pytest.mark.asyncio
 
@@ -13,7 +14,7 @@ class TestIdempotencyManager:
         key = "test_task:123"
         ttl = 60
 
-        # 1. First call should claim the lock
+        # First call should claim the lock
         result = await idempotency_manager.check_or_claim(key, ttl)
         assert result.already_executed is False
         assert "IN_FLIGHT" in result._lock_id
@@ -22,11 +23,11 @@ class TestIdempotencyManager:
         val = await mock_redis.get(f"rl:idem:{key}")
         assert val == result._lock_id
 
-        # 2. Record the result
+        # Record the result
         task_output = {"status": "success", "data": 42}
         await result.record_result(task_output)
 
-        # 3. Subsequent call should return the cached result
+        # Subsequent call should return the cached result
         next_result = await idempotency_manager.check_or_claim(key, ttl)
         assert next_result.already_executed is True
         assert next_result.cached_result == task_output
@@ -54,6 +55,7 @@ class TestIdempotencyManager:
 
         # owner_2 tries to clear it (should fail/do nothing)
         await idempotency_manager.clear_lock(key, "IN_FLIGHT:owner_2")
+        assert await mock_redis.exists(full_key) == 1
         assert await mock_redis.get(full_key) == "IN_FLIGHT:owner_1"
 
         # owner_1 clears it (should succeed)
@@ -80,7 +82,7 @@ class TestIdempotencyContextManager:
         full_key = f"rl:idem:{key}"
 
         try:
-            async with idempotency_lock(key=key, ttl=30) as result:
+            async with idempotency_lock(key=key, ttl=30):
                 assert await mock_redis.exists(full_key) == 1
                 raise ValueError("Worker crashed mid-task!")
         except ValueError:

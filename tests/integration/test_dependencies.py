@@ -1,8 +1,10 @@
 import os
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from relier.storage.database import DatabaseManager, get_relier_db
 from relier.storage.redis import get_relier_redis
-from relier.storage.database import get_relier_db, DatabaseManager
 
 
 @pytest.mark.asyncio

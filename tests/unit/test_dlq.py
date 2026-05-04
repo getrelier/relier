@@ -1,6 +1,7 @@
 import json
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from relier.core.dlq import DeadLetterQueue
 
@@ -10,7 +11,7 @@ pytestmark = pytest.mark.asyncio
 async def test_quarantine_with_payload(mock_redis):
     payload = {
         "task_name": "test.task",
-        "queue": "high",
+        "queue": "high-priority",
         "args": [1],
         "kwargs": {"a": 2},
     }
@@ -22,7 +23,7 @@ async def test_quarantine_with_payload(mock_redis):
 
     assert entry["task_id"] == "123"
     assert entry["task_name"] == "test.task"
-    assert entry["queue"] == "high"
+    assert entry["queue"] == "high-priority"
     assert entry["reason"] == "failure"
 
 
@@ -93,15 +94,13 @@ async def test_release_success(mock_redis):
 
     await mock_redis.hset(DeadLetterQueue.DLQ_HASH_KEY, "123", json.dumps(entry))
 
-    # We mock Celery so we don't actually send a message to a broker
+    # Mock Celery so we don't actually send a message to a broker
     from relier.tasks.app import celery_app
 
-    celery_app.send_task.reset_mock()
-
-    result = await DeadLetterQueue.release("123")
-
-    assert result is True
-    celery_app.send_task.assert_called_once()
+    with patch.object(celery_app, "send_task") as mock_send:
+        result = await DeadLetterQueue.release("123")
+        assert result is True
+        mock_send.assert_called_once()
     assert not await mock_redis.hexists(DeadLetterQueue.DLQ_HASH_KEY, "123")
 
 

@@ -12,26 +12,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-          
+
       - name: Set up Python 3.11
         run: uv python install 3.11
-          
+
       - name: Install dependencies
         run: uv sync --all-groups
-          
+
       - name: Run Ruff Linter
         run: uv run ruff check src/
-        
+
       - name: Run Ruff Formatter (Check)
         run: uv run ruff format --check src/
-        
+
       - name: Run Mypy Type Checker
-        run: uv run mypy src/ 
+        run: uv run mypy src/
 
   test-integration:
     name: Integration Tests & Coverage
@@ -62,18 +62,18 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-        
+
       - name: Set up Python 3.11
         run: uv python install 3.11
-        
+
       - name: Install Relier and Dev Dependencies
         run: uv sync --all-groups
-        
+
       - name: Run Pytest with 90% Coverage Requirement
         env:
           RELIER_REDIS_URL: redis://localhost:6379/0

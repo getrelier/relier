@@ -1,12 +1,8 @@
+import asyncio
 import fnmatch
-import sys
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
-
-# Global mock for tasks module to ensure unit tests never depend on it
-sys.modules["relier.tasks"] = MagicMock()
-sys.modules["relier.tasks.app"] = MagicMock()
 
 # ==========================================
 # Overrides (Disable Testcontainers for Unit Tests)
@@ -135,6 +131,22 @@ class FakeRedis:
         # Simple hscan simulation: return everything in the hash.
         return 0, data
 
+    async def sadd(self, name, *values):
+        if name not in self.data:
+            self.data[name] = set()
+        if not isinstance(self.data[name], set):
+            # Convert if it was a string (init_worker might do this)
+            self.data[name] = {self.data[name]}
+        for v in values:
+            self.data[name].add(str(v))
+        return len(values)
+
+    async def smembers(self, name):
+        val = self.data.get(name, set())
+        if isinstance(val, str):
+            return {val}
+        return set(val)
+
     async def flushdb(self):
         self.data.clear()
         self.hdata.clear()
@@ -184,6 +196,10 @@ class FakePipeline:
         self.commands.append(("zadd", args, kwargs))
         return self
 
+    def zrem(self, *args, **kwargs):
+        self.commands.append(("zrem", args, kwargs))
+        return self
+
     def zremrangebyscore(self, *args, **kwargs):
         self.commands.append(("zremrangebyscore", args, kwargs))
         return self
@@ -192,11 +208,30 @@ class FakePipeline:
         self.commands.append(("delete", args, kwargs))
         return self
 
+    def sadd(self, *args, **kwargs):
+        self.commands.append(("sadd", args, kwargs))
+        return self
+
     async def execute(self):
         for cmd, args, kwargs in self.commands:
             method = getattr(self.redis, cmd)
             await method(*args, **kwargs)
         self.commands = []
+
+
+def mock_run_coroutine(coro, loop=None):
+    """Manually mark the coroutine as exhausted properly."""
+    while True:
+        try:
+            coro.send(None)
+        except StopIteration as e:
+            f = asyncio.Future()
+            f.set_result(e.value)
+            return f
+        except Exception as e:
+            f = asyncio.Future()
+            f.set_exception(e)
+            return f
 
 
 @pytest.fixture
@@ -211,16 +246,21 @@ async def mock_redis():
         "relier.core.dlq",
         "relier.core.slo",
         "relier.storage.redis",
+        "relier.tasks.decorator",
     ]
 
     patches = [
         patch(f"{m}.get_relier_redis", AsyncMock(return_value=mock)) for m in modules
     ]
 
-    for p in patches:
+    # Silence asynchronous lifecycle warnings globally
+    # We remove these as they break tests that actually test drain/close logic
+    lifecycle_patches = []
+
+    for p in patches + lifecycle_patches:
         p.start()
 
     yield mock
 
-    for p in patches:
+    for p in patches + lifecycle_patches:
         p.stop()

@@ -98,7 +98,8 @@ class RedisManager:
             async with self._locks[loop_id]:
                 if loop_id in self._clients:
                     logger.info(
-                        f"Closing Relier Redis connection pool for loop {loop_id}..."
+                        "Closing Relier Redis connection pool.",
+                        extra={"loop_id": loop_id},
                     )
                     client = self._clients.pop(loop_id)
                     await client.aclose()
@@ -111,7 +112,7 @@ class RedisManager:
             client = await self.get_client()
             return await client.ping()  # type: ignore[no-any-return]
         except Exception as e:
-            logger.error(f"Redis ping failed: {e}")
+            logger.error("Redis ping failed.", extra={"error": str(e)})
             return False
 
 

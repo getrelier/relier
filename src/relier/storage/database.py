@@ -62,8 +62,8 @@ class DatabaseManager:
         # If the process ID changed (e.g., Celery forked), recreate the engine
         if self._engine is not None and self._pid != current_pid:
             logger.warning(
-                f"Process fork detected (PID changed from {self._pid} to {current_pid}). "
-                "Recreating Relier PostgreSQL engine to prevent pool corruption."
+                "Process fork detected. Recreating Relier PostgreSQL engine.",
+                extra={"old_pid": self._pid, "new_pid": current_pid},
             )
             self._engine = None
             self._sessionmaker = None
@@ -71,7 +71,8 @@ class DatabaseManager:
         if self._engine is None:
             self._pid = current_pid
             logger.info(
-                f"Initializing Relier AsyncPG engine on PID {self._pid} -> {self._get_safe_log_url()}"
+                "Initializing Relier AsyncPG engine.",
+                extra={"pid": self._pid, "url": self._get_safe_log_url()},
             )
 
             self._engine = create_async_engine(
@@ -102,7 +103,8 @@ class DatabaseManager:
         """Gracefully dispose of the engine connection pool."""
         if self._engine:
             logger.info(
-                f"Disposing Relier PostgreSQL connection pool on PID {os.getpid()}..."
+                "Disposing Relier PostgreSQL connection pool.",
+                extra={"pid": os.getpid()},
             )
             await self._engine.dispose()
             self._engine = None
