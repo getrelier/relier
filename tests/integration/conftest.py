@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import time
+import uuid
 
 import pytest_asyncio
 
@@ -26,9 +27,12 @@ class CeleryWorkerManager:
             "info",
             "-P",
             "solo",
+            "--without-mingle",
+            "--without-gossip",
         ]
 
-        with open("worker.log", "w") as log_file:
+        log_filename = f"worker_{uuid.uuid4().hex[:8]}.log"
+        with open(log_filename, "w") as log_file:
             process = subprocess.Popen(
                 cmd,
                 env=self.env,
@@ -44,6 +48,8 @@ class CeleryWorkerManager:
         while time.time() - start_time < timeout:
             workers = await redis_client.smembers("rl:workers")
             if workers:
+                # Give the Consumer an extra breath to stabilize before we proceed
+                await asyncio.sleep(2)
                 ready = True
                 break
             await asyncio.sleep(0.5)
@@ -71,17 +77,15 @@ class CeleryWorkerManager:
             self.processes.remove(entry)
 
     def cleanup_all(self):
-        for entry in self.processes:
-            process, log_file = entry
-            try:
-                process.terminate()
-                process.wait(timeout=5)
-            except Exception:
-                with contextlib.suppress(Exception):
-                    process.kill()
+        for process, log_file in self.processes:
+            process.kill()
+            process.wait()
             if log_file:
-                with contextlib.suppress(Exception):
-                    log_file.close()
+                log_file.close()
+                # Delete the log file automatically if the test passed
+                if os.path.exists(log_file.name):
+                    with contextlib.suppress(OSError):
+                        os.remove(log_file.name)
         self.processes.clear()
 
 

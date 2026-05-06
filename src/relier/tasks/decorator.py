@@ -27,6 +27,9 @@ Usage::
     async def process_document(doc_id: str) -> dict:
         result = await embed_and_store(doc_id)
         return result
+
+    Timeout features are only supported for async functions.
+    Sync tasks will raise an error if timeout parameters are passed.
 """
 
 import asyncio
@@ -37,7 +40,7 @@ import json
 import logging
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 
 # Module-level imports are intentionally eager to fail fast at worker startup.
 from typing import Any
@@ -57,6 +60,7 @@ from relier.core.schema import SchemaRegistry
 from relier.core.slo import slo_metrics
 from relier.core.timeouts import TimeoutEnforcer
 from relier.storage.redis import get_relier_redis
+from relier.tasks.context import TaskContext, _task_context_var
 from relier.telemetry.metrics import (
     idempotency_hits_total,
     task_duration_ms,
@@ -75,7 +79,7 @@ def rl_task(
     idempotency_ttl: int = 3600,
     soft_timeout: int | None = None,
     hard_timeout: int | None = None,
-    on_soft_timeout: Callable | None = None,
+    on_soft_timeout: Callable[[TaskContext], Awaitable[None]] | None = None,
 ) -> Callable:
     """Decorate a function with the full Relier reliability stack.
 
@@ -89,11 +93,23 @@ def rl_task(
     """
 
     def decorator(func: Callable) -> Callable:
+        """The actual decorator applied to the user function."""
         is_async = inspect.iscoroutinefunction(func)
+
+        if not is_async and (soft_timeout or hard_timeout or on_soft_timeout):
+            logger.warning(
+                f"Sync function '{func.__name__}' decorated with timeout params. "
+                "Timeouts are only supported for async tasks; they will be ignored."
+            )
+            raise ValueError(
+                "Timeout parameters are only supported for async functions."
+            )
+
         task_name = f"{func.__module__}.{func.__name__}"
 
         @functools.wraps(func)
         def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+            """The Celery task wrapper function that orchestrates the entire lifecycle."""
             task_id: str = self.request.id or str(uuid.uuid4())
             worker_id: str = self.request.hostname or "unknown-worker"
             loop = _get_worker_loop()
@@ -188,90 +204,116 @@ def rl_task(
 
                 start_time = time.perf_counter()
 
-                with tracer.start_as_current_span(
-                    f"rl.task.{task_name}",
-                    attributes={
-                        "rl.task.id": task_id,
-                        "rl.task.name": task_name,
-                        "rl.worker.id": worker_id,
-                        "rl.queue": phoenix_payload["queue"],
-                    },
-                ) as span:
-                    try:
-                        if is_async:
-                            if soft_timeout or hard_timeout:
-                                result = await TimeoutEnforcer.run(
-                                    func,
-                                    args,
-                                    kwargs,
-                                    soft=soft_timeout,
-                                    hard=hard_timeout,
-                                    on_soft=on_soft_timeout,
-                                    task_id=task_id,
-                                )
+                checkpoint = kwargs.pop("checkpoint", None)
+
+                ctx = TaskContext(
+                    task_id=task_id,
+                    task_name=task_name,
+                    args=args,
+                    kwargs=kwargs,
+                    worker_id=worker_id,
+                    partial_result=checkpoint,
+                )
+
+                token = _task_context_var.set(ctx)
+
+                try:
+                    # Check if the user wants the context
+                    sig = inspect.signature(func)
+                    if "ctx" in sig.parameters:
+                        kwargs["ctx"] = ctx
+
+                    with tracer.start_as_current_span(
+                        f"rl.task.{task_name}",
+                        attributes={
+                            "rl.task.id": task_id,
+                            "rl.task.name": task_name,
+                            "rl.worker.id": worker_id,
+                            "rl.queue": phoenix_payload["queue"],
+                        },
+                    ) as span:
+                        try:
+                            if is_async:
+                                if soft_timeout or hard_timeout:
+                                    result = await TimeoutEnforcer.run(
+                                        func,
+                                        args,
+                                        kwargs,
+                                        soft=soft_timeout,
+                                        hard=hard_timeout,
+                                        on_soft=on_soft_timeout,
+                                        task_id=task_id,
+                                    )
+                                else:
+                                    result = await func(*args, **kwargs)
                             else:
-                                result = await func(*args, **kwargs)
-                        else:
-                            result = await asyncio.to_thread(func, *args, **kwargs)
+                                result = await asyncio.to_thread(func, *args, **kwargs)
 
-                        if idempotent and idem_result is not None:
-                            await idem_result.record_result(result)
+                            if idempotent and idem_result is not None:
+                                await idem_result.record_result(result)
 
-                        # Record Success
-                        await slo_metrics.record_event("success")
-                        tasks_total.add(
-                            1, {"status": "completed", "rl.task.name": task_name}
-                        )
-                        span.set_status(trace.Status(trace.StatusCode.OK))
-                        return result
-
-                    except TimeoutError as exc:
-                        logger.error(
-                            "Task hard timeout exceeded.",
-                            extra={"task_id": task_id, "hard_timeout": hard_timeout},
-                        )
-                        await slo_metrics.record_event("failure")
-                        tasks_total.add(
-                            1,
-                            {
-                                "status": "failed",
-                                "rl.task.name": task_name,
-                                "reason": "timeout",
-                            },
-                        )
-                        span.record_exception(exc)
-                        span.set_status(
-                            trace.Status(
-                                trace.StatusCode.ERROR, "Hard timeout exceeded"
+                            # Record Success
+                            await slo_metrics.record_event("success")
+                            tasks_total.add(
+                                1, {"status": "completed", "rl.task.name": task_name}
                             )
-                        )
-                        raise SoftTimeLimitExceeded(str(exc)) from exc
-                    except Exception as exc:
-                        logger.error(
-                            "Task execution failed.",
-                            extra={"task_id": task_id},
-                            exc_info=True,
-                        )
-                        await slo_metrics.record_event("failure")
-                        tasks_total.add(
-                            1, {"status": "failed", "rl.task.name": task_name}
-                        )
-                        span.record_exception(exc)
-                        span.set_status(trace.Status(trace.StatusCode.ERROR, str(exc)))
-                        raise
-                    finally:
-                        duration_ms = (time.perf_counter() - start_time) * 1000
-                        task_duration_ms.record(
-                            duration_ms, {"rl.task.name": task_name}
-                        )
+                            span.set_status(trace.Status(trace.StatusCode.OK))
+                            return result
 
-                        if _sh is not None:
-                            _sh.untrack_task(task_id)
+                        except TimeoutError as exc:
+                            logger.error(
+                                "Task hard timeout exceeded.",
+                                extra={
+                                    "task_id": task_id,
+                                    "hard_timeout": hard_timeout,
+                                },
+                            )
+                            await slo_metrics.record_event("failure")
+                            tasks_total.add(
+                                1,
+                                {
+                                    "status": "failed",
+                                    "rl.task.name": task_name,
+                                    "reason": "timeout",
+                                },
+                            )
+                            span.record_exception(exc)
+                            span.set_status(
+                                trace.Status(
+                                    trace.StatusCode.ERROR, "Hard timeout exceeded"
+                                )
+                            )
+                            raise SoftTimeLimitExceeded(str(exc)) from exc
+                        except Exception as exc:
+                            logger.error(
+                                "Task execution failed.",
+                                extra={"task_id": task_id},
+                                exc_info=True,
+                            )
+                            await slo_metrics.record_event("failure")
+                            tasks_total.add(
+                                1, {"status": "failed", "rl.task.name": task_name}
+                            )
+                            span.record_exception(exc)
+                            span.set_status(
+                                trace.Status(trace.StatusCode.ERROR, str(exc))
+                            )
+                            raise
+                        finally:
+                            duration_ms = (time.perf_counter() - start_time) * 1000
+                            task_duration_ms.record(
+                                duration_ms, {"rl.task.name": task_name}
+                            )
 
-                        pipe = redis.pipeline()
-                        pipe.zrem(inflight_key, task_id)
-                        await pipe.execute()
-                        await PhoenixRegistry.complete(task_id)
+                            if _sh is not None:
+                                _sh.untrack_task(task_id)
+
+                            pipe = redis.pipeline()
+                            pipe.zrem(inflight_key, task_id)
+                            await pipe.execute()
+                            await PhoenixRegistry.complete(task_id)
+                finally:
+                    _task_context_var.reset(token)
 
             try:
                 if loop.is_running():

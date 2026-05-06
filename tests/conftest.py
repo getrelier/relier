@@ -1,9 +1,16 @@
+import asyncio
 import os
+import sys
 
 import pytest
 import pytest_asyncio
 
 from relier.storage.redis import get_relier_redis
+
+# Windows compatibility: ProactorEventLoop has issues with async operations timing out.
+# Use the more stable WindowsSelectorEventLoopPolicy instead.
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # ==========================================
 # Container Lifecycle Management
@@ -30,16 +37,43 @@ def postgres_url():
 @pytest.fixture(scope="session")
 def redis_url():
     """Spin up Redis once per test session, or use CI provided URL."""
+    import time
+
     from testcontainers.redis import RedisContainer
 
     if ci_url := os.environ.get("RELIER_REDIS_URL"):
+        print(f"Using CI-provided Redis URL: {ci_url}")
         yield ci_url
         return
 
-    with RedisContainer("redis:7-alpine") as redis:
-        host = redis.get_container_host_ip()
-        port = redis.get_exposed_port(6379)
-        yield f"redis://{host}:{port}/0"
+    print("Starting Redis container...")
+    try:
+        with RedisContainer("redis:7-alpine") as redis:
+            host = redis.get_container_host_ip()
+            port = redis.get_exposed_port(6379)
+            url = f"redis://{host}:{port}/0"
+            print(f"Redis container started at {host}:{port}")
+
+            # Wait for Redis to be ready with retries
+            for attempt in range(30):
+                try:
+                    import socket
+
+                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    sock.settimeout(1)
+                    result = sock.connect_ex((host, int(port)))
+                    sock.close()
+                    if result == 0:
+                        print(f"✓ Redis container is ready at {url}")
+                        break
+                except Exception as e:
+                    print(f"Redis not ready (attempt {attempt + 1}/30): {e}")
+                time.sleep(0.5)
+
+            yield url
+    except Exception as e:
+        print(f"ERROR: Failed to start Redis container: {e}")
+        raise
 
 
 # ==========================================
@@ -61,18 +95,15 @@ def setup_env(postgres_url, redis_url):
 
     get_settings.cache_clear()
 
-    # Also ensure the global managers are reset to pick up new settings
-    # We use run_until_complete if we were in an async context, but this is a sync session fixture.
-    # The managers will lazy-reinitialize on next access.
-    import asyncio
+    # Reset managers to pick up new settings using asyncio.run() for proper loop handling
+    async def reset_managers():
+        from relier.storage.database import db_manager
+        from relier.storage.redis import redis_manager
 
-    from relier.storage.database import db_manager
-    from relier.storage.redis import redis_manager
+        await redis_manager._test_reset()
+        await db_manager._test_reset()
 
-    loop = asyncio.new_event_loop()
-    loop.run_until_complete(redis_manager._test_reset())
-    loop.run_until_complete(db_manager._test_reset())
-    loop.close()
+    asyncio.run(reset_managers())
 
     # Reconfigure Celery app if it has been imported already
     try:
@@ -119,4 +150,22 @@ async def redis_client(setup_env):
     yield client
 
     # Crucial: Clean up keys after every test so they don't leak into the next one
-    await client.flushdb()
+    # Use a timeout and handle gracefully in case Redis is unavailable
+    try:
+        await asyncio.wait_for(client.flushdb(), timeout=5.0)
+    except (TimeoutError, Exception) as e:
+        print(f"Warning: Could not flush Redis during teardown: {e}")
+        # Don't fail the test because of teardown issues
+        pass
+
+
+@pytest.fixture(scope="session", autouse=True)
+def nuke_stale_workers():
+    import subprocess
+
+    # This kills any leftover celery workers before the session starts
+    if sys.platform == "win32":
+        subprocess.run(
+            ["taskkill", "/F", "/IM", "celery.exe", "/T"], capture_output=True
+        )
+    yield

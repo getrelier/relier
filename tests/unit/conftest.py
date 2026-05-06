@@ -38,8 +38,12 @@ class FakeRedis:
         self.hdata = {}
         self.zdata = {}  # {key: {member: score}}
 
+    def _s(self, key):
+        return key.decode() if isinstance(key, bytes) else str(key)
+
     async def get(self, key):
-        return self.data.get(key)
+        val = self.data.get(key)
+        return val.encode() if isinstance(val, str) else val
 
     async def set(self, key, value, ex=None, nx=False):
         if nx and key in self.data:
@@ -56,18 +60,40 @@ class FakeRedis:
     async def exists(self, key):
         return 1 if (key in self.data or key in self.hdata or key in self.zdata) else 0
 
-    async def hset(self, name, key, value):
+    async def hset(self, name, key=None, value=None, mapping=None):
+        name = self._s(name)
         if name not in self.hdata:
             self.hdata[name] = {}
-        self.hdata[name][key] = str(value)
+
+        if mapping is not None:
+            for k, v in mapping.items():
+                self.hdata[name][k] = str(v)
+            return len(mapping)
+        if key is not None:
+            self.hdata[name][key] = str(value)
+            return 1
+        return 0
 
     async def hget(self, name, key):
-        return self.hdata.get(name, {}).get(key)
+        name = self._s(name)
+        key = self._s(key)
+
+        val = self.hdata.get(name, {}).get(key)
+        return val.encode() if isinstance(val, str) else val
 
     async def hgetall(self, name):
-        return dict(self.hdata.get(name, {}))
+        name = self._s(name)
+        data = self.hdata.get(name, {})
+        return {
+            (k.encode() if isinstance(k, str) else k): (
+                v.encode() if isinstance(v, str) else v
+            )
+            for k, v in data.items()
+        }
 
     async def hexists(self, name, key):
+        name = self._s(name)
+        key = self._s(key)
         return 1 if key in self.hdata.get(name, {}) else 0
 
     async def hdel(self, name, *keys):
@@ -89,7 +115,8 @@ class FakeRedis:
         )
         matched_keys = [k for k in all_keys if not match or fnmatch.fnmatch(k, match)]
         for k in matched_keys:
-            yield k
+            # Yield bytes to mimic real Redis aioredis behavior
+            yield k.encode("utf-8") if isinstance(k, str) else k
 
     async def zadd(self, key, mapping):
         if key not in self.zdata:
@@ -208,15 +235,34 @@ class FakePipeline:
         self.commands.append(("delete", args, kwargs))
         return self
 
+    def expire(self, *args, **kwargs):
+        self.commands.append(("expire", args, kwargs))
+        return self
+
+    def exists(self, *args, **kwargs):
+        self.commands.append(("exists", args, kwargs))
+        return self
+
+    def hexists(self, *args, **kwargs):
+        self.commands.append(("hexists", args, kwargs))
+        return self
+
     def sadd(self, *args, **kwargs):
         self.commands.append(("sadd", args, kwargs))
         return self
 
     async def execute(self):
+        """Execute commands and return the collected results."""
+        results = []
         for cmd, args, kwargs in self.commands:
             method = getattr(self.redis, cmd)
-            await method(*args, **kwargs)
+            # Await the command and capture its result
+            result = await method(*args, **kwargs)
+            results.append(result)
+
+        # Clear the pipeline after execution
         self.commands = []
+        return results
 
 
 def mock_run_coroutine(coro, loop=None):

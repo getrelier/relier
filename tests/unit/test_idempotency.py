@@ -21,7 +21,7 @@ class TestIdempotencyManager:
 
         # Verify Redis state is indeed IN_FLIGHT
         val = await mock_redis.get(f"rl:idem:{key}")
-        assert val == result._lock_id
+        assert val.decode() == result._lock_id
 
         # Record the result
         task_output = {"status": "success", "data": 42}
@@ -55,8 +55,11 @@ class TestIdempotencyManager:
 
         # owner_2 tries to clear it (should fail/do nothing)
         await idempotency_manager.clear_lock(key, "IN_FLIGHT:owner_2")
+
         assert await mock_redis.exists(full_key) == 1
-        assert await mock_redis.get(full_key) == "IN_FLIGHT:owner_1"
+
+        result = await mock_redis.get(full_key)
+        assert result.decode() == "IN_FLIGHT:owner_1"
 
         # owner_1 clears it (should succeed)
         await idempotency_manager.clear_lock(key, "IN_FLIGHT:owner_1")
@@ -74,7 +77,7 @@ class TestIdempotencyContextManager:
             await result.record_result(output)
 
         final = await mock_redis.get(f"rl:idem:{key}")
-        assert json.loads(final) == output
+        assert json.loads(final.decode()) == output
 
     async def test_lock_failure_releases_sentinel(self, mock_redis):
         """Test that the IN_FLIGHT sentinel is deleted if the task crashes."""

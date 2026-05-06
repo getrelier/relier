@@ -25,10 +25,11 @@ class TestPhoenixRegistry:
 
         # Verify Heartbeat exists with correct worker_id
         hb = await mock_redis.get(f"rl:hb:{task_id}")
-        assert hb == worker_id
+        assert hb.decode() == worker_id
 
         # Verify Payload exists
-        stored_payload = await mock_redis.get(f"rl:payload:{task_id}")
+        state = await mock_redis.hgetall(f"rl:phoenix:{task_id}")
+        stored_payload = state.get(b"payload") or state.get("payload")
         assert json.loads(stored_payload) == payload
 
         # Cleanup background task
@@ -42,7 +43,7 @@ class TestPhoenixRegistry:
         await PhoenixRegistry.complete(task_id)
 
         assert await mock_redis.exists(f"rl:hb:{task_id}") == 0
-        assert await mock_redis.exists(f"rl:payload:{task_id}") == 0
+        assert await mock_redis.exists(f"rl:phoenix:{task_id}") == 0
         assert task_id not in PhoenixRegistry._active_loops
 
     async def test_resurrection_logic_requeues_dead_task(self, mock_redis):
@@ -53,11 +54,16 @@ class TestPhoenixRegistry:
             "args": [1, 2],
             "kwargs": {"foo": "bar"},
             "queue": "high-priority",
-            "worker_id": "ghost_worker",
         }
 
         # Payload exists, but NO heartbeat
-        await mock_redis.set(f"rl:payload:{task_id}", json.dumps(payload))
+        await mock_redis.hset(
+            f"rl:phoenix:{task_id}",
+            mapping={
+                "payload": json.dumps(payload),
+                "worker_id": "ghost_worker",
+            },
+        )
 
         # Patch the Celery app where PhoenixRegistry looks for it
         with patch("relier.tasks.app.celery_app") as mock_celery:
@@ -81,12 +87,37 @@ class TestPhoenixRegistry:
                 task_id=task_id,
             )
 
+    @pytest.mark.asyncio
+    async def test_resurrection_includes_checkpoints(self, mock_redis):
+        task_id = "checkpoint_task"
+        # Add "kwargs" to the base payload
+        payload = {"task_name": "test", "kwargs": {}}
+        checkpoint = {"last_index": 100}
+
+        await mock_redis.hset(
+            f"rl:phoenix:{task_id}",
+            mapping={
+                "payload": json.dumps(payload),
+                "partial_result": json.dumps(checkpoint),
+            },
+        )
+
+        with patch("relier.tasks.app.celery_app") as mock_celery:
+            await PhoenixRegistry._scan_and_resurrect(
+                mock_redis, AsyncMock(), mock_celery
+            )
+            await asyncio.sleep(0.1)
+
+            # Verify checkpoint was merged into kwargs
+            called_args = mock_celery.send_task.call_args[1]
+            assert called_args["kwargs"]["checkpoint"] == checkpoint
+
     async def test_max_resurrections_routes_to_dlq(self, mock_redis):
         """Test that tasks that die too many times are quarantined."""
         task_id = "poison_pill"
         payload = {"task_name": "crash_loop"}
 
-        await mock_redis.set(f"rl:payload:{task_id}", json.dumps(payload))
+        await mock_redis.set(f"rl:phoenix:{task_id}", json.dumps(payload))
         # Set resurrection count to the limit (default 5)
         await mock_redis.set(f"rl:resurrections:{task_id}", "6")
 
@@ -99,7 +130,7 @@ class TestPhoenixRegistry:
         )
 
         # Verify keys were cleaned up
-        assert await mock_redis.exists(f"rl:payload:{task_id}") == 0
+        assert await mock_redis.exists(f"rl:phoenix:{task_id}") == 0
 
     async def test_monitor_transitions_state(self, mock_redis):
         """Test that the monitor tracks task progress through resurrection."""
@@ -115,7 +146,7 @@ class TestPhoenixRegistry:
 
         # Should now be in State 1 (Alive)
         state = await mock_redis.hget(PhoenixRegistry.MONITOR_KEY, task_id)
-        assert state == "1"
+        assert state.decode() == "1"
 
     async def test_refresh_loop_stops_when_key_deleted(self, mock_redis):
         """Test that the heartbeat loop exits if the key is removed (task finished)."""
@@ -157,7 +188,7 @@ class TestPhoenixGaps:
         """Test that multiple resurrectors don't duplicate tasks."""
         task_id = "contested_task"
         # Setup: Task is dead (payload exists, no heartbeat)
-        await mock_redis.set(f"rl:payload:{task_id}", json.dumps({"task_name": "t"}))
+        await mock_redis.set(f"rl:phoenix:{task_id}", json.dumps({"task_name": "t"}))
 
         # Setup: Another resurrector ALREADY holds the lock
         lock_key = PhoenixRegistry.RESURRECT_LOCK.format(task_id=task_id)
@@ -180,7 +211,7 @@ class TestPhoenixGaps:
         # State 1: Previously resurrected and was alive
         await mock_redis.hset(PhoenixRegistry.MONITOR_KEY, task_id, "1")
         # Heartbeat is gone again (new worker died)
-        await mock_redis.set(f"rl:payload:{task_id}", "{}")
+        await mock_redis.set(f"rl:phoenix:{task_id}", "{}")
 
         await PhoenixRegistry._monitor_resurrected_tasks(mock_redis)
 
@@ -190,7 +221,7 @@ class TestPhoenixGaps:
     async def test_scan_skip_active_tasks(self, mock_redis):
         """Test that the scanner ignores tasks that are healthy."""
         task_id = "healthy_task"
-        await mock_redis.set(f"rl:payload:{task_id}", "{}")
+        await mock_redis.set(f"rl:phoenix:{task_id}", "{}")
         await mock_redis.set(f"rl:hb:{task_id}", "worker-alive")
 
         with patch("relier.tasks.app.celery_app") as mock_celery:
@@ -226,7 +257,7 @@ class TestPhoenixResurrectionEdgeCases:
         # State 1: Previously resurrected and alive
         await mock_redis.hset(PhoenixRegistry.MONITOR_KEY, task_id, "1")
         # Simulate new worker death (Payload remains, heartbeat gone)
-        await mock_redis.set(f"rl:payload:{task_id}", "{}")
+        await mock_redis.set(f"rl:phoenix:{task_id}", "{}")
 
         await PhoenixRegistry._monitor_resurrected_tasks(mock_redis)
 

@@ -1,8 +1,10 @@
 import asyncio
+import json
 
 import pytest
 
 from relier.core.phoenix import PhoenixRegistry
+from relier.tasks.app import celery_app
 
 pytestmark = pytest.mark.asyncio
 
@@ -12,7 +14,6 @@ async def test_worker_kill_resurrects_task(celery_worker_manager, redis_client):
     Kill a worker mid-task. Verify the task completes by simulating the resurrector loop.
     """
     from relier.core.dlq import dead_letter_queue
-    from relier.tasks.app import celery_app
     from relier.tasks.debug import resurrection_task
 
     # Start Worker A
@@ -64,4 +65,43 @@ async def test_worker_kill_resurrects_task(celery_worker_manager, redis_client):
 
     # Verify Celery AsyncResult gets the final return value
     result = task.get(timeout=10)
+    assert result == "done"
+
+
+async def test_checkpoint_resume_real_flow(celery_worker_manager, redis_client):
+    from relier.tasks.debug import checkpoint_task
+
+    worker_a = await celery_worker_manager.start_worker(redis_client)
+
+    marker = "checkpoint_real"
+
+    task = checkpoint_task.delay(steps=5, marker=marker)
+
+    # wait until checkpoint step 2 is reached
+    for _ in range(40):
+        data = await redis_client.hgetall(f"rl:phoenix:{task.id}")
+        if data and "partial_result" in data:
+            checkpoint = json.loads(data["partial_result"])
+            if checkpoint.get("last_step") >= 2:
+                break
+        await asyncio.sleep(0.5)
+
+    # kill worker mid-execution
+    celery_worker_manager.kill_worker(worker_a)
+
+    # simulate heartbeat expiry
+    await redis_client.delete(f"rl:hb:{task.id}")
+
+    from relier.core.dlq import dead_letter_queue
+
+    await PhoenixRegistry._scan_and_resurrect(
+        redis_client, dead_letter_queue, celery_app
+    )
+
+    # start new worker
+    await celery_worker_manager.start_worker(redis_client)
+
+    # wait for completion
+    result = task.get(timeout=15)
+
     assert result == "done"
