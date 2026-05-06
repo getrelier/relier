@@ -43,7 +43,7 @@ class DeadLetterQueue:
 
         # Fetch payload from Redis if not supplied.
         if payload is None:
-            raw = await redis.get(f"rl:payload:{task_id}")
+            raw = await redis.get(f"rl:phoenix:{task_id}")
             payload = (
                 json.loads(raw)
                 if raw
@@ -69,7 +69,7 @@ class DeadLetterQueue:
         pipe.hset(cls.DLQ_HASH_KEY, task_id, json.dumps(dlq_entry))
         pipe.delete(
             f"rl:hb:{task_id}",
-            f"rl:payload:{task_id}",
+            f"rl:phoenix:{task_id}",
             f"rl:resurrections:{task_id}",
             f"rl:lock:resurrect:{task_id}",
         )

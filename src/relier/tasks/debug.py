@@ -1,6 +1,7 @@
 import asyncio
 
 from relier.storage.redis import get_relier_redis
+from relier.tasks.context import task_context
 from relier.tasks.decorator import rl_task
 
 
@@ -39,6 +40,24 @@ async def resurrection_task(duration: int, marker_key: str) -> str:
         await asyncio.sleep(0.1)
 
     await redis.set(f"test_marker:{marker_key}:finished", "1")
+    return "done"
+
+
+@rl_task()
+async def checkpoint_task(steps: int, marker: str) -> str:
+    redis = await get_relier_redis()
+
+    # Check for existing checkpoint
+    start_step = 0
+    if task_context.partial_result:
+        start_step = task_context.partial_result.get("last_step", 0)
+
+    for i in range(start_step, steps):
+        await asyncio.sleep(0.1)  # Simulate work
+        await task_context.set_partial({"last_step": i + 1})
+
+    # Set the marker that the test is polling for
+    await redis.set(f"test_marker:{marker}:finished", "1")
     return "done"
 
 

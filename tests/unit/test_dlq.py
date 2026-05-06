@@ -28,7 +28,7 @@ async def test_quarantine_with_payload(mock_redis):
 
 
 async def test_quarantine_fetches_payload_from_redis(mock_redis):
-    await mock_redis.set("rl:payload:123", json.dumps({"task_name": "redis.task"}))
+    await mock_redis.set("rl:phoenix:123", json.dumps({"task_name": "redis.task"}))
 
     await DeadLetterQueue.quarantine("123", "error")
 
