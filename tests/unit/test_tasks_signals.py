@@ -38,7 +38,7 @@ async def test_on_task_postrun_success():
         patch("relier.tasks.app.worker_loop", mock_loop),
         patch("relier.storage.redis.RedisManager.close", new_callable=AsyncMock),
         patch("relier.storage.database.DatabaseManager.close", new_callable=AsyncMock),
-        patch("relier.core.slo.slo_metrics.record_event", AsyncMock()) as mock_record,
+        patch("relier.core.slo.SLOMetrics.record_event", AsyncMock()) as mock_record,
         patch(
             "asyncio.run_coroutine_threadsafe",
             side_effect=mock_run_coroutine,

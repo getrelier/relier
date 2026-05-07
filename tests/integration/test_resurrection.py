@@ -13,8 +13,10 @@ async def test_worker_kill_resurrects_task(celery_worker_manager, redis_client):
     """
     Kill a worker mid-task. Verify the task completes by simulating the resurrector loop.
     """
-    from relier.core.dlq import dead_letter_queue
+    from relier.core.dlq import DeadLetterQueue
     from relier.tasks.debug import resurrection_task
+
+    dead_letter_queue = DeadLetterQueue()
 
     # Start Worker A
     worker_a = await celery_worker_manager.start_worker(redis_client)
@@ -92,7 +94,9 @@ async def test_checkpoint_resume_real_flow(celery_worker_manager, redis_client):
     # simulate heartbeat expiry
     await redis_client.delete(f"rl:hb:{task.id}")
 
-    from relier.core.dlq import dead_letter_queue
+    from relier.core.dlq import DeadLetterQueue
+
+    dead_letter_queue = DeadLetterQueue()
 
     await PhoenixRegistry._scan_and_resurrect(
         redis_client, dead_letter_queue, celery_app

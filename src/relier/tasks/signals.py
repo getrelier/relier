@@ -10,7 +10,7 @@ import logging
 
 from celery.signals import task_failure, task_postrun
 
-from relier.core.slo import slo_metrics
+from relier.core.slo import SLOMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ def on_task_postrun(
 
     if relier.tasks.app.worker_loop and relier.tasks.app.worker_loop.is_running():
         asyncio.run_coroutine_threadsafe(
-            slo_metrics.record_event(status), relier.tasks.app.worker_loop
+            SLOMetrics.record_event(status), relier.tasks.app.worker_loop
         )
     else:
         logger.warning(

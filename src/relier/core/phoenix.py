@@ -23,6 +23,7 @@ import logging
 from typing import Any
 
 from relier.config import Settings, get_settings
+from relier.core.dlq import DeadLetterQueue
 from relier.storage.redis import get_relier_redis
 
 logger = logging.getLogger(__name__)
@@ -169,6 +170,8 @@ class PhoenixRegistry:
         from relier.core.dlq import DeadLetterQueue  # avoid circular import
         from relier.tasks.app import celery_app  # avoid circular import
 
+        dead_letter_queue = DeadLetterQueue()
+
         settings = cls._get_settings()
         redis = await get_relier_redis()
         logger.info("Phoenix resurrector started.")
@@ -176,7 +179,7 @@ class PhoenixRegistry:
         while True:
             try:
                 await cls._monitor_resurrected_tasks(redis)
-                await cls._scan_and_resurrect(redis, DeadLetterQueue, celery_app)
+                await cls._scan_and_resurrect(redis, dead_letter_queue, celery_app)
                 logger.debug("Resurrector pass complete.")
             except Exception as exc:
                 logger.error(
@@ -250,13 +253,17 @@ class PhoenixRegistry:
     async def _scan_and_resurrect(
         cls,
         redis: Any,
-        dead_letter_queue: Any,
+        dead_letter_queue: DeadLetterQueue,
         celery_app: Any,
     ) -> None:
         """Phase 2: Scan for new dead tasks and re-queue them."""
         settings = cls._get_settings()
 
         async for tasks_key in redis.scan_iter(match="rl:phoenix:*", count=100):
+            state_data = await redis.hgetall(tasks_key)
+            if not state_data:
+                continue
+
             tasks_key_str = (
                 tasks_key.decode("utf-8")
                 if isinstance(tasks_key, bytes)
@@ -285,51 +292,51 @@ class PhoenixRegistry:
             res_key = cls.RESURRECTIONS_KEY.format(task_id=t_id)
             count = await redis.incr(res_key)
 
+            # Safely parse payload
+            raw_payload = state_data.get(b"payload") or state_data.get("payload")
+            try:
+                payload = json.loads(raw_payload) if raw_payload else {}
+            except (TypeError, json.JSONDecodeError):
+                logger.error("Failed to decode task payload.", extra={"task_id": t_id})
+                payload = {}
+
+            # Safely parse partial state
+            raw_partial = state_data.get(b"partial_result") or state_data.get(
+                "partial_result"
+            )
+            try:
+                partial_data = json.loads(raw_partial) if raw_partial else None
+            except (TypeError, json.JSONDecodeError):
+                logger.error(
+                    "Failed to decode partial result.", extra={"task_id": t_id}
+                )
+                partial_data = None
+
+            # Check for Quarantine
             if count > settings.max_resurrections:
                 logger.error(
                     "Task exceeded max resurrections; quarantining.",
                     extra={"task_id": t_id, "count": count},
                 )
                 await dead_letter_queue.quarantine(
-                    t_id, reason="max_resurrections_exceeded"
+                    t_id,
+                    reason="max_resurrections_exceeded",
+                    payload=payload,
+                    partial_result=partial_data,
                 )
                 await redis.delete(cls.TASKS_STATE_KEY.format(task_id=t_id), res_key)
                 await redis.hdel(cls.MONITOR_KEY, t_id)
                 continue
 
-            state_data = await redis.hgetall(tasks_key)
-            if not state_data:
+            # 4. Resurrection Path - Abort if payload is completely missing/corrupted
+            if not payload:
                 continue
 
-            try:
-                raw_payload = state_data.get(b"payload") or state_data.get("payload")
-                if not raw_payload:
-                    continue
-                payload = json.loads(raw_payload)
-
-            except (TypeError, json.JSONDecodeError):
-                logger.error(
-                    "Failed to decode task payload.",
-                    extra={"task_id": t_id},
-                )
-                continue
-
-            # include partial result in the payload for resurrection use.
-            raw_partial = state_data.get(b"partial_result") or state_data.get(
-                "partial_result"
-            )
-            if raw_partial:
-                try:
-                    if "kwargs" not in payload:
-                        payload["kwargs"] = {}
-
-                    payload["kwargs"]["checkpoint"] = json.loads(raw_partial)
-                except (TypeError, json.JSONDecodeError):
-                    logger.error(
-                        "Failed to decode partial result.",
-                        extra={"task_id": t_id},
-                    )
-                    continue
+            # 5. Inject partial result for Resurrection
+            if partial_data:
+                if "kwargs" not in payload:
+                    payload["kwargs"] = {}
+                payload["kwargs"]["checkpoint"] = partial_data
 
             raw_worker = state_data.get(b"worker_id") or state_data.get("worker_id")
             ghost_worker_id = (

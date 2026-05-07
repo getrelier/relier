@@ -84,7 +84,3 @@ class SLOMetrics:
         for window in cls.WINDOW_SIZES:
             report[window] = await cls.get_burn_rate(window)
         return report
-
-
-# Global instance
-slo_metrics = SLOMetrics()

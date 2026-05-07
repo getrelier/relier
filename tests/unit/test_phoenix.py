@@ -116,8 +116,15 @@ class TestPhoenixRegistry:
         """Test that tasks that die too many times are quarantined."""
         task_id = "poison_pill"
         payload = {"task_name": "crash_loop"}
+        partial = {"progress": "50%"}
 
-        await mock_redis.set(f"rl:phoenix:{task_id}", json.dumps(payload))
+        await mock_redis.hset(
+            f"rl:phoenix:{task_id}",
+            mapping={
+                "payload": json.dumps(payload),
+                "partial_result": json.dumps(partial),
+            },
+        )
         # Set resurrection count to the limit (default 5)
         await mock_redis.set(f"rl:resurrections:{task_id}", "6")
 
@@ -126,9 +133,11 @@ class TestPhoenixRegistry:
 
         # Verify it went to DLQ instead of re-queuing
         mock_dlq.quarantine.assert_called_once_with(
-            task_id, reason="max_resurrections_exceeded"
+            task_id,
+            reason="max_resurrections_exceeded",
+            payload=payload,
+            partial_result=partial,
         )
-
         # Verify keys were cleaned up
         assert await mock_redis.exists(f"rl:phoenix:{task_id}") == 0
 

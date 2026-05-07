@@ -43,7 +43,7 @@ class TestTasksApp:
         import gc
 
         for obj in gc.get_objects():
-            # Combined the coroutine check and the name filter using 'and'
+            # Combined the coroutine check and the name filter
             if asyncio.iscoroutine(obj) and any(
                 name in str(obj)
                 for name in ["init_worker", "_warm_up", "_presence_loop"]

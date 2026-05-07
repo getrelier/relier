@@ -47,7 +47,7 @@ class TestTasksDecorator:
 
     # -----------------------------------------------------------------------
     # Use standard synchronous tests below. This forces the decorator to use
-    # its native `run_until_complete` logic, fully executing the async bridge!
+    # its native `run_until_complete` logic, fully executing the async bridge
     # -----------------------------------------------------------------------
 
     def _ensure_no_loop(self):
@@ -55,8 +55,6 @@ class TestTasksDecorator:
         try:
             loop = asyncio.get_running_loop()
             if loop.is_running():
-                # We can't really stop it if it's the current thread's loop
-                # but we can at least warn or try to clear it.
                 pass
         except RuntimeError:
             pass
@@ -137,7 +135,7 @@ class TestTasksDecorator:
                 new_callable=AsyncMock,
             ) as mock_comp,
             patch(
-                "relier.core.slo.slo_metrics.record_event",
+                "relier.core.slo.SLOMetrics.record_event",
                 new_callable=AsyncMock,
             ),
             patch("relier.tasks.decorator._get_worker_loop") as mock_get_loop,
@@ -170,7 +168,7 @@ class TestTasksDecorator:
                 new_callable=AsyncMock,
             ),
             patch(
-                "relier.core.slo.slo_metrics.record_event",
+                "relier.core.slo.SLOMetrics.record_event",
                 new_callable=AsyncMock,
             ),
             patch("relier.tasks.decorator._get_worker_loop") as mock_get_loop,
@@ -200,7 +198,7 @@ class TestTasksDecorator:
                 new_callable=AsyncMock,
             ),
             patch(
-                "relier.core.slo.slo_metrics.record_event",
+                "relier.core.slo.SLOMetrics.record_event",
                 new_callable=AsyncMock,
             ),
             patch(
@@ -253,7 +251,7 @@ class TestTasksDecorator:
         fail_task.name = "fail_task"
 
         with (
-            patch("relier.core.slo.slo_metrics.record_event", new_callable=AsyncMock),
+            patch("relier.core.slo.SLOMetrics.record_event", new_callable=AsyncMock),
             patch("relier.tasks.decorator._get_worker_loop") as mock_get_loop,
         ):
             mock_get_loop.return_value = asyncio.new_event_loop()

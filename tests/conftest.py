@@ -90,7 +90,7 @@ def setup_env(postgres_url, redis_url):
     os.environ["RELIER_DATABASE_URL"] = postgres_url
     os.environ["RELIER_REDIS_URL"] = redis_url
 
-    # CRITICAL: Clear the settings cache so the new environment variables are picked up.
+    # Clear the settings cache so the new environment variables are picked up.
     from relier.config import get_settings
 
     get_settings.cache_clear()
@@ -145,17 +145,16 @@ async def redis_client(setup_env):
     Provides a live, connected Redis client for the test.
     The database is flushed after every test to ensure isolation.
     """
-    # This uses your actual library code to connect to the testcontainer
+    # This uses the actual library code to connect to the testcontainer
     client = await get_relier_redis()
     yield client
 
-    # Crucial: Clean up keys after every test so they don't leak into the next one
+    # Clean up keys after every test so they don't leak into the next one
     # Use a timeout and handle gracefully in case Redis is unavailable
     try:
         await asyncio.wait_for(client.flushdb(), timeout=5.0)
     except (TimeoutError, Exception) as e:
         print(f"Warning: Could not flush Redis during teardown: {e}")
-        # Don't fail the test because of teardown issues
         pass
 
 
