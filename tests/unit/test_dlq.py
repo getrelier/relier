@@ -28,13 +28,28 @@ async def test_quarantine_with_payload(mock_redis):
 
 
 async def test_quarantine_fetches_payload_from_redis(mock_redis):
-    await mock_redis.set("rl:phoenix:123", json.dumps({"task_name": "redis.task"}))
+    task_id = "123"
+    # Manual key construction to match what DeadLetterQueue.quarantine uses
+    # Usually rl:phoenix:{task_id} or rl:heartbeat:{task_id}
+    key = f"rl:phoenix:{task_id}"
 
-    await DeadLetterQueue.quarantine("123", "error")
+    payload = {
+        "task_name": "redis.task",
+        "args": [1, 2],
+        "kwargs": {},
+        "enqueued_at": "2026-05-07T00:00:00",
+    }
 
-    stored = await mock_redis.hget(DeadLetterQueue.DLQ_HASH_KEY, "123")
+    await mock_redis.set(key, json.dumps(payload))
+
+    # This call should now find the key and move 'redis.task' instead of 'unknown'
+    await DeadLetterQueue.quarantine(task_id, "test_error")
+
+    stored = await mock_redis.hget(DeadLetterQueue.DLQ_HASH_KEY, task_id)
     entry = json.loads(stored)
+
     assert entry["task_name"] == "redis.task"
+    assert entry["error"] == "test_error"
 
 
 async def test_quarantine_payload_missing(mock_redis):

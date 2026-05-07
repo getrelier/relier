@@ -1,0 +1,105 @@
+name: relier-cluster
+
+services:
+  # =====================================================================
+  # Infrastructure
+  # =====================================================================
+  redis:
+    image: redis:7.2-alpine
+    container_name: relier-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: relier-postgres
+    environment:
+      POSTGRES_USER: relier
+      POSTGRES_PASSWORD: relier_dev
+      POSTGRES_DB: relier
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U relier -d relier"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # =========================================================================
+  # Application
+  # =========================================================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: relier-api
+    command: uvicorn relier.api.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./src:/app/src  # Hot-reloading for local dev
+    ports:
+      - "8000:8000"
+    environment:
+      - RELIER_ENV=development
+      - RELIER_REDIS_URL=redis://redis:6379/0
+      - RELIER_DATABASE_URL=postgresql+asyncpg://relier:relier_dev@postgres:5432/relier
+      - C_FORCE_ROOT=true
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Note: concurrency=8 ensures we can test multiplexing,
+    # but we set worker_prefetch_multiplier=1 in the app.py to prevent OOMs
+    command: celery -A relier.tasks.app worker --loglevel=info --concurrency=8
+    volumes:
+      - ./src:/app/src  # Hot-reloading
+    environment:
+      - RELIER_ENV=development
+      - RELIER_REDIS_URL=redis://redis:6379/0
+      - RELIER_DATABASE_URL=postgresql+asyncpg://relier:relier_dev@postgres:5432/relier
+      - C_FORCE_ROOT=true
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  resurrector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: relier-resurrector
+    command: rl run-resurrector
+    volumes:
+      - ./src:/app/src
+    environment:
+      - RELIER_ENV=development
+      - RELIER_REDIS_URL=redis://redis:6379/0
+      - RELIER_DATABASE_URL=postgresql+asyncpg://relier:relier_dev@postgres:5432/relier
+      - C_FORCE_ROOT=true
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+
+volumes:
+  redis_data:
+  postgres_data:

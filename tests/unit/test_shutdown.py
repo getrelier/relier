@@ -52,10 +52,7 @@ class TestShutdown:
     async def test_drain_idempotent(self, handler):
         """Verify that multiple calls to drain are collapsed."""
         handler._draining = True
-        # Calling drain when already draining should return immediately
         await handler.drain()
-        # If it didn't return, it would try to import celery_app and fail if not mocked
-        # But we check _draining flag first.
 
     @pytest.mark.asyncio
     async def test_drain_clean_completion(self, handler):

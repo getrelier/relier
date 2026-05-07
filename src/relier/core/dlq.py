@@ -12,8 +12,9 @@ DLQ key layout::
 
 import json
 import logging
+from collections.abc import Awaitable
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from relier.storage.redis import get_relier_redis
 
@@ -31,6 +32,7 @@ class DeadLetterQueue:
         task_id: str,
         reason: str,
         payload: dict[str, Any] | None = None,
+        partial_result: Any | None = None,
     ) -> None:
         """Move a task into the DLQ and clean up its active Phoenix state.
 
@@ -41,17 +43,40 @@ class DeadLetterQueue:
         """
         redis = await get_relier_redis()
 
-        # Fetch payload from Redis if not supplied.
+        # Fetch payload from Redis if not supplied.  The Phoenix state is
+        # typically stored as a Hash with a `payload` field, but older code or
+        # tooling may store a raw JSON string at the key. Try both formats so
+        # quarantine is resilient.
         if payload is None:
-            raw = await redis.get(f"rl:phoenix:{task_id}")
+            phoenix_key = f"rl:phoenix:{task_id}"
+            raw = await cast(Awaitable[Any], redis.hget(phoenix_key, "payload"))
+            if not raw:
+                # Fallback: try a plain string value at the same key.
+                raw = await cast(Awaitable[Any], redis.get(phoenix_key))
+
             payload = (
                 json.loads(raw)
                 if raw
                 else {"error": "Payload lost prior to quarantine."}
             )
 
-        raw_count = await redis.get(f"rl:resurrections:{task_id}")
+        # Fetch resurrection count
+        raw_count = raw_count = await cast(
+            Awaitable[Any], redis.get(f"rl:resurrections:{task_id}")
+        )
         resurrection_count = int(raw_count) if raw_count else 0
+
+        # 3. Capture the partial result safely
+        raw_partial = await cast(
+            Awaitable[Any], redis.hget(f"rl:phoenix:{task_id}", "partial_result")
+        )
+
+        # Parse it if it exists and wasn't explicitly provided in the args
+        if not partial_result and raw_partial:
+            try:
+                partial_result = json.loads(raw_partial)
+            except json.JSONDecodeError:
+                partial_result = None
 
         dlq_entry: dict[str, Any] = {
             "task_id": task_id,
@@ -59,7 +84,11 @@ class DeadLetterQueue:
             "queue": payload.get("queue", "default"),
             "args": payload.get("args", []),
             "kwargs": payload.get("kwargs", {}),
+            "partial_result": partial_result,
             "reason": reason,
+            # Backwards compatibility: some callers / consumers expect an
+            # `error` field rather than `reason`.
+            "error": reason,
             "resurrections": resurrection_count,
             "quarantined_at": datetime.now(UTC).isoformat(),
         }
@@ -73,7 +102,7 @@ class DeadLetterQueue:
             f"rl:resurrections:{task_id}",
             f"rl:lock:resurrect:{task_id}",
         )
-        await pipe.execute()
+        await cast(Awaitable[Any], pipe.execute())
 
         logger.critical(
             "Task quarantined to DLQ.",
@@ -143,10 +172,21 @@ class DeadLetterQueue:
             )
             return False
 
+        # Prepare kwargs, injecting stored partial_result as `checkpoint` if present
+        kwargs = entry.get("kwargs") or {}
+        partial = entry.get("partial_result")
+        if partial is not None:
+            kwargs["checkpoint"] = partial
+
+        logger.debug(
+            "Releasing DLQ task: sending to broker.",
+            extra={"task_id": task_id, "task_name": entry.get("task_name")},
+        )
+
         celery_app.send_task(
             entry["task_name"],
             args=entry.get("args", []),
-            kwargs=entry.get("kwargs", {}),
+            kwargs=kwargs,
             queue=entry.get("queue", "default"),
             task_id=task_id,  # Preserve original ID so Phoenix tracking continues.
         )
@@ -176,6 +216,3 @@ class DeadLetterQueue:
         await redis.delete(cls.DLQ_HASH_KEY)
         logger.warning("DLQ purged.", extra={"count": count})
         return int(count) if count else 0
-
-
-dead_letter_queue = DeadLetterQueue()

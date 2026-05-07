@@ -57,7 +57,7 @@ from relier.core.exceptions import (
 from relier.core.idempotency import idempotency_manager
 from relier.core.phoenix import PhoenixRegistry
 from relier.core.schema import SchemaRegistry
-from relier.core.slo import slo_metrics
+from relier.core.slo import SLOMetrics
 from relier.core.timeouts import TimeoutEnforcer
 from relier.storage.redis import get_relier_redis
 from relier.tasks.context import TaskContext, _task_context_var
@@ -253,7 +253,7 @@ def rl_task(
                                 await idem_result.record_result(result)
 
                             # Record Success
-                            await slo_metrics.record_event("success")
+                            await SLOMetrics.record_event("success")
                             tasks_total.add(
                                 1, {"status": "completed", "rl.task.name": task_name}
                             )
@@ -268,7 +268,7 @@ def rl_task(
                                     "hard_timeout": hard_timeout,
                                 },
                             )
-                            await slo_metrics.record_event("failure")
+                            await SLOMetrics.record_event("failure")
                             tasks_total.add(
                                 1,
                                 {
@@ -290,7 +290,7 @@ def rl_task(
                                 extra={"task_id": task_id},
                                 exc_info=True,
                             )
-                            await slo_metrics.record_event("failure")
+                            await SLOMetrics.record_event("failure")
                             tasks_total.add(
                                 1, {"status": "failed", "rl.task.name": task_name}
                             )
