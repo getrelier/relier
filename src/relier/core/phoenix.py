@@ -361,14 +361,21 @@ class PhoenixRegistry:
             # Mark for monitoring BEFORE sending to prevent any detection gap.
             await redis.hset(cls.MONITOR_KEY, t_id, 0)
 
-            asyncio.create_task(cls._safe_bg_send(t_id, payload, celery_app))
+            asyncio.create_task(
+                cls._safe_bg_send(
+                    t_id,
+                    payload,
+                    celery_app,
+                    priority=settings.resurrection_queue_priority
+                )
+            )
 
     @classmethod
-    async def _safe_bg_send(cls, task_id: str, payload: dict, celery_app: Any) -> None:
+    async def _safe_bg_send(cls, task_id: str, payload: dict, celery_app: Any, priority: int) -> None:
         """Wrapper to limit concurrency of background sends."""
         try:
             async with cls._send_semaphore:
-                await cls._bg_send(task_id, payload, celery_app)
+                await cls._bg_send(task_id, payload, celery_app, priority)
         except Exception as exc:
             logger.error(
                 "Error in background send wrapper.",
@@ -382,6 +389,7 @@ class PhoenixRegistry:
         task_id: str,
         payload: dict[str, Any],
         celery_app: Any,
+        priority: int
     ) -> None:
         """Re-queue a dead task on the Celery broker in a background task."""
         try:
@@ -389,7 +397,7 @@ class PhoenixRegistry:
 
             logger.info(
                 "Attempting to send task to broker.",
-                extra={"task_id": task_id, "task_name": payload.get("task_name")},
+                extra={"task_id": task_id, "task_name": payload.get("task_name"), "priority": priority},
             )
 
             await asyncio.wait_for(
@@ -401,11 +409,12 @@ class PhoenixRegistry:
                         kwargs=payload.get("kwargs", {}),
                         queue=payload.get("queue", "default"),
                         task_id=task_id,
+                        priority=priority,
                     ),
                 ),
                 timeout=10.0,
             )
-            logger.info("Task re-queued.", extra={"task_id": task_id})
+            logger.info("Task re-queued.", extra={"task_id": task_id, "priority": priority})
         except Exception as exc:
             logger.error(
                 "Failed to re-queue task.",
