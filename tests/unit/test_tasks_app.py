@@ -61,7 +61,7 @@ class TestTasksApp:
         relier.tasks.app.worker_loop = None
 
     @pytest.fixture(autouse=True)
-    def fake_sender():
+    def fake_sender(self):
         class FakeSender:
             def __init__(self, hostname):
                 self.hostname = hostname
