@@ -67,7 +67,6 @@ async def readiness(
         errors["redis"] = str(exc)
         logger.error("Readiness check: Redis unavailable.", extra={"error": str(exc)})
 
-
     if errors:
         raise HTTPException(
             status_code=503,

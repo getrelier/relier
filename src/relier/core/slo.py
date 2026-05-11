@@ -101,7 +101,9 @@ class SLOMetrics:
                 "Burn rate undefined because target SLO permits zero failures.",
                 extra={"window": window, "failures": failures},
             )
-            return 100.0  # Cap the value to avoid propagating infinite metrics downstream.
+            return (
+                100.0  # Cap the value to avoid propagating infinite metrics downstream.
+            )
 
         # Burn rate expresses how quickly the observed error rate is consuming
         # the allowable reliability budget.

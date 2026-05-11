@@ -23,6 +23,7 @@ Design rules
 * Dynamic identifiers are always appended in the final segment.
 * Storage topology changes should occur here first.
 """
+
 import uuid
 
 

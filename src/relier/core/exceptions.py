@@ -39,6 +39,7 @@ class IdempotencyInFlightError(RelierError):
         self.key = key
         super().__init__(f"Idempotency key '{key}' is already in-flight")
 
+
 # ==========================================================================
 # Phoenix & DLQ Exceptions
 # ==========================================================================
@@ -91,6 +92,7 @@ class SchemaMigrationError(RelierError):
     """
 
     pass
+
 
 # ============================================================================
 # Admission Control Exceptions

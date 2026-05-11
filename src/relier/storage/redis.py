@@ -92,7 +92,9 @@ class RedisManager:
         loop_id = id(asyncio.get_running_loop())
 
         if loop_id not in self._locks:
-            logger.debug("Initializing loop-local Redis creation lock -> [%s].", loop_id)
+            logger.debug(
+                "Initializing loop-local Redis creation lock -> [%s].", loop_id
+            )
             self._locks[loop_id] = asyncio.Lock()
 
         if loop_id not in self._clients:
@@ -125,7 +127,9 @@ class RedisManager:
                         health_check_interval=self.settings.redis_health_check_interval,
                         max_connections=self.settings.redis_max_connections,
                     )
-                    logger.debug("Redis connection pool initialized successfully. %s.", loop_id)
+                    logger.debug(
+                        "Redis connection pool initialized successfully. %s.", loop_id
+                    )
 
         return self._clients[loop_id]
 

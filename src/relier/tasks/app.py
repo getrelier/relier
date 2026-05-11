@@ -91,7 +91,9 @@ async def _presence_loop(worker_id: str) -> None:
     # Adaptive retry interval for degraded Redis connectivity.
     backoff = settings.heartbeat_ttl // 2
 
-    logger.debug("Worker presence heartbeat loop started.", extra={"worker_id": worker_id})
+    logger.debug(
+        "Worker presence heartbeat loop started.", extra={"worker_id": worker_id}
+    )
 
     while True:
         try:
@@ -103,7 +105,9 @@ async def _presence_loop(worker_id: str) -> None:
             await pipe.execute()
             backoff = settings.heartbeat_ttl // 2
         except Exception as exc:
-            logger.error("Worker presence heartbeat update failed.", extra={"error": str(exc)})
+            logger.error(
+                "Worker presence heartbeat update failed.", extra={"error": str(exc)}
+            )
 
             # Exponential backoff prevents tight retry loops during Redis outages.
             backoff = min(backoff * 2, 300)
@@ -132,7 +136,9 @@ async def _cleanup_dead_workers() -> None:
                     "Pruned stale workers from registry.", extra={"count": pruned}
                 )
         except Exception as exc:
-            logger.error("Worker registry cleanup pass failed.", extra={"error": str(exc)})
+            logger.error(
+                "Worker registry cleanup pass failed.", extra={"error": str(exc)}
+            )
         await asyncio.sleep(interval)
 
 
@@ -166,7 +172,9 @@ def _ensure_bridge() -> None:
         # execution threads.
         t = threading.Thread(target=_run_event_loop, args=(worker_loop,), daemon=True)
         t.start()
-        logger.debug("Async runtime bridge started for worker process. PID: %s", os.getpid())
+        logger.debug(
+            "Async runtime bridge started for worker process. PID: %s", os.getpid()
+        )
 
 
 # =============================================================================
@@ -201,13 +209,10 @@ def create_celery_app() -> Celery:
             ),
             Queue("low_priority", Exchange("low_priority"), routing_key="low_priority"),
         ),
-
         # Prevent workers from hoarding unacknowledged tasks.
         worker_prefetch_multiplier=1,
-
         # Acknowledge tasks only after execution completes successfully.
         task_acks_late=True,
-
         # Return tasks to the broker if a worker process crashes mid-execution.
         task_reject_on_worker_lost=True,
         task_track_started=True,
@@ -266,7 +271,10 @@ def init_worker_process(**kwargs: Any) -> None:
     if worker_loop is not None:
         asyncio.run_coroutine_threadsafe(redis_manager.get_client(), worker_loop)
 
-    logger.info("Worker runtime infrastructure initialized successfully.", extra={"hostname": hostname})
+    logger.info(
+        "Worker runtime infrastructure initialized successfully.",
+        extra={"hostname": hostname},
+    )
 
 
 @worker_ready.connect
@@ -290,7 +298,8 @@ def start_relier_identity(sender: Any, **kwargs: Any) -> None:
         )
 
     logger.info(
-        "Worker coordination services started successfully.", extra={"hostname": hostname}
+        "Worker coordination services started successfully.",
+        extra={"hostname": hostname},
     )
 
 
@@ -302,7 +311,7 @@ def shutdown_worker(**kwargs: object) -> None:
     global worker_loop, shutdown_handler, _presence_future, _cleanup_future
 
     if not worker_loop or not worker_loop.is_running():
-        return # The bridge may already be stopped during forced interpreter teardown.
+        return  # The bridge may already be stopped during forced interpreter teardown.
 
     logger.info("Worker shutdown initiated. Entering coordinated drain sequence.")
 

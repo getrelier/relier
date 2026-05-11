@@ -157,7 +157,9 @@ class GracefulShutdownHandler:
                     extra={"worker_id": self.worker_id},
                 )
         finally:
-            logger.info("Graceful worker drain complete.", extra={"worker_id": self.worker_id})
+            logger.info(
+                "Graceful worker drain complete.", extra={"worker_id": self.worker_id}
+            )
 
     async def _handoff_remaining(self) -> None:
         """

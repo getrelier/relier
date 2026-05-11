@@ -70,7 +70,9 @@ class DeadLetterQueue:
         # resilient to mixed storage formats.
 
         if payload is None:
-            raw = await cast(Awaitable[Any], redis.hget(RedisKeys.phoenix(task_id), "payload"))
+            raw = await cast(
+                Awaitable[Any], redis.hget(RedisKeys.phoenix(task_id), "payload")
+            )
             if not raw:
                 # Fallback: try a plain string value at the same key.
                 raw = await cast(Awaitable[Any], redis.get(RedisKeys.phoenix(task_id)))

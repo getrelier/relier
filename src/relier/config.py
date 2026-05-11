@@ -37,7 +37,6 @@ class Settings(BaseSettings):
     secret_key: SecretStr = Field(default=SecretStr("change-in-production"))
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
 
-
     # =========================================================================
     # Infrastructure — Redis
     # =========================================================================

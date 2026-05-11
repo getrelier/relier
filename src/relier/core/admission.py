@@ -165,8 +165,7 @@ class AdmissionController:
 
         try:
             result = await cast(
-                Awaitable[list[int]],
-                redis_client.evalsha(sha, 1, window_key, *args)
+                Awaitable[list[int]], redis_client.evalsha(sha, 1, window_key, *args)
             )
             return result
         except redis.exceptions.NoScriptError:
@@ -176,7 +175,7 @@ class AdmissionController:
             self._script_sha = await redis_client.script_load(_ADMISSION_LUA)
             result = await cast(
                 Awaitable[list[int]],
-                redis_client.evalsha(self._script_sha, 1, window_key, *args)
+                redis_client.evalsha(self._script_sha, 1, window_key, *args),
             )
             return result
 

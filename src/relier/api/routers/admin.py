@@ -86,4 +86,6 @@ async def list_workers() -> WorkerRegistry:
         else:
             decoded_workers.append(str(w))
 
-    return WorkerRegistry(active_workers=sorted(decoded_workers), count=len(decoded_workers))
+    return WorkerRegistry(
+        active_workers=sorted(decoded_workers), count=len(decoded_workers)
+    )

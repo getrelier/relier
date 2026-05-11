@@ -57,8 +57,6 @@ class PhoenixRegistry:
     - partial-state recovery
     """
 
-
-
     # Tracks the background heartbeat refresh task for each active execution.
     #
     # Intentionally process-local and class-level so any coroutine within the
@@ -367,7 +365,9 @@ class PhoenixRegistry:
         resurrected_count = 0
         scanned_count = 0
 
-        async for tasks_key in redis.scan_iter(match=f"{RedisKeys.PREFIX}:phoenix:*", count=100):
+        async for tasks_key in redis.scan_iter(
+            match=f"{RedisKeys.PREFIX}:phoenix:*", count=100
+        ):
             scanned_count += 1
 
             state_data = await redis.hgetall(tasks_key)  # type: ignore[misc]

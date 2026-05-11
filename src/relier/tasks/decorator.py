@@ -258,8 +258,12 @@ def rl_task(
                             await SLOMetrics.record_event("success")
 
                             pipe = redis.pipeline()
-                            pipe.incr(RedisKeys.metric_global("success"))  # persistent, no TTL
-                            pipe.incr(RedisKeys.metric_worker(worker_id, "success"))  # session counter
+                            pipe.incr(
+                                RedisKeys.metric_global("success")
+                            )  # persistent, no TTL
+                            pipe.incr(
+                                RedisKeys.metric_worker(worker_id, "success")
+                            )  # session counter
                             pipe.expire(
                                 RedisKeys.metric_worker(worker_id, "success"), 86400
                             )  # refresh TTL
@@ -290,8 +294,12 @@ def rl_task(
                             pipe = redis.pipeline()
                             pipe.incr(RedisKeys.metric_global("failed"))
                             pipe.incr(RedisKeys.metric_worker(worker_id, "failed"))
-                            pipe.expire(RedisKeys.metric_worker(worker_id, "failed"), 86400)
-                            pipe.expire(RedisKeys.metric_worker(worker_id, "success"), 86400)
+                            pipe.expire(
+                                RedisKeys.metric_worker(worker_id, "failed"), 86400
+                            )
+                            pipe.expire(
+                                RedisKeys.metric_worker(worker_id, "success"), 86400
+                            )
                             await pipe.execute()
 
                             tasks_total.add(
@@ -328,8 +336,12 @@ def rl_task(
                             pipe = redis.pipeline()
                             pipe.incr(RedisKeys.metric_global("failed"))
                             pipe.incr(RedisKeys.metric_worker(worker_id, "failed"))
-                            pipe.expire(RedisKeys.metric_worker(worker_id, "failed"), 86400)
-                            pipe.expire(RedisKeys.metric_worker(worker_id, "success"), 86400)
+                            pipe.expire(
+                                RedisKeys.metric_worker(worker_id, "failed"), 86400
+                            )
+                            pipe.expire(
+                                RedisKeys.metric_worker(worker_id, "success"), 86400
+                            )
 
                             await pipe.execute()
 
@@ -356,7 +368,8 @@ def rl_task(
                             # Record duration sample
                             try:
                                 await redis.lpush(
-                                    RedisKeys.task_durations(), str(duration_ms / 1000.0)
+                                    RedisKeys.task_durations(),
+                                    str(duration_ms / 1000.0),
                                 )  # type: ignore[misc]
                                 await redis.ltrim(RedisKeys.task_durations(), 0, 999)  # type: ignore[misc]
                             except Exception:

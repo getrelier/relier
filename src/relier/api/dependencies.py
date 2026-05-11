@@ -15,4 +15,3 @@ async def get_relier_redis_client() -> AsyncGenerator[Redis, None]:
     """Dependency for providing a shared Redis client."""
     client = await get_relier_redis()
     yield client
-
