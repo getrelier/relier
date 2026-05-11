@@ -52,3 +52,4 @@ htmlcov/
 
 # Databases
 *.sqlite3
+.aider*

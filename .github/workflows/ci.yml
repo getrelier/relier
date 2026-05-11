@@ -46,19 +46,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: relier
-          POSTGRES_PASSWORD: relier_dev
-          POSTGRES_DB: relier
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
@@ -77,7 +64,6 @@ jobs:
       - name: Run Pytest with 90% Coverage Requirement
         env:
           RELIER_REDIS_URL: redis://localhost:6379/0
-          RELIER_DATABASE_URL: postgresql+asyncpg://relier:relier_dev@localhost:5432/relier
         run: |
           uv run pytest tests/ \
             --cov=src/relier \
