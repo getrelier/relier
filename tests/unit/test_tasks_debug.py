@@ -5,7 +5,7 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_debug_tasks():
+async def test_debug_tasks() -> None:
     """Exercise debug tasks for coverage without nested loop errors."""
     import concurrent.futures
 
@@ -38,7 +38,6 @@ async def test_debug_tasks():
 
     with (
         patch("relier.storage.redis.RedisManager.close", new_callable=AsyncMock),
-        patch("relier.storage.database.DatabaseManager.close", new_callable=AsyncMock),
         patch(
             "relier.core.shutdown.GracefulShutdownHandler.drain",
             new_callable=AsyncMock,

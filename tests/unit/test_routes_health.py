@@ -3,7 +3,7 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-async def test_liveness_endpoint():
+async def test_liveness_endpoint() -> None:
     from httpx import ASGITransport, AsyncClient
 
     from relier.api.main import app
@@ -16,7 +16,7 @@ async def test_liveness_endpoint():
         assert r.json().get("status") == "ok"
 
 
-async def test_readiness_success(monkeypatch):
+async def test_readiness_success(monkeypatch) -> None:
     # Provide healthy fake dependencies
     async def fake_redis_dep():
         class FakeRedis:
@@ -25,19 +25,11 @@ async def test_readiness_success(monkeypatch):
 
         yield FakeRedis()
 
-    async def fake_db_dep():
-        class FakeDB:
-            async def execute(self, _):
-                return True
-
-        yield FakeDB()
-
     # Use dependency_overrides so the route picks up the test doubles.
     from relier.api import dependencies as deps_mod
     from relier.api.main import app
 
     app.dependency_overrides[deps_mod.get_relier_redis_client] = fake_redis_dep
-    app.dependency_overrides[deps_mod.get_relier_db] = fake_db_dep
 
     from httpx import ASGITransport, AsyncClient
 
@@ -51,7 +43,7 @@ async def test_readiness_success(monkeypatch):
         assert body["dependencies"]["redis"] == "connected"
 
 
-async def test_readiness_fails_when_redis_down(monkeypatch):
+async def test_readiness_fails_when_redis_down(monkeypatch) -> None:
     async def bad_redis():
         class BadRedis:
             async def ping(self):
@@ -59,18 +51,11 @@ async def test_readiness_fails_when_redis_down(monkeypatch):
 
         yield BadRedis()
 
-    async def good_db():
-        class GoodDB:
-            async def execute(self, _):
-                return True
-
-        yield GoodDB()
 
     from relier.api import dependencies as deps_mod
     from relier.api.main import app
 
     app.dependency_overrides[deps_mod.get_relier_redis_client] = bad_redis
-    app.dependency_overrides[deps_mod.get_relier_db] = good_db
 
     from httpx import ASGITransport, AsyncClient
 
@@ -84,7 +69,7 @@ async def test_readiness_fails_when_redis_down(monkeypatch):
         assert "redis" in body["detail"]["failures"]
 
 
-async def test_slo_metrics_endpoint(monkeypatch):
+async def test_slo_metrics_endpoint(monkeypatch) -> None:
     # Patch SLOMetrics.get_report
     async def fake_report():
         return {"window1": {"burn": 0.1}}

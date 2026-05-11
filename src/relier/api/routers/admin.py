@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Path
 from pydantic import BaseModel
 
 from relier.core.dlq import DeadLetterQueue
+from relier.core.keys import RedisKeys
 from relier.storage.redis import get_relier_redis
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -75,5 +76,14 @@ async def release_task(
 async def list_workers() -> WorkerRegistry:
     """Show the current worker registry."""
     redis = await get_relier_redis()
-    workers = await redis.smembers("rl:workers")  # type: ignore[misc]
-    return WorkerRegistry(active_workers=sorted(workers), count=len(workers))
+    workers = await redis.zrange(RedisKeys.workers(), 0, -1)
+
+    # decode bytes to string
+    decoded_workers = []
+    for w in workers:
+        if isinstance(w, bytes):
+            decoded_workers.append(w.decode("utf-8"))
+        else:
+            decoded_workers.append(str(w))
+
+    return WorkerRegistry(active_workers=sorted(decoded_workers), count=len(decoded_workers))

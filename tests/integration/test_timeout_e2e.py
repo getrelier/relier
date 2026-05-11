@@ -4,7 +4,7 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_task_hard_timeout_e2e(celery_worker_manager, redis_client):
+async def test_task_hard_timeout_e2e(celery_worker_manager, redis_client) -> None:
     from relier.tasks.debug import slow_task
 
     await celery_worker_manager.start_worker(redis_client)

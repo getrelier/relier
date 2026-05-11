@@ -3,13 +3,14 @@ import json
 
 import pytest
 
+from relier.core.keys import RedisKeys
 from relier.core.phoenix import PhoenixRegistry
 from relier.tasks.app import celery_app
 
 pytestmark = pytest.mark.asyncio
 
 
-async def test_worker_kill_resurrects_task(celery_worker_manager, redis_client):
+async def test_worker_kill_resurrects_task(celery_worker_manager, redis_client) -> None:
     """
     Kill a worker mid-task. Verify the task completes by simulating the resurrector loop.
     """
@@ -37,14 +38,14 @@ async def test_worker_kill_resurrects_task(celery_worker_manager, redis_client):
     assert started, "Task did not start on the initial worker"
 
     # Verify the heartbeat exists
-    assert await redis_client.exists(f"rl:hb:{task.id}") == 1
+    assert await redis_client.exists(RedisKeys.heartbeat(task.id)) == 1
 
     # KILL WORKER A
     celery_worker_manager.kill_worker(worker_a)
 
     # Simulate heartbeat expiration (to avoid waiting 30 seconds)
     # The heartbeat key is rl:hb:{task_id}
-    await redis_client.delete(f"rl:hb:{task.id}")
+    await redis_client.delete(RedisKeys.heartbeat(task.id))
 
     # Run the resurrection scan (simulating the background beat process)
     # This should find the orphaned task and requeue it
@@ -70,7 +71,7 @@ async def test_worker_kill_resurrects_task(celery_worker_manager, redis_client):
     assert result == "done"
 
 
-async def test_checkpoint_resume_real_flow(celery_worker_manager, redis_client):
+async def test_checkpoint_resume_real_flow(celery_worker_manager, redis_client) -> None:
     from relier.tasks.debug import checkpoint_task
 
     worker_a = await celery_worker_manager.start_worker(redis_client)
@@ -81,7 +82,7 @@ async def test_checkpoint_resume_real_flow(celery_worker_manager, redis_client):
 
     # wait until checkpoint step 2 is reached
     for _ in range(40):
-        data = await redis_client.hgetall(f"rl:phoenix:{task.id}")
+        data = await redis_client.hgetall(RedisKeys.phoenix(task.id))
         if data and "partial_result" in data:
             checkpoint = json.loads(data["partial_result"])
             if checkpoint.get("last_step") >= 2:
@@ -92,7 +93,7 @@ async def test_checkpoint_resume_real_flow(celery_worker_manager, redis_client):
     celery_worker_manager.kill_worker(worker_a)
 
     # simulate heartbeat expiry
-    await redis_client.delete(f"rl:hb:{task.id}")
+    await redis_client.delete(RedisKeys.heartbeat(task.id))
 
     from relier.core.dlq import DeadLetterQueue
 

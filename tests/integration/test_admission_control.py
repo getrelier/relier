@@ -6,7 +6,7 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-async def test_admission_control_e2e(redis_client):
+async def test_admission_control_e2e(redis_client) -> None:
     """End-to-end admission control test.
 
     This test configures a tiny admission window and limit, then exercises the

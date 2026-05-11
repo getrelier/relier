@@ -3,7 +3,7 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-async def test_admission_allows_when_admitted(monkeypatch):
+async def test_admission_allows_when_admitted(monkeypatch) -> None:
     """Middleware should allow requests when admission control admits them."""
     called = {}
 
@@ -36,7 +36,7 @@ async def test_admission_allows_when_admitted(monkeypatch):
         assert called.get("resource_key") == "tenant-42"
 
 
-async def test_admission_rejects_when_full(monkeypatch):
+async def test_admission_rejects_when_full(monkeypatch) -> None:
     """Middleware should reject requests when admission control denies them."""
 
     async def fake_check_capacity(resource_key="global"):
@@ -69,7 +69,7 @@ async def test_admission_rejects_when_full(monkeypatch):
         assert r.headers.get("Retry-After") == "5"
 
 
-async def test_exempt_paths_bypass_admission(monkeypatch):
+async def test_exempt_paths_bypass_admission(monkeypatch) -> None:
     """Health/readiness endpoints should bypass admission control entirely."""
     called = {"flag": False}
 

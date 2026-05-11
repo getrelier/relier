@@ -6,7 +6,7 @@ from relier.tasks.context import TaskContext
 
 
 @pytest.mark.asyncio
-async def test_task_context_properties():
+async def test_task_context_properties() -> None:
     """Verify TaskContext methods and properties."""
     ctx = TaskContext(
         task_id="123",

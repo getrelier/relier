@@ -5,7 +5,7 @@ import sys
 import pytest
 import pytest_asyncio
 
-from relier.storage.redis import get_relier_redis
+from relier.storage.redis import redis_manager
 
 # Windows compatibility: ProactorEventLoop has issues with async operations timing out.
 # Use the more stable WindowsSelectorEventLoopPolicy instead.
@@ -18,28 +18,11 @@ if sys.platform == "win32":
 
 
 @pytest.fixture(scope="session")
-def postgres_url():
-    """Spin up Postgres once per test session, or use CI provided URL."""
-    from testcontainers.postgres import PostgresContainer
-
-    if ci_url := os.environ.get("RELIER_DATABASE_URL"):
-        yield ci_url
-        return
-
-    with PostgresContainer("postgres:16-alpine") as postgres:
-        # Relier uses asyncpg
-        url = postgres.get_connection_url().replace(
-            "postgresql+psycopg2", "postgresql+asyncpg"
-        )
-        yield url
-
-
-@pytest.fixture(scope="session")
 def redis_url():
     """Spin up Redis once per test session, or use CI provided URL."""
     import time
 
-    from testcontainers.redis import RedisContainer
+    from testcontainers.redis import RedisContainer  # type: ignore[import-untyped]
 
     if ci_url := os.environ.get("RELIER_REDIS_URL"):
         print(f"Using CI-provided Redis URL: {ci_url}")
@@ -82,12 +65,11 @@ def redis_url():
 
 
 @pytest.fixture(scope="session", autouse=True)
-def setup_env(postgres_url, redis_url):
+def setup_env(redis_url) -> None:
     """
     Automatically inject the container URLs into the environment variables
     so application settings (e.g., Pydantic BaseSettings) pick them up.
     """
-    os.environ["RELIER_DATABASE_URL"] = postgres_url
     os.environ["RELIER_REDIS_URL"] = redis_url
 
     # Clear the settings cache so the new environment variables are picked up.
@@ -97,11 +79,9 @@ def setup_env(postgres_url, redis_url):
 
     # Reset managers to pick up new settings using asyncio.run() for proper loop handling
     async def reset_managers():
-        from relier.storage.database import db_manager
         from relier.storage.redis import redis_manager
 
         await redis_manager._test_reset()
-        await db_manager._test_reset()
 
     asyncio.run(reset_managers())
 
@@ -130,15 +110,6 @@ async def clean_redis_state(setup_env):
     await redis_manager._test_reset()
 
 
-@pytest_asyncio.fixture(autouse=True)
-async def clean_db_state(setup_env):
-    """Ensure global DatabaseManager state is wiped between tests."""
-    from relier.storage.database import db_manager
-
-    yield
-    await db_manager._test_reset()
-
-
 @pytest_asyncio.fixture
 async def redis_client(setup_env):
     """
@@ -146,9 +117,7 @@ async def redis_client(setup_env):
     The database is flushed after every test to ensure isolation.
     """
     # This uses the actual library code to connect to the testcontainer
-    client = await get_relier_redis()
-    yield client
-
+    client = await redis_manager.get_client()
     # Clean up keys after every test so they don't leak into the next one
     # Use a timeout and handle gracefully in case Redis is unavailable
     try:
@@ -156,6 +125,9 @@ async def redis_client(setup_env):
     except (TimeoutError, Exception) as e:
         print(f"Warning: Could not flush Redis during teardown: {e}")
         pass
+
+    yield client
+    await redis_manager.close()
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -1,18 +1,28 @@
 """
 Relier Core — Idempotency Management.
 
-Provides atomic distributed locking and result caching to ensure tasks are
-executed **exactly once**, even when retried or resurrected.
+Provides distributed execution deduplication and result replay semantics
+for Celery tasks.
+
+The idempotency subsystem guarantees that logically identical work is
+executed at most once within the configured TTL window, even across
+retries, worker crashes, and Phoenix-driven resurrection flows.
 
 Implementation
 --------------
-* ``ACQUIRE_LUA``: Atomically checks for an existing result.  If found,
-  returns it. If not, writes an ``IN_FLIGHT:<uuid>`` sentinel and returns
-  the claimed lock ID.  This prevents a race where two concurrent executions
-  both see ``GET`` → ``None`` and both proceed.
-* ``RELEASE_LUA``: Deletes the key only if the value matches our lock ID
-  (compare-and-delete), preventing a late task from evicting another worker's
-  valid result.
+``ACQUIRE_LUA``
+    Atomically checks for an existing cached result or claims execution
+    ownership by writing an ``IN_FLIGHT:<uuid>`` sentinel.
+
+    This prevents race conditions where multiple workers concurrently
+    observe a missing key and all begin execution.
+
+``RELEASE_LUA``
+    Releases an in-flight lock only if the stored value matches the
+    caller's lock ID (compare-and-delete semantics).
+
+    This prevents stale workers from deleting ownership belonging to
+    another execution attempt.
 
 Usage
 -----
@@ -21,11 +31,12 @@ Decorator-level (automatic)::
     @rl_task(idempotent=True, idempotency_ttl=3600)
     async def send_invoice(invoice_id: str): ...
 
-Manual (custom key logic)::
+Manual control::
 
     async with idempotency_lock(key=event_id, ttl=86400) as result:
         if result.already_executed:
             return result.cached_result
+
         output = await do_work()
         await result.record_result(output)
         return output
@@ -33,22 +44,22 @@ Manual (custom key logic)::
 
 import json
 import logging
-import uuid
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
 from relier.config import Settings, get_settings
+from relier.core.keys import RedisKeys
 from relier.storage.redis import get_relier_redis
 
 logger = logging.getLogger(__name__)
 
 # =============================================================================
-# Lua scripts
+# Redis-side atomic primitives
 # =============================================================================
 
-# Atomically check or claim the idempotency key.
+# Atomically resolve a cached result or claim execution ownership.
 _ACQUIRE_LUA = """
 local existing = redis.call('GET', KEYS[1])
 if existing then
@@ -58,7 +69,7 @@ redis.call('SET', KEYS[1], ARGV[1], 'NX', 'EX', ARGV[2])
 return {0, false}
 """
 
-# Delete the key only if we own it (compare-and-delete).
+# Release ownership only if the stored lock ID matches ours.
 _RELEASE_LUA = """
 if redis.call('GET', KEYS[1]) == ARGV[1] then
     return redis.call('DEL', KEYS[1])
@@ -74,28 +85,30 @@ return 0
 
 @dataclass
 class IdempotencyResult:
-    """Encapsulates the outcome of an idempotency check.
+    """
+    Represents the outcome of an idempotency ownership check.
 
-    Attributes:
-        already_executed: ``True`` if a result already exists for this key.
-        cached_result:    The previously stored return value, or ``None``.
+    Instances either:
+    - expose a previously cached execution result, or
+    - grant the caller execution ownership for the key.
     """
 
     already_executed: bool
     cached_result: Any = None
 
-    # Internal — not part of the public API.
+    # Internal execution metadata used for lock ownership and cleanup.
     _key: str = field(default="", repr=False)
     _lock_id: str = field(default="", repr=False)
     _ttl: int = field(default=3600, repr=False)
     _recorded: bool = field(default=False, repr=False)
 
     async def record_result(self, result: Any) -> None:
-        """Persist the task's return value for future duplicate requests.
+        """
+        Persist the completed execution result for future duplicate requests.
 
-        Overwrites the ``IN_FLIGHT`` sentinel with the actual JSON result so
-        subsequent calls to ``check_or_claim`` return the cached value
-        immediately without re-executing the task.
+        Replaces the temporary ``IN_FLIGHT`` sentinel with the final serialized
+        result so subsequent executions can short-circuit immediately without
+        re-running task logic.
         """
         if not self._key:
             return
@@ -111,30 +124,39 @@ class IdempotencyResult:
 
 
 class IdempotencyManager:
-    """Low-level idempotency primitives used by the ``@rl_task`` decorator."""
+    """
+    Coordinates distributed idempotency ownership and result replay.
 
-    def __init__(self) -> None:
-        self._prefix = "rl:idem:"
+    This manager provides the low-level Redis primitives used by both the
+    ``@rl_task`` decorator and manual ``idempotency_lock`` workflows.
+    """
 
     @property
     def settings(self) -> Settings:
-        """Lazy-load settings so we pick up testcontainer environment variables."""
+        """
+        Resolve settings lazily at runtime.
+
+        Avoids capturing stale configuration during module import, which is
+        important for dynamically provisioned test environments.
+        """
         return get_settings()
 
-    def _full_key(self, key: str) -> str:
-        return f"{self._prefix}{key}"
-
     async def check_or_claim(self, key: str, ttl: int) -> IdempotencyResult:
-        """Atomically check for a cached result or claim the execution slot.
+        """
+        Atomically resolve cached execution state or claim execution ownership.
 
-        Returns an ``IdempotencyResult`` where:
-        * ``already_executed=True`` → caller should return ``cached_result``.
-        * ``already_executed=False`` → caller should execute and then call
-          ``result.record_result(output)``.
+        If a completed result already exists, it is returned immediately without
+        re-executing task logic.
+
+        If another worker is actively executing the task, an
+        ``IdempotencyInFlightError`` is raised so the caller can retry later.
+
+        Otherwise, the caller receives execution ownership and is responsible
+        for recording the final result.
         """
         redis = await get_relier_redis()
-        full_key = self._full_key(key)
-        lock_id = f"IN_FLIGHT:{uuid.uuid4().hex}"
+        full_key = RedisKeys.idempotency(key)
+        lock_id = RedisKeys.in_flight()
 
         raw = await redis.eval(_ACQUIRE_LUA, 1, full_key, lock_id, str(ttl))  # type: ignore[misc]
 
@@ -142,24 +164,24 @@ class IdempotencyManager:
         raw_val = raw[1]
 
         if is_existing:
-            # Distinguish between a live IN_FLIGHT sentinel and a real result.
-            if isinstance(raw_val, str) and raw_val.startswith("IN_FLIGHT:"):
+            # Distinguish active execution ownership from a finalized cached result.
+            if isinstance(raw_val, str) and "inflight" in raw_val.lower():
                 logger.warning(
-                    "Concurrent execution detected for idempotency key.",
+                    "Idempotent task already executing on another worker.",
                     extra={"key": key},
                 )
                 from relier.core.exceptions import IdempotencyInFlightError
 
                 raise IdempotencyInFlightError(key=full_key)
 
-            logger.debug("Idempotency cache hit.", extra={"key": key})
+            logger.debug("Returning cached idempotent task result.", extra={"key": key})
             try:
                 cached = json.loads(raw_val)
             except (json.JSONDecodeError, TypeError):
                 cached = raw_val
             return IdempotencyResult(already_executed=True, cached_result=cached)
 
-        logger.debug("Idempotency lock claimed.", extra={"key": key})
+        logger.debug("Idempotency execution ownership acquired.", extra={"key": key})
         return IdempotencyResult(
             already_executed=False,
             _key=full_key,
@@ -168,15 +190,18 @@ class IdempotencyManager:
         )
 
     async def clear_lock(self, key: str, lock_id: str) -> None:
-        """Release an IN_FLIGHT lock if — and only if — we own it."""
-        redis = await get_relier_redis()
+        """
+        Release execution ownership only if the caller still owns the lock.
 
-        # check if key already starts with the prefix
-        full_key = key if key.startswith(self._prefix) else self._full_key(key)
+        Prevents stale or delayed workers from clearing ownership belonging to
+        a newer execution attempt.
+        """
+        redis = await get_relier_redis()
+        full_key = RedisKeys.idempotency(key)
         await redis.eval(_RELEASE_LUA, 1, full_key, lock_id)  # type: ignore[misc]
 
 
-# Module-level singleton.
+# Shared process-wide idempotency manager instance.
 idempotency_manager = IdempotencyManager()
 
 
@@ -190,19 +215,14 @@ async def idempotency_lock(
     key: str,
     ttl: int | None = None,
 ) -> AsyncGenerator[IdempotencyResult, None]:
-    """Async context manager for manual idempotency control.
+    """
+    Developer-facing async context manager for manual idempotency control.
 
-    On exception inside the ``async with`` block, the IN_FLIGHT sentinel is
-    released automatically so the task can be safely retried.
+    Provides structured execution ownership handling outside the automatic
+    ``@rl_task`` decorator flow.
 
-    Example::
-
-        async with idempotency_lock(key=event_id, ttl=86400) as result:
-            if result.already_executed:
-                return result.cached_result
-            output = await handle_event(payload)
-            await result.record_result(output)
-            return output
+    On failure, the in-flight ownership marker is automatically released so
+    future retries are not blocked indefinitely.
     """
     settings = get_settings()
     actual_ttl = ttl if ttl is not None else settings.idempotency_default_ttl
@@ -212,17 +232,19 @@ async def idempotency_lock(
     try:
         yield result
     except Exception:
-        # Release the lock on failure so the task can be retried cleanly.
+        # Release execution ownership on failure so retries are not blocked by
+        # abandoned in-flight state.
         if not result.already_executed:
-            await idempotency_manager.clear_lock(result._key, result._lock_id)
+            await idempotency_manager.clear_lock(key, result._lock_id)
         raise
     finally:
-        # Safety net: if the caller succeeded but forgot to call record_result(),
-        # clear the IN_FLIGHT sentinel so duplicates aren't blocked for the full TTL.
+        # Safety net: if execution completed but no result was recorded,
+        # clear the in-flight marker so duplicate requests are not blocked
+        # until TTL expiration.
         if not result.already_executed and not result._recorded:
             logger.warning(
-                "Idempotency lock released without recording a result. "
-                "Call `result.record_result(value)` before exiting the context.",
-                extra={"key": result._key},
+                "Execution ownership released without recording a final result. "
+                "Call `result.record_result(value)` before leaving the idempotency context.",
+                extra={"key": key},
             )
-            await idempotency_manager.clear_lock(result._key, result._lock_id)
+            await idempotency_manager.clear_lock(key, result._lock_id)

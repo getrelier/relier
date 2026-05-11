@@ -38,7 +38,7 @@ def mock_run_coroutine(coro, loop=None):
 
 class TestLogging:
     @pytest.mark.asyncio
-    async def test_inject_otel_context_no_span(self):
+    async def test_inject_otel_context_no_span(self) -> None:
         """Verify that injecting OTEL context with no active span returns the dict unchanged."""
         event_dict = {"msg": "hello"}
         # Mock get_current_span to return a non-recording span
@@ -50,12 +50,12 @@ class TestLogging:
             mock_span.get_span_context().is_valid = False
             mock_get_span.return_value = mock_span
 
-            result = inject_otel_context(None, None, event_dict.copy())
+            result = inject_otel_context(None, None, event_dict.copy()) # type: ignore[arg-type]
             assert result == event_dict
 
         await asyncio.sleep(0)
 
-    def test_inject_otel_context_with_valid_span(self):
+    def test_inject_otel_context_with_valid_span(self) -> None:
         """Verify that trace and span IDs are injected when a valid span is active."""
         event_dict = {"msg": "hello"}
         with patch("opentelemetry.trace.get_current_span") as mock_get_span:
@@ -67,11 +67,11 @@ class TestLogging:
             mock_span.get_span_context.return_value = mock_ctx
             mock_get_span.return_value = mock_span
 
-            result = inject_otel_context(None, None, event_dict.copy())
+            result = inject_otel_context(None, None, event_dict.copy()) # type: ignore[arg-type]
             assert result["trace_id"] == "1234567890abcdef1234567890abcdef"
             assert result["span_id"] == "1234567890abcdef"
 
-    def test_setup_logging_debug_mode(self):
+    def test_setup_logging_debug_mode(self) -> None:
         """Verify setup_logging configures ConsoleRenderer in DEBUG mode."""
         with (
             patch("structlog.configure") as mock_configure,
@@ -81,7 +81,7 @@ class TestLogging:
             # Check if structlog.configure was called
             assert mock_configure.called
 
-    def test_setup_logging_production_mode(self):
+    def test_setup_logging_production_mode(self) -> None:
         """Verify setup_logging configures JSONRenderer in non-DEBUG mode."""
         with (
             patch("structlog.configure") as mock_configure,
@@ -97,15 +97,15 @@ class TestLogging:
 
 
 class TestMetrics:
-    def test_inflight_tasks_callback(self):
+    def test_inflight_tasks_callback(self) -> None:
         """Verify the metrics callback yields a valid Observation."""
-        observations = list(_inflight_tasks_callback(None))
+        observations = list(_inflight_tasks_callback(None)) # type: ignore[arg-type]
         assert len(observations) == 1
         obs = observations[0]
         assert obs.value == 0
         assert obs.attributes == {"rl.worker.id": "unknown"}
 
-    def test_metrics_instruments_initialized(self):
+    def test_metrics_instruments_initialized(self) -> None:
         """Verify that core metrics instruments are created at import time."""
         from relier.telemetry import metrics
 
@@ -121,7 +121,7 @@ class TestMetrics:
 
 class TestSpans:
     @pytest.mark.asyncio
-    async def test_trace_task_context_manager(self):
+    async def test_trace_task_context_manager(self) -> None:
         """Verify that trace_task creates a span and sets attributes."""
         mock_tracer = MagicMock()
         mock_span = MagicMock()
@@ -131,9 +131,6 @@ class TestSpans:
 
         with (
             patch("relier.storage.redis.RedisManager.close", new_callable=AsyncMock),
-            patch(
-                "relier.storage.database.DatabaseManager.close", new_callable=AsyncMock
-            ),
             patch("relier.telemetry.spans.tracer", mock_tracer),
         ):
             async with trace_task("test_task", "task_123", {"extra": "val"}) as span:
@@ -144,7 +141,7 @@ class TestSpans:
         await asyncio.sleep(0)
 
     @pytest.mark.asyncio
-    async def test_trace_sync_context_manager(self):
+    async def test_trace_sync_context_manager(self) -> None:
         """Verify that trace_sync creates a span."""
         mock_tracer = MagicMock()
         mock_span = MagicMock()
@@ -154,9 +151,6 @@ class TestSpans:
 
         with (
             patch("relier.storage.redis.RedisManager.close", new_callable=AsyncMock),
-            patch(
-                "relier.storage.database.DatabaseManager.close", new_callable=AsyncMock
-            ),
             patch("relier.telemetry.spans.tracer", mock_tracer),
             trace_sync("sync_span", {"attr": 1}) as span,
         ):
@@ -167,7 +161,7 @@ class TestSpans:
         await asyncio.sleep(0)
 
     @pytest.mark.asyncio
-    async def test_trace_task_exception(self):
+    async def test_trace_task_exception(self) -> None:
         """Verify that trace_task records exceptions."""
         mock_tracer = MagicMock()
         mock_span = MagicMock()
@@ -185,7 +179,7 @@ class TestSpans:
 
         mock_span.record_exception.assert_called_once()
 
-    def test_trace_sync_exception(self):
+    def test_trace_sync_exception(self) -> None:
         """Verify that trace_sync records exceptions."""
         mock_tracer = MagicMock()
         mock_span = MagicMock()
@@ -203,7 +197,7 @@ class TestSpans:
 
             mock_span.record_exception.assert_called_once()
 
-    def test_record_exception_recording(self):
+    def test_record_exception_recording(self) -> None:
         """Verify record_exception updates span status for recording spans."""
         mock_span = MagicMock()
         mock_span.is_recording.return_value = True
@@ -214,7 +208,7 @@ class TestSpans:
         mock_span.record_exception.assert_called_once_with(exc)
         mock_span.set_status.assert_called_once()
 
-    def test_record_exception_non_recording(self):
+    def test_record_exception_non_recording(self) -> None:
         """Verify record_exception does nothing for non-recording spans."""
         mock_span = MagicMock()
         mock_span.is_recording.return_value = False
@@ -230,7 +224,7 @@ class TestSpans:
 
 
 class TestSetup:
-    def test_setup_telemetry_disabled(self):
+    def test_setup_telemetry_disabled(self) -> None:
         """Verify setup_telemetry exits early if otel_enabled is False."""
         with patch("relier.telemetry.setup.get_settings") as mock_settings:
             mock_settings.return_value.otel_enabled = False
@@ -238,7 +232,7 @@ class TestSetup:
                 setup_telemetry()
                 assert not mock_tp.called
 
-    def test_setup_telemetry_enabled(self):
+    def test_setup_telemetry_enabled(self) -> None:
         """Verify setup_telemetry initializes providers when enabled."""
         with patch("relier.telemetry.setup.get_settings") as mock_settings:
             settings = mock_settings.return_value
@@ -256,7 +250,7 @@ class TestSetup:
                 assert mock_tp.called
                 assert mock_mp.called
 
-    def test_get_tracer_meter(self):
+    def test_get_tracer_meter(self) -> None:
         """Verify get_tracer and get_meter return expected objects."""
         from relier.telemetry.setup import get_meter, get_tracer
 

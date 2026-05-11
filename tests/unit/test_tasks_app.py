@@ -7,8 +7,9 @@ import pytest
 from relier.tasks.app import (
     _run_event_loop,
     create_celery_app,
-    init_worker,
+    init_worker_process,
     shutdown_worker,
+    start_relier_identity,
 )
 
 
@@ -46,7 +47,7 @@ class TestTasksApp:
             # Combined the coroutine check and the name filter
             if asyncio.iscoroutine(obj) and any(
                 name in str(obj)
-                for name in ["init_worker", "_warm_up", "_presence_loop"]
+                for name in ["init_worker_process", "_warm_up", "_presence_loop", "_cleanup_dead_workers", "get_client", "_execute_mock_call"]
             ):
                 obj.close()
 
@@ -59,27 +60,35 @@ class TestTasksApp:
         yield
         relier.tasks.app.worker_loop = None
 
+    @pytest.fixture(autouse=True)
+    def fake_sender():
+        class FakeSender:
+            def __init__(self, hostname):
+                self.hostname = hostname
+
+        return FakeSender
+
     # =========================================================
     # BASIC CONFIG TEST
     # =========================================================
-    def test_create_celery_app(self):
+    def test_create_celery_app(self) -> None:
         """Verify Celery app configuration."""
         app = create_celery_app()
         assert app.main == "relier"
         assert app.conf.task_serializer == "json"
         assert app.conf.task_acks_late is True
         assert app.conf.task_reject_on_worker_lost is True
-        assert len(app.conf.task_queues) == 4
+        assert len(app.conf.task_queues) == 3
 
     # =========================================================
     # SHUTDOWN TESTS
     # =========================================================
-    def test_shutdown_worker_no_loop(self):
+    def test_shutdown_worker_no_loop(self) -> None:
         """Verify shutdown handles missing loop gracefully."""
         with patch("relier.tasks.app.worker_loop", None):
             shutdown_worker()
 
-    def test_shutdown_worker_full(self):
+    def test_shutdown_worker_full(self) -> None:
         """Verify full shutdown sequence."""
         mock_loop = MagicMock()
         mock_handler = MagicMock()
@@ -98,7 +107,7 @@ class TestTasksApp:
             assert mock_run.called
             assert mock_loop.call_soon_threadsafe.called
 
-    def test_shutdown_worker_exception(self):
+    def test_shutdown_worker_exception(self) -> None:
         """Verify shutdown_worker handles exceptions during shutdown."""
         mock_loop = MagicMock()
 
@@ -111,7 +120,6 @@ class TestTasksApp:
             patch("relier.tasks.app.worker_loop", mock_loop),
             patch("relier.tasks.app.shutdown_handler", MagicMock()),
             patch("relier.tasks.app.redis_manager"),
-            patch("relier.tasks.app.db_manager"),
             patch("asyncio.run_coroutine_threadsafe", side_effect=side_effect_fail),
         ):
             shutdown_worker()
@@ -120,7 +128,7 @@ class TestTasksApp:
     # =========================================================
     # EVENT LOOP
     # =========================================================
-    def test_run_event_loop(self):
+    def test_run_event_loop(self) -> None:
         """Verify that _run_event_loop sets the event loop and runs forever."""
         loop = MagicMock()
         with patch("asyncio.set_event_loop") as mock_set:
@@ -132,32 +140,29 @@ class TestTasksApp:
     # =========================================================
     # INITIALIZATION & WORKER LOGIC
     # =========================================================
-    def test_init_worker(self):
+    def test_init_worker(self) -> None:
         """Verify init_worker sets up loop, logging, telemetry, and warms up."""
         with (
             patch("threading.Thread") as mock_thread,
             patch("relier.tasks.app.setup_logging") as mock_setup_logging,
             patch("relier.tasks.app.setup_telemetry") as mock_setup_telemetry,
             patch("relier.tasks.app.redis_manager") as mock_rm,
-            patch("relier.tasks.app.db_manager") as mock_dbm,
             patch(
                 "asyncio.run_coroutine_threadsafe", side_effect=mock_run_coroutine
             ) as mock_run,
             patch("asyncio.new_event_loop"),
         ):
             mock_rm.get_client = AsyncMock()
-            mock_dbm.engine.connect = MagicMock()
-            mock_dbm.engine.connect.return_value.__aenter__ = AsyncMock()
 
-            init_worker(hostname="test-host")
+            init_worker_process(hostname="test-host")
 
             assert mock_thread.called
-            assert mock_run.call_count == 2
+            assert mock_run.call_count == 1
             mock_setup_logging.assert_called_once()
             mock_setup_telemetry.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_init_worker_internal_coroutines(self):
+    async def test_init_worker_internal_coroutines(self, fake_sender) -> None:
         """Cover the internal _warm_up and _presence_loop in init_worker."""
         mock_loop = MagicMock()
         captured_coros = []
@@ -172,7 +177,6 @@ class TestTasksApp:
 
         with (
             patch("relier.tasks.app.redis_manager") as mock_rm,
-            patch("relier.tasks.app.db_manager") as mock_dbm,
             patch("threading.Thread"),
             patch("relier.tasks.app.setup_logging"),
             patch("relier.tasks.app.setup_telemetry"),
@@ -180,9 +184,8 @@ class TestTasksApp:
             patch("asyncio.run_coroutine_threadsafe", side_effect=capture_only),
         ):
             mock_rm.get_client = AsyncMock()
-            mock_dbm.engine.connect.return_value.__aenter__ = AsyncMock()
 
-            init_worker(hostname="cov-worker")
+            start_relier_identity(sender=fake_sender("cov-worker"))
 
             presence_coro = next(
                 (c for c in captured_coros if "_presence_loop" in str(c)), None
@@ -196,20 +199,24 @@ class TestTasksApp:
                 await presence_coro
 
     @pytest.mark.asyncio
-    async def test_presence_loop_exception(self):
+    async def test_presence_loop_exception(self) -> None:
         """Verify that exceptions in _presence_loop are handled gracefully."""
         mock_loop = MagicMock()
         captured = []
+
+        def _capture_coro(c, loop=None):
+            captured.append(c)
+            return mock_run_coroutine(None)
 
         with (
             patch("threading.Thread"),
             patch("asyncio.new_event_loop", return_value=mock_loop),
             patch(
                 "asyncio.run_coroutine_threadsafe",
-                side_effect=lambda c: (captured.append(c), mock_run_coroutine(None))[1],
+                side_effect=_capture_coro,
             ),
         ):
-            init_worker(hostname="fail-worker")
+            init_worker_process(hostname="fail-worker")
 
         presence_coro = next((c for c in captured if "presence_loop" in str(c)), None)
         if presence_coro:

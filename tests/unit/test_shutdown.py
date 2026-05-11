@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from relier.core.keys import RedisKeys
 from relier.core.shutdown import GracefulShutdownHandler
 
 
@@ -11,7 +12,7 @@ class TestShutdown:
     def handler(self):
         return GracefulShutdownHandler(worker_id="test_worker")
 
-    def test_track_untrack_task(self, handler):
+    def test_track_untrack_task(self, handler) -> None:
         """Verify task tracking logic."""
         handler.track_task("task_1")
         assert "task_1" in handler._active_tasks
@@ -20,7 +21,7 @@ class TestShutdown:
         # Untracking non-existent task shouldn't raise
         handler.untrack_task("task_non_existent")
 
-    def test_install_signal_handlers(self, handler):
+    def test_install_signal_handlers(self, handler) -> None:
         """Verify that signal handlers are registered on the loop."""
         mock_loop = MagicMock()
         # Ensure add_signal_handler exists on the mock
@@ -35,27 +36,27 @@ class TestShutdown:
                 # that's also fine as long as it doesn't crash.
                 pass
 
-    def test_install_signal_handlers_not_implemented(self, handler):
+    def test_install_signal_handlers_not_implemented(self, handler) -> None:
         """Verify that it handles platforms without add_signal_handler (Windows)."""
         mock_loop = MagicMock()
         mock_loop.add_signal_handler.side_effect = NotImplementedError()
         with patch("asyncio.get_running_loop", return_value=mock_loop):
             handler.install()  # Should not raise
 
-    def test_install_signal_handlers_no_loop(self, handler):
+    def test_install_signal_handlers_no_loop(self, handler) -> None:
         """Verify that it handles being called without a running loop."""
         with patch("asyncio.get_running_loop", side_effect=RuntimeError()):
             # Should not raise
             handler.install()
 
     @pytest.mark.asyncio
-    async def test_drain_idempotent(self, handler):
+    async def test_drain_idempotent(self, handler) -> None:
         """Verify that multiple calls to drain are collapsed."""
         handler._draining = True
         await handler.drain()
 
     @pytest.mark.asyncio
-    async def test_drain_clean_completion(self, handler):
+    async def test_drain_clean_completion(self, handler) -> None:
         """Verify drain waits for tasks and completes cleanly."""
         handler.track_task("task_1")
 
@@ -76,7 +77,7 @@ class TestShutdown:
             assert len(handler._active_tasks) == 0
 
     @pytest.mark.asyncio
-    async def test_drain_timeout_and_handoff(self, handler):
+    async def test_drain_timeout_and_handoff(self, handler) -> None:
         """Verify that drain hands off remaining tasks after timeout."""
         handler.track_task("task_1")
 
@@ -91,11 +92,11 @@ class TestShutdown:
 
             # Verify handoff logic
             assert mock_redis.delete.called
-            mock_redis.delete.assert_any_call("rl:hb:task_1")
+            mock_redis.delete.assert_any_call(RedisKeys.heartbeat("task_1"))
             assert handler._draining is True
 
     @pytest.mark.asyncio
-    async def test_drain_celery_error(self, handler):
+    async def test_drain_celery_error(self, handler) -> None:
         """Verify that drain survives errors during consumer cancellation."""
         with patch("relier.tasks.app.celery_app") as mock_celery:
             mock_celery.control.cancel_consumer.side_effect = Exception("Celery down")

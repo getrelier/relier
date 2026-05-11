@@ -15,7 +15,7 @@ Configuration priority:
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, PostgresDsn, RedisDsn, SecretStr
+from pydantic import Field, RedisDsn, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -37,19 +37,6 @@ class Settings(BaseSettings):
     secret_key: SecretStr = Field(default=SecretStr("change-in-production"))
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
 
-    # =========================================================================
-    # Infrastructure — PostgreSQL
-    # =========================================================================
-    database_url: PostgresDsn = Field(
-        default="postgresql+asyncpg://relier:relier_dev@localhost:5433/relier"
-    )  # type: ignore[assignment]
-
-    @property
-    def database_url_str(self) -> str:
-        return str(self.database_url)
-
-    db_pool_size: int = Field(default=2, gt=0)
-    db_max_overflow: int = Field(default=5, ge=0)
 
     # =========================================================================
     # Infrastructure — Redis
@@ -77,6 +64,11 @@ class Settings(BaseSettings):
         default=2,
         gt=0,
         description="Interval in seconds between resurrector scan passes.",
+    )
+    resurrection_queue_priority: int = Field(
+        default=9,
+        gt=0,
+        description="Queue priority for resurrection.",
     )
 
     # =========================================================================

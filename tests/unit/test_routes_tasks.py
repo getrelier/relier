@@ -5,7 +5,7 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-async def test_trigger_task_enqueues(monkeypatch):
+async def test_trigger_task_enqueues(monkeypatch) -> None:
     # Prepare a fake Celery app with a matching task name
     class DummyCelery:
         def __init__(self):
@@ -48,7 +48,7 @@ async def test_trigger_task_enqueues(monkeypatch):
         assert body["task_name"].endswith(".checkpoint_task")
 
 
-async def test_get_task_status_includes_backend_and_phoenix(monkeypatch):
+async def test_get_task_status_includes_backend_and_phoenix(monkeypatch) -> None:
     # Patch PhoenixRegistry.is_active (async)
     async def fake_is_active(task_id):
         return True

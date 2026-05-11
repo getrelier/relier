@@ -2,28 +2,29 @@ import time
 
 import pytest
 
+from relier.core.keys import RedisKeys
 from relier.core.slo import SLOMetrics
 
 pytestmark = pytest.mark.asyncio
 
 
 class TestSLOMetrics:
-    async def test_record_event_updates_all_windows(self, mock_redis):
+    async def test_record_event_updates_all_windows(self, mock_redis) -> None:
         """Test that recording a success/failure adds entries to all window sorted sets."""
         await SLOMetrics.record_event("success")
 
         # SLOMetrics has 3 windows: 1h, 6h, 3d
         for window in SLOMetrics.WINDOW_SIZES:
-            key = f"rl:slo:{window}:success"
+            key = RedisKeys.slo(window, "success")
             # Check if something was added to the sorted set
             assert await mock_redis.zcount(key, 0, time.time() + 10) == 1
 
-    async def test_get_burn_rate_empty_returns_zero(self, mock_redis):
+    async def test_get_burn_rate_empty_returns_zero(self, mock_redis) -> None:
         """Test that burn rate is 0.0 when no events have occurred."""
         rate = await SLOMetrics.get_burn_rate("1h")
         assert rate == 0.0
 
-    async def test_get_burn_rate_calculation(self, mock_redis):
+    async def test_get_burn_rate_calculation(self, mock_redis) -> None:
         """Test burn rate calculation with specific event counts.
 
         SLO Target: 99.9% (allowed error rate: 0.1%)
@@ -36,14 +37,14 @@ class TestSLOMetrics:
         # Target: 0.1% error rate
         # Expected Burn Rate = 0.01 / 0.001 = 10.0
 
-        await mock_redis.zadd(f"rl:slo:{window}:failure", {"f1": now})
+        await mock_redis.zadd(RedisKeys.slo(window, "failure"), {"f1": now})
         for i in range(99):
-            await mock_redis.zadd(f"rl:slo:{window}:success", {f"s{i}": now})
+            await mock_redis.zadd(RedisKeys.slo(window, "success"), {f"s{i}": now})
 
         rate = await SLOMetrics.get_burn_rate(window, target_slo=0.999)
         assert rate == pytest.approx(10.0)
 
-    async def test_get_report_returns_all_windows(self, mock_redis):
+    async def test_get_report_returns_all_windows(self, mock_redis) -> None:
         """Test that the report contains data for all configured windows."""
         # Record some events to ensure the report has data
         await SLOMetrics.record_event("success")
@@ -54,12 +55,12 @@ class TestSLOMetrics:
         for val in report.values():
             assert isinstance(val, float)
 
-    async def test_zremrangebyscore_cleanup(self, mock_redis):
+    async def test_zremrangebyscore_cleanup(self, mock_redis) -> None:
         """Test that recording an event cleans up old entries outside the window."""
         now = time.time()
         window = "1h"
         seconds = SLOMetrics.WINDOW_SIZES[window]
-        key = f"rl:slo:{window}:success"
+        key = RedisKeys.slo(window, "success")
 
         # Add an old event (2 hours ago)
         await mock_redis.zadd(key, {"old": now - (seconds + 100)})

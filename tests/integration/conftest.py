@@ -8,6 +8,8 @@ import uuid
 
 import pytest_asyncio
 
+from relier.core.keys import RedisKeys
+
 
 class CeleryWorkerManager:
     def __init__(self, env):
@@ -46,12 +48,21 @@ class CeleryWorkerManager:
         ready = False
         start_time = time.time()
         while time.time() - start_time < timeout:
-            workers = await redis_client.smembers("rl:workers")
-            if workers:
-                # Give the Consumer an extra breath to stabilize before we proceed
-                await asyncio.sleep(2)
-                ready = True
-                break
+            # Check type and clear if it's "garbage" from a previous failed run
+            key_type = await redis_client.type(RedisKeys.workers())
+            if key_type != "zset" and key_type != "none":
+                await redis_client.delete(RedisKeys.workers())
+
+            try:
+                workers = await redis_client.zrange(RedisKeys.workers(), 0, -1)
+                if workers:
+                    await asyncio.sleep(2)
+                    ready = True
+                    break
+            except Exception as e:
+                # Swallow transient Redis errors while worker is booting
+                print(f"Waiting for worker... (Redis state: {e})")
+
             await asyncio.sleep(0.5)
 
         if not ready:

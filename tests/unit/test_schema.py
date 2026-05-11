@@ -41,7 +41,7 @@ def reset_schema_registry():
 
 
 class TestEnvelopeCreation:
-    def test_envelope_includes_schema_version(self):
+    def test_envelope_includes_schema_version(self) -> None:
         SchemaRegistry.CURRENT_VERSION = 2
         envelope = SchemaRegistry.wrap("test_task", args=(1, 2), kwargs={"key": "val"})
 
@@ -50,14 +50,14 @@ class TestEnvelopeCreation:
         assert envelope["payload"]["args"] == (1, 2)
         assert envelope["payload"]["kwargs"] == {"key": "val"}
 
-    def test_envelope_includes_checksum(self):
+    def test_envelope_includes_checksum(self) -> None:
         envelope = SchemaRegistry.wrap("test_task", args=(), kwargs={})
 
         assert "checksum" in envelope
         assert isinstance(envelope["checksum"], str)
         assert envelope["checksum"].startswith("sha256:")
 
-    def test_checksum_detects_payload_tampering(self):
+    def test_checksum_detects_payload_tampering(self) -> None:
         envelope = SchemaRegistry.wrap("test_task", args=("original",), kwargs={})
 
         # Simulate an attacker or network corruption altering the payload
@@ -66,7 +66,7 @@ class TestEnvelopeCreation:
         with pytest.raises(PayloadIntegrityError, match="Payload checksum mismatch"):
             SchemaRegistry.unwrap_and_migrate("test_task", envelope)
 
-    def test_envelope_includes_enqueued_at_timestamp(self):
+    def test_envelope_includes_enqueued_at_timestamp(self) -> None:
         envelope = SchemaRegistry.wrap("test_task", args=(), kwargs={})
 
         assert "enqueued_at" in envelope
@@ -76,7 +76,7 @@ class TestEnvelopeCreation:
 
 
 class TestSchemaMigration:
-    def test_v1_migrates_to_v2_correctly(self):
+    def test_v1_migrates_to_v2_correctly(self) -> None:
         SchemaRegistry.CURRENT_VERSION = 2
 
         @SchemaRegistry.register_migration("my_task", from_version=1)
@@ -98,7 +98,7 @@ class TestSchemaMigration:
         assert args == ("test",)
         assert kwargs["new_required_arg"] == "default_value"
 
-    def test_v2_does_not_migrate_if_already_current(self):
+    def test_v2_does_not_migrate_if_already_current(self) -> None:
         SchemaRegistry.CURRENT_VERSION = 2
 
         migration_called = False
@@ -123,7 +123,7 @@ class TestSchemaMigration:
         assert not migration_called
         assert kwargs["status"] == "current"
 
-    def test_migration_chain_v1_to_v3_works(self):
+    def test_migration_chain_v1_to_v3_works(self) -> None:
         SchemaRegistry.CURRENT_VERSION = 3
 
         @SchemaRegistry.register_migration("chain_task", from_version=1)
@@ -151,7 +151,7 @@ class TestSchemaMigration:
         assert kwargs["v2_applied"] is True
         assert kwargs["v3_applied"] is True
 
-    def test_unknown_version_raises_error(self):
+    def test_unknown_version_raises_error(self) -> None:
         """
         Tests that schema versions completely out of bounds (e.g. >100 or <1)
         trigger a PayloadIntegrityError via Pydantic validation.
@@ -168,7 +168,7 @@ class TestSchemaMigration:
         with pytest.raises(PayloadIntegrityError, match="Invalid envelope structure"):
             SchemaRegistry.unwrap_and_migrate("bad_version_task", envelope)
 
-    def test_migration_preserves_all_payload_fields(self):
+    def test_migration_preserves_all_payload_fields(self) -> None:
         SchemaRegistry.CURRENT_VERSION = 2
 
         @SchemaRegistry.register_migration("preserve_task", from_version=1)
@@ -192,7 +192,7 @@ class TestSchemaMigration:
         assert kwargs["existing_kwarg"] == 42
         assert kwargs["new_data"] == "added"
 
-    def test_migration_failure_raises_and_routes_to_dlq(self):
+    def test_migration_failure_raises_and_routes_to_dlq(self) -> None:
         """Ensure that if a migration function crashes, the error propagates up."""
         SchemaRegistry.CURRENT_VERSION = 2
 

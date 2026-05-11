@@ -1,19 +1,31 @@
 """
 Relier Core — Phoenix Task Resurrection.
 
-Implements the Shadow Registry pattern: every active task emits a heartbeat
-TTL key in Redis.  When a worker is OOM-killed the key expires and the
-Resurrector loop re-queues the task on a surviving worker.
+Implements the Shadow Registry pattern for crash recovery and automatic
+task resurrection.
 
-Key design decisions
---------------------
-* ``_refresh_loop`` is a background asyncio Task cancelled in ``complete()``.
-* ``resurrection_loop`` uses ``scan_iter`` (cursor-based) instead of ``KEYS``
-  to avoid blocking the Redis event loop on large keyspaces.
-* A short-lived ``nx`` lock prevents multiple resurrector processes from
-  concurrently re-queuing the same task.
-* The ``_bg_send`` closure captures ``t_id`` / ``payload`` via default
-  argument binding to avoid the late-binding closure bug.
+Each active task maintains a Redis heartbeat with a short TTL. If a
+worker crashes, is OOM-killed, or disappears unexpectedly, the heartbeat
+expires and the resurrector loop safely re-queues the task on another
+worker.
+
+Design notes
+------------
+Heartbeat refresh
+    Each task owns a background asyncio refresh coroutine that extends
+    its heartbeat TTL until completion.
+
+Redis scanning
+    Resurrection discovery uses cursor-based ``SCAN`` iteration rather
+    than ``KEYS`` to avoid blocking Redis during large keyspace scans.
+
+Distributed resurrection lock
+    A short-lived ``SET NX`` lock prevents multiple resurrector
+    processes from concurrently replaying the same task.
+
+Closure safety
+    Background send operations bind task state explicitly to avoid
+    Python late-binding closure bugs during asynchronous scheduling.
 """
 
 import asyncio
@@ -22,38 +34,56 @@ import json
 import logging
 from typing import Any
 
+from celery import Celery
+from redis.asyncio import Redis
+
 from relier.config import Settings, get_settings
 from relier.core.dlq import DeadLetterQueue
+from relier.core.keys import RedisKeys
 from relier.storage.redis import get_relier_redis
 
 logger = logging.getLogger(__name__)
 
 
 class PhoenixRegistry:
-    """Manages task heartbeats, payload persistence, and resurrection."""
+    """
+    Coordinates Phoenix task lifecycle tracking and crash recovery.
 
-    HEARTBEAT_KEY = "rl:hb:{task_id}"
-    TASKS_STATE_KEY = "rl:phoenix:{task_id}"
-    RESURRECTIONS_KEY = "rl:resurrections:{task_id}"
-    RESURRECT_LOCK = "rl:lock:resurrect:{task_id}"
-    MONITOR_KEY = "rl:monitoring"
+    Responsible for:
+    - heartbeat ownership
+    - task state persistence
+    - worker death detection
+    - automatic resurrection
+    - partial-state recovery
+    """
 
-    # Tracks the asyncio Task running each heartbeat refresh loop.
-    # Intentionally class-level: shared across all coroutines in the same
-    # worker process so that complete() can cancel any task's refresh loop.
-    # Safe because a single Celery worker is single-process with one event loop.
+
+
+    # Tracks the background heartbeat refresh task for each active execution.
+    #
+    # Intentionally process-local and class-level so any coroutine within the
+    # worker can cancel refresh ownership during task completion.
+    #
+    # Safe because each Celery worker process owns a single asyncio event loop.
+
     _active_loops: dict[str, "asyncio.Task[None]"] = {}
 
-    # Prevent unbounded tasks spawning
+    # Bound concurrent resurrection broker submissions to avoid unbounded
+    # background task fan-out during mass worker failures.
     _send_semaphore = asyncio.Semaphore(50)
 
     @classmethod
     def _get_settings(cls) -> Settings:
-        """Lazy-load settings locally to pick up testcontainer URLs."""
+        """
+        Resolve settings lazily at runtime.
+
+        Avoids capturing stale configuration during module import, which is
+        important for dynamically provisioned test environments.
+        """
         return get_settings()
 
     # ==========================================================================
-    # Registration
+    # Task registration & heartbeat ownership
     # ==========================================================================
 
     @classmethod
@@ -63,22 +93,28 @@ class PhoenixRegistry:
         worker_id: str,
         payload: dict[str, Any],
     ) -> None:
-        """Register a task in the shadow registry and begin heartbeat refresh.
+        """
+        Register a task in the Phoenix shadow registry.
 
-        Args:
-            task_id:   Celery task ID.
-            worker_id: Celery worker hostname (e.g. ``"celery@hostname"``).
-            payload:   JSON-serializable dict stored for resurrection use.
+        Registration persists enough execution metadata for:
+        - worker death detection
+        - resurrection replay
+        - checkpoint recovery
+        - operational inspection
+
+        A background heartbeat refresh coroutine is started immediately after
+        registration succeeds.
         """
         settings = cls._get_settings()
         redis = await get_relier_redis()
 
-        # Use a single Hash key for everything related to this task instance
-        task_key = cls.TASKS_STATE_KEY.format(task_id=task_id)
+        # Store execution metadata in a single Redis hash so resurrection state,
+        # checkpoints, and worker ownership remain co-located.
+        task_key = RedisKeys.phoenix(task_id)
 
         pipe = redis.pipeline()
         pipe.set(
-            cls.HEARTBEAT_KEY.format(task_id=task_id),
+            RedisKeys.heartbeat(task_id),
             worker_id,
             ex=settings.heartbeat_ttl,
         )
@@ -98,9 +134,14 @@ class PhoenixRegistry:
 
     @classmethod
     async def _refresh_loop(cls, task_id: str, worker_id: str) -> None:
-        """Background coroutine that keeps the heartbeat TTL alive."""
+        """
+        Continuously refresh the task heartbeat until execution completes.
+
+        Heartbeat expiration is treated as implicit worker death by the
+        resurrector subsystem.
+        """
         redis = await get_relier_redis()
-        hb_key = cls.HEARTBEAT_KEY.format(task_id=task_id)
+        hb_key = RedisKeys.heartbeat(task_id)
         settings = cls._get_settings()
         interval = settings.heartbeat_ttl / 2.0
 
@@ -110,7 +151,7 @@ class PhoenixRegistry:
                 extended = await redis.expire(hb_key, settings.heartbeat_ttl)
                 if not extended:
                     logger.warning(
-                        "Failed to refresh heartbeat TTL; key no longer exists.",
+                        "Heartbeat refresh stopped because the heartbeat key disappeared.",
                         extra={"task_id": task_id, "worker_id": worker_id},
                     )
                     break
@@ -118,22 +159,23 @@ class PhoenixRegistry:
             raise
         except Exception as exc:
             logger.error(
-                "Heartbeat refresh error.",
+                "Unexpected error while refreshing Phoenix heartbeat.",
                 extra={"task_id": task_id, "worker_id": worker_id, "error": str(exc)},
             )
         finally:
             cls._active_loops.pop(task_id, None)
 
     # ===========================================================================
-    # Completion
+    # Task completion & cleanup
     # ===========================================================================
-
     @classmethod
     async def complete(cls, task_id: str) -> None:
-        """Clean up the registry when a task finishes successfully.
+        """
+        Remove all Phoenix tracking state for a successfully completed task.
 
-        Deletes the payload key first so the resurrector cannot observe a
-        window where the payload exists but the heartbeat is gone.
+        Payload state is deleted before the heartbeat key so the resurrector
+        cannot observe a partially-cleaned state where payload data exists
+        without a live heartbeat.
         """
         loop_task = cls._active_loops.pop(task_id, None)
 
@@ -144,28 +186,36 @@ class PhoenixRegistry:
 
         redis = await get_relier_redis()
         pipe = redis.pipeline()
-        # Delete payload BEFORE heartbeat to close the detection window.
-        pipe.delete(cls.TASKS_STATE_KEY.format(task_id=task_id))
-        pipe.delete(cls.HEARTBEAT_KEY.format(task_id=task_id))
-        pipe.delete(cls.RESURRECTIONS_KEY.format(task_id=task_id))
+        # Delete persisted execution state before removing the heartbeat to
+        # prevent false-positive resurrection windows.
+        pipe.delete(RedisKeys.phoenix(task_id))
+        pipe.delete(RedisKeys.heartbeat(task_id))
+        pipe.delete(RedisKeys.resurrection(task_id))
         await pipe.execute()
 
     @classmethod
     async def is_active(cls, task_id: str) -> bool:
-        """Return whether a task is currently registered in the shadow registry."""
+        """Return whether a live Phoenix heartbeat exists for the task."""
         redis = await get_relier_redis()
-        return bool(await redis.exists(cls.HEARTBEAT_KEY.format(task_id=task_id)))
+        return bool(await redis.exists(RedisKeys.heartbeat(task_id)))
 
     # ===========================================================================
-    # Resurrection loop (runs in the dedicated resurrector container)
+    # Resurrection coordinator
     # ===========================================================================
 
     @classmethod
     async def resurrection_loop(cls) -> None:
-        """Background loop that detects and revives tasks from dead workers.
+        """
+        Continuously detect dead workers and replay recoverable tasks.
 
-        Intended to run in a dedicated ``guardian`` / ``resurrector`` container.
-        Exits only if the process is killed.
+        Intended to run inside a dedicated resurrection coordinator process.
+
+        This loop:
+        - monitors previously resurrected tasks
+        - scans for expired heartbeats
+        - applies resurrection safety limits
+        - quarantines poison-pill workloads
+        - replays recoverable tasks onto healthy workers
         """
         from relier.core.dlq import DeadLetterQueue  # avoid circular import
         from relier.tasks.app import celery_app  # avoid circular import
@@ -174,38 +224,73 @@ class PhoenixRegistry:
 
         settings = cls._get_settings()
         redis = await get_relier_redis()
-        logger.info("Phoenix resurrector started.")
 
+        logger.info(
+            "Phoenix resurrector started",
+            extra={
+                "check_interval": settings.resurrection_check_interval,
+                "max_resurrections": settings.max_resurrections,
+                "heartbeat_ttl": settings.heartbeat_ttl,
+            },
+        )
+
+        loop_count = 0
         while True:
             try:
-                await cls._monitor_resurrected_tasks(redis)
-                await cls._scan_and_resurrect(redis, dead_letter_queue, celery_app)
-                logger.debug("Resurrector pass complete.")
+                loop_count += 1
+                start_time = asyncio.get_running_loop().time()
+
+                if loop_count % 10 == 0:
+                    logger.info(
+                        f"Phoenix resurrector heartbeat (loop={loop_count})",
+                        extra={"uptime_loops": loop_count},
+                    )
+
+                monitored_count = await cls._monitor_resurrected_tasks(redis)
+                resurrected_count = await cls._scan_and_resurrect(
+                    redis, dead_letter_queue, celery_app
+                )
+
+                duration = asyncio.get_event_loop().time() - start_time
+
+                if (monitored_count or 0) > 0 or (resurrected_count or 0) > 0:
+                    logger.info(
+                        "Phoenix resurrection pass complete",
+                        extra={
+                            "monitored": monitored_count,
+                            "resurrected": resurrected_count,
+                            "duration_ms": int(duration * 1000),
+                        },
+                    )
+
             except Exception as exc:
                 logger.error(
-                    "Resurrector loop error.",
-                    extra={"error": str(exc)},
+                    "Unhandled exception in resurrection coordinator loop.",
+                    extra={"error": str(exc), "loop": loop_count},
                     exc_info=True,
                 )
             await asyncio.sleep(settings.resurrection_check_interval)
 
     # ===========================================================================
-    # Private helpers
+    # Internal resurrection helpers
     # ===========================================================================
 
     @classmethod
-    async def _monitor_resurrected_tasks(cls, redis: Any) -> None:
-        """Phase 1: Track previously resurrected tasks back to completion."""
-        raw = await redis.hgetall(cls.MONITOR_KEY)
+    async def _monitor_resurrected_tasks(cls, redis: Redis) -> int:
+        """
+        Track previously resurrected tasks through their post-replay lifecycle.
+
+        Tasks transition through:
+        - resurrected but not yet claimed
+        - successfully revived
+        - failed again after replay
+        - fully completed
+        """
+        monitor_key = RedisKeys.monitor()
+        raw = await redis.hgetall(monitor_key)  # type: ignore[misc]
         if not raw:
-            return
+            return 0
 
-        logger.debug(
-            "Monitoring resurrected tasks.",
-            extra={"count": len(raw)},
-        )
-
-        # Normalize Redis bytes to str
         monitoring_data = {
             (k.decode() if isinstance(k, bytes) else k): (
                 v.decode() if isinstance(v, bytes) else v
@@ -215,52 +300,77 @@ class PhoenixRegistry:
 
         task_ids = list(monitoring_data.keys())
 
+        logger.debug(
+            f"Tracking {len(task_ids)} resurrected task(s)",
+            extra={"task_ids": task_ids},
+        )
+
         pipe = redis.pipeline()
         for t_id in task_ids:
-            pipe.exists(cls.HEARTBEAT_KEY.format(task_id=t_id))
-            pipe.exists(cls.TASKS_STATE_KEY.format(task_id=t_id))
+            pipe.exists(RedisKeys.heartbeat(t_id))
+            pipe.exists(RedisKeys.phoenix(t_id))
 
         results = await pipe.execute()
 
-        # Step through results in pairs (hb_exists, payload_exists)
+        transitions = {"alive": 0, "dead_again": 0, "completed": 0}
+
         for i, t_id in enumerate(task_ids):
             hb_exists = bool(results[i * 2])
             payload_exists = bool(results[i * 2 + 1])
             state = int(monitoring_data[t_id])
 
             if state == 0 and hb_exists:
-                # Heartbeat re-appeared — task is running on new worker.
-                await redis.hset(cls.MONITOR_KEY, t_id, 1)
-                logger.info("Resurrected task is alive.", extra={"task_id": t_id})
+                # A healthy worker reclaimed execution ownership.
+                await redis.hset(monitor_key, t_id, "1")  # type: ignore[misc]
+                transitions["alive"] += 1
+                logger.info("Resurrected task is now alive", extra={"task_id": t_id})
 
             elif state == 1 and not hb_exists and payload_exists:
-                # Worker died again — release back to the main scan loop.
+                # The replacement worker also disappeared before completion.
+                await redis.hdel(monitor_key, t_id)  # type: ignore[misc]
+                transitions["dead_again"] += 1
                 logger.warning(
-                    "Resurrected task died again; re-releasing to scan.",
+                    "Resurrected task died AGAIN - releasing back to scan",
                     extra={"task_id": t_id},
                 )
-                await redis.hdel(cls.MONITOR_KEY, t_id)
 
             elif not payload_exists:
-                # Payload cleaned up — task completed successfully.
+                # Execution completed and Phoenix state was cleaned up normally.
+                await redis.hdel(monitor_key, t_id)  # type: ignore[misc]
+                transitions["completed"] += 1
                 logger.info(
-                    "Resurrected task completed successfully.",
-                    extra={"task_id": t_id},
+                    "Resurrected task completed successfully", extra={"task_id": t_id}
                 )
-                await redis.hdel(cls.MONITOR_KEY, t_id)
+
+        # Emit transition metrics only when task state changed during the pass.
+        if any(transitions.values()):
+            logger.info("Resurrection monitoring summary", extra=transitions)
+
+        return len(task_ids)
 
     @classmethod
     async def _scan_and_resurrect(
         cls,
-        redis: Any,
+        redis: Redis,
         dead_letter_queue: DeadLetterQueue,
-        celery_app: Any,
-    ) -> None:
-        """Phase 2: Scan for new dead tasks and re-queue them."""
-        settings = cls._get_settings()
+        celery_app: Celery,
+    ) -> int:
+        """
+        Scan for orphaned Phoenix entries and replay recoverable tasks.
 
-        async for tasks_key in redis.scan_iter(match="rl:phoenix:*", count=100):
-            state_data = await redis.hgetall(tasks_key)
+        A task is considered orphaned when:
+        - payload state still exists
+        - the heartbeat has expired
+        - no other resurrector owns the replay lock
+        """
+        settings = cls._get_settings()
+        resurrected_count = 0
+        scanned_count = 0
+
+        async for tasks_key in redis.scan_iter(match=f"{RedisKeys.PREFIX}:phoenix:*", count=100):
+            scanned_count += 1
+
+            state_data = await redis.hgetall(tasks_key)  # type: ignore[misc]
             if not state_data:
                 continue
 
@@ -271,52 +381,60 @@ class PhoenixRegistry:
             )
 
             t_id = tasks_key_str.split(":")[-1]
-            hb_key = cls.HEARTBEAT_KEY.format(task_id=t_id)
+            hb_key = RedisKeys.heartbeat(t_id)
+            monitor_key = RedisKeys.monitor()
 
-            # Skip tasks that are alive or already being monitored.
+            # Ignore healthy tasks and tasks already undergoing replay tracking.
             pipe = redis.pipeline()
-            pipe.hexists(cls.MONITOR_KEY, t_id)
+            pipe.hexists(monitor_key, t_id)
             pipe.exists(hb_key)
             is_monitored, hb_exists = await pipe.execute()
 
             if is_monitored or hb_exists:
+                # Task is alive or already being resurrected
                 continue
 
-            # Acquire a distributed lock to prevent duplicate resurrection.
-            lock_key = cls.RESURRECT_LOCK.format(task_id=t_id)
+            # Acquire distributed replay ownership for this task.
+            lock_key = RedisKeys.resurrect_lock(t_id)
             acquired = await redis.set(lock_key, "1", nx=True, ex=30)
 
             if not acquired:
+                logger.debug(
+                    "Skipping resurrection because another coordinator owns the replay lock.",
+                    extra={"task_id": t_id},
+                )
                 continue
 
-            res_key = cls.RESURRECTIONS_KEY.format(task_id=t_id)
+            res_key = RedisKeys.resurrection(t_id)
             count = await redis.incr(res_key)
 
-            # Safely parse payload
+            # Recover the persisted execution payload required for replay.
             raw_payload = state_data.get(b"payload") or state_data.get("payload")
             try:
                 payload = json.loads(raw_payload) if raw_payload else {}
             except (TypeError, json.JSONDecodeError):
-                logger.error("Failed to decode task payload.", extra={"task_id": t_id})
+                logger.error("Failed to decode task payload", extra={"task_id": t_id})
                 payload = {}
 
-            # Safely parse partial state
+            # Recover any persisted checkpoint state for resumable execution.
             raw_partial = state_data.get(b"partial_result") or state_data.get(
                 "partial_result"
             )
             try:
                 partial_data = json.loads(raw_partial) if raw_partial else None
             except (TypeError, json.JSONDecodeError):
-                logger.error(
-                    "Failed to decode partial result.", extra={"task_id": t_id}
-                )
+                logger.error("Failed to decode partial result", extra={"task_id": t_id})
                 partial_data = None
 
-            # Check for Quarantine
+            # Quarantine workloads that repeatedly destabilize workers.
             if count > settings.max_resurrections:
                 logger.error(
-                    "Task exceeded max resurrections; quarantining.",
-                    extra={"task_id": t_id, "count": count},
+                    "Task exceeded resurrection safety limit; quarantining to DLQ.",
+                    extra={
+                        "task_id": t_id,
+                        "attempt": count,
+                        "max": settings.max_resurrections,
+                    },
                 )
                 await dead_letter_queue.quarantine(
                     t_id,
@@ -324,15 +442,19 @@ class PhoenixRegistry:
                     payload=payload,
                     partial_result=partial_data,
                 )
-                await redis.delete(cls.TASKS_STATE_KEY.format(task_id=t_id), res_key)
-                await redis.hdel(cls.MONITOR_KEY, t_id)
+                await redis.delete(RedisKeys.phoenix(t_id), res_key)
+                await redis.hdel(monitor_key, t_id)  # type: ignore[misc]
                 continue
 
-            # 4. Resurrection Path - Abort if payload is completely missing/corrupted
             if not payload:
+                logger.warning(
+                    "Skipping resurrection because no replay payload exists.",
+                    extra={"task_id": t_id},
+                )
                 continue
 
-            # 5. Inject partial result for Resurrection
+            # Inject checkpoint state so execution can resume from the last
+            # persisted recovery point.
             if partial_data:
                 if "kwargs" not in payload:
                     payload["kwargs"] = {}
@@ -345,40 +467,68 @@ class PhoenixRegistry:
                 else str(raw_worker)
             )
 
+            # Remove stale inflight ownership associated with the dead worker.
             if ghost_worker_id:
-                await redis.zrem(f"rl:inflight:{ghost_worker_id}", t_id)
+                removed = await redis.zrem(RedisKeys.inflight(ghost_worker_id), t_id)
+                if removed:
+                    logger.debug(
+                        "Cleaned up ghost worker inflight entry",
+                        extra={"ghost_worker": ghost_worker_id, "task_id": t_id},
+                    )
 
             logger.warning(
-                "Worker death detected; resurrecting task.",
+                "Worker death detected; replaying orphaned task.",
                 extra={
                     "task_id": t_id,
+                    "task_name": payload.get("task_name", "unknown"),
                     "attempt": count,
-                    "max": settings.max_resurrections,
+                    "max_attempts": settings.max_resurrections,
                     "ghost_worker": ghost_worker_id,
+                    "queue": payload.get("queue", "default"),
+                    "has_checkpoint": partial_data is not None,
                 },
             )
 
-            # Mark for monitoring BEFORE sending to prevent any detection gap.
-            await redis.hset(cls.MONITOR_KEY, t_id, 0)
+            # Begin post-replay lifecycle tracking before broker submission.
+            await redis.hset(monitor_key, t_id, "0")  # type: ignore[misc]
+            # Track global resurrection count for CLI metrics
+            await redis.incr(RedisKeys.metric_global("resurrected"))
 
+            # Replay resurrected tasks with elevated broker priority to minimize
+            # recovery latency after worker loss.
             asyncio.create_task(
                 cls._safe_bg_send(
                     t_id,
                     payload,
                     celery_app,
-                    priority=settings.resurrection_queue_priority
+                    priority=9,
                 )
             )
 
+            resurrected_count += 1
+
+        # Emit scan metrics only when Phoenix entries were inspected.
+        if scanned_count > 0:
+            logger.debug(
+                f"Scanned {scanned_count} phoenix entries, resurrected {resurrected_count}",
+                extra={"scanned": scanned_count, "resurrected": resurrected_count},
+            )
+
+        return resurrected_count
+
     @classmethod
-    async def _safe_bg_send(cls, task_id: str, payload: dict, celery_app: Any, priority: int) -> None:
-        """Wrapper to limit concurrency of background sends."""
+    async def _safe_bg_send(
+        cls, task_id: str, payload: dict, celery_app: Celery, priority: int
+    ) -> None:
+        """
+        Bound concurrent broker replay submissions during resurrection bursts.
+        """
         try:
             async with cls._send_semaphore:
                 await cls._bg_send(task_id, payload, celery_app, priority)
         except Exception as exc:
             logger.error(
-                "Error in background send wrapper.",
+                "Unexpected failure while scheduling resurrected task replay.",
                 extra={"task_id": task_id, "error": str(exc)},
                 exc_info=True,
             )
@@ -388,16 +538,26 @@ class PhoenixRegistry:
         cls,
         task_id: str,
         payload: dict[str, Any],
-        celery_app: Any,
-        priority: int
+        celery_app: Celery,
+        priority: int = 5,
     ) -> None:
-        """Re-queue a dead task on the Celery broker in a background task."""
+        """
+        Replay a resurrected task onto the Celery broker.
+
+        Broker submission is executed in a thread pool because Celery's
+        publishing APIs are synchronous.
+        """
         try:
             loop = asyncio.get_running_loop()
 
             logger.info(
-                "Attempting to send task to broker.",
-                extra={"task_id": task_id, "task_name": payload.get("task_name"), "priority": priority},
+                "Submitting resurrected task to broker.",
+                extra={
+                    "task_id": task_id,
+                    "task_name": payload.get("task_name"),
+                    "queue": payload.get("queue", "default"),
+                    "priority": priority,
+                },
             )
 
             await asyncio.wait_for(
@@ -414,25 +574,47 @@ class PhoenixRegistry:
                 ),
                 timeout=10.0,
             )
-            logger.info("Task re-queued.", extra={"task_id": task_id, "priority": priority})
+
+            logger.info(
+                "Resurrected task successfully re-queued.",
+                extra={
+                    "task_id": task_id,
+                    "task_name": payload.get("task_name"),
+                    "priority": priority,
+                },
+            )
+        except TimeoutError:
+            logger.error(
+                "Timed out while re-queueing resurrected task.",
+                extra={"task_id": task_id, "timeout": 10.0},
+            )
         except Exception as exc:
             logger.error(
-                "Failed to re-queue task.",
-                extra={"task_id": task_id, "error": str(exc)},
+                "Failed to submit resurrected task to broker.",
+                extra={
+                    "task_id": task_id,
+                    "error": str(exc),
+                    "error_type": type(exc).__name__,
+                },
                 exc_info=True,
             )
 
     # ==========================================================================
-    # Partial State
+    # Checkpoint persistence
     # ==========================================================================
 
     @classmethod
     async def update_partial_state(cls, task_id: str, state: Any) -> None:
-        """Update the persistent record with partial progress."""
+        """
+        Persist resumable checkpoint state for an active task.
+
+        Checkpoint data is injected back into the task during resurrection so
+        execution can continue from the last persisted recovery point.
+        """
         redis = await get_relier_redis()
-        # Merge or overwrite the partial_result in the hash
+        # Persist the latest checkpoint snapshot for resurrection recovery.
         await redis.hset(
-            cls.TASKS_STATE_KEY.format(task_id=task_id),
+            RedisKeys.phoenix(task_id),
             "partial_result",
             json.dumps(state),
         )  # type: ignore[misc]
