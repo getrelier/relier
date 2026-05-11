@@ -43,18 +43,21 @@ import uuid
 from collections.abc import Awaitable, Callable
 
 # Module-level imports are intentionally eager to fail fast at worker startup.
-from typing import Any
+from typing import Any, cast
 
 from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
 from opentelemetry import trace
 
+from relier.core.admission import admission_control
 from relier.core.exceptions import (
+    AdmissionRejectedError,
     IdempotencyInFlightError,
     PayloadIntegrityError,
     SchemaMigrationError,
 )
 from relier.core.idempotency import idempotency_manager
+from relier.core.keys import RedisKeys
 from relier.core.phoenix import PhoenixRegistry
 from relier.core.schema import SchemaRegistry
 from relier.core.slo import SLOMetrics
@@ -63,7 +66,6 @@ from relier.storage.redis import get_relier_redis
 from relier.tasks.context import TaskContext, _task_context_var
 from relier.telemetry.metrics import (
     idempotency_hits_total,
-    task_duration_ms,
     tasks_total,
 )
 from relier.telemetry.setup import get_tracer
@@ -160,7 +162,7 @@ def rl_task(
                 idem_result = None
                 redis = await get_relier_redis()
 
-                await redis.set(f"rl:presence:{worker_id}", "1", ex=60)
+                await redis.set(RedisKeys.presence(worker_id), "1", ex=60)
 
                 if idempotent:
                     arg_sig = json.dumps(
@@ -187,7 +189,7 @@ def rl_task(
 
                 await PhoenixRegistry.register(task_id, worker_id, phoenix_payload)
 
-                inflight_key = f"rl:inflight:{worker_id}"
+                inflight_key = RedisKeys.inflight(worker_id)
 
                 try:
                     from relier.tasks.app import shutdown_handler as _sh
@@ -198,7 +200,7 @@ def rl_task(
                     _sh.track_task(task_id)
 
                 pipe = redis.pipeline()
-                pipe.sadd("rl:workers", worker_id)
+                pipe.zadd(RedisKeys.workers(), {worker_id: time.time()})
                 pipe.zadd(inflight_key, {task_id: time.time()})
                 await pipe.execute()
 
@@ -252,8 +254,24 @@ def rl_task(
                             if idempotent and idem_result is not None:
                                 await idem_result.record_result(result)
 
-                            # Record Success
+                            # Record Success - BOTH GLOBAL AND PER-WORKER
                             await SLOMetrics.record_event("success")
+
+                            pipe = redis.pipeline()
+                            pipe.incr(
+                                RedisKeys.metric_global("success")
+                            )  # persistent, no TTL
+                            pipe.incr(
+                                RedisKeys.metric_worker(worker_id, "success")
+                            )  # session counter
+                            pipe.expire(
+                                RedisKeys.metric_worker(worker_id, "success"), 86400
+                            )  # refresh TTL
+                            pipe.expire(
+                                RedisKeys.metric_worker(worker_id, "failed"), 86400
+                            )  # keep both in sync
+                            await pipe.execute()
+
                             tasks_total.add(
                                 1, {"status": "completed", "rl.task.name": task_name}
                             )
@@ -261,6 +279,8 @@ def rl_task(
                             return result
 
                         except TimeoutError as exc:
+                            from relier.core.dlq import DeadLetterQueue
+
                             logger.error(
                                 "Task hard timeout exceeded.",
                                 extra={
@@ -269,6 +289,19 @@ def rl_task(
                                 },
                             )
                             await SLOMetrics.record_event("failure")
+
+                            # Record failure - BOTH GLOBAL AND PER-WORKER
+                            pipe = redis.pipeline()
+                            pipe.incr(RedisKeys.metric_global("failed"))
+                            pipe.incr(RedisKeys.metric_worker(worker_id, "failed"))
+                            pipe.expire(
+                                RedisKeys.metric_worker(worker_id, "failed"), 86400
+                            )
+                            pipe.expire(
+                                RedisKeys.metric_worker(worker_id, "success"), 86400
+                            )
+                            await pipe.execute()
+
                             tasks_total.add(
                                 1,
                                 {
@@ -283,7 +316,14 @@ def rl_task(
                                     trace.StatusCode.ERROR, "Hard timeout exceeded"
                                 )
                             )
+                            await DeadLetterQueue.quarantine(
+                                task_id,
+                                reason=str(exc),
+                                payload=phoenix_payload,
+                                partial_result=checkpoint,
+                            )
                             raise SoftTimeLimitExceeded(str(exc)) from exc
+
                         except Exception as exc:
                             logger.error(
                                 "Task execution failed.",
@@ -291,6 +331,20 @@ def rl_task(
                                 exc_info=True,
                             )
                             await SLOMetrics.record_event("failure")
+
+                            # Record failure - BOTH GLOBAL AND PER-WORKER
+                            pipe = redis.pipeline()
+                            pipe.incr(RedisKeys.metric_global("failed"))
+                            pipe.incr(RedisKeys.metric_worker(worker_id, "failed"))
+                            pipe.expire(
+                                RedisKeys.metric_worker(worker_id, "failed"), 86400
+                            )
+                            pipe.expire(
+                                RedisKeys.metric_worker(worker_id, "success"), 86400
+                            )
+
+                            await pipe.execute()
+
                             tasks_total.add(
                                 1, {"status": "failed", "rl.task.name": task_name}
                             )
@@ -298,19 +352,34 @@ def rl_task(
                             span.set_status(
                                 trace.Status(trace.StatusCode.ERROR, str(exc))
                             )
+
+                            from relier.core.dlq import DeadLetterQueue
+
+                            await DeadLetterQueue.quarantine(
+                                task_id,
+                                reason=str(exc),
+                                payload=phoenix_payload,
+                                partial_result=checkpoint,
+                            )
                             raise
                         finally:
                             duration_ms = (time.perf_counter() - start_time) * 1000
-                            task_duration_ms.record(
-                                duration_ms, {"rl.task.name": task_name}
-                            )
+
+                            # Record duration sample
+                            try:
+                                await redis.lpush(
+                                    RedisKeys.task_durations(),
+                                    str(duration_ms / 1000.0),
+                                )  # type: ignore[misc]
+                                await redis.ltrim(RedisKeys.task_durations(), 0, 999)  # type: ignore[misc]
+                            except Exception:
+                                logger.debug("Failed to record duration sample.")
 
                             if _sh is not None:
                                 _sh.untrack_task(task_id)
 
-                            pipe = redis.pipeline()
-                            pipe.zrem(inflight_key, task_id)
-                            await pipe.execute()
+                            # Cleanup: Remove from inflight
+                            await redis.zrem(inflight_key, task_id)
                             await PhoenixRegistry.complete(task_id)
                 finally:
                     _task_context_var.reset(token)
@@ -318,7 +387,9 @@ def rl_task(
             try:
                 if loop.is_running():
                     future = asyncio.run_coroutine_threadsafe(_orchestrate(), loop)
-                    return future.result()
+                    return future.result(
+                        timeout=hard_timeout + 10 if hard_timeout else 300
+                    )
                 else:
                     return loop.run_until_complete(_orchestrate())
             except IdempotencyInFlightError as exc:
@@ -340,14 +411,51 @@ def rl_task(
             reject_on_worker_lost=True,
         )(wrapper)
 
-        def delay_versioned(*d_args: Any, **d_kwargs: Any) -> Any:
-            """Enqueue the task wrapped in a signed, versioned schema envelope."""
+        async def apush(*d_args: Any, **d_kwargs: Any) -> Any:
+            """Async dispatch — use in FastAPI or async Django."""
+            is_admitted, retry_after = await admission_control.check_capacity(
+                "celery-dispatch"
+            )
+            if not is_admitted:
+                raise AdmissionRejectedError(
+                    f"Relier cluster at capacity. Retry after {retry_after}s",
+                    retry_after,
+                )
             task_id = str(uuid.uuid4())
             envelope = SchemaRegistry.wrap(task_id, d_args, d_kwargs)
-            return task.apply_async(args=(envelope,), queue=queue, task_id=task_id)
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(
+                None,
+                lambda: task.apply_async(
+                    args=(envelope,), queue=queue, task_id=task_id
+                ),
+            )
 
-        task.delay_versioned = delay_versioned
-        return task  # type: ignore[no-any-return]
+        def push(*d_args: Any, **d_kwargs: Any) -> Any:
+            """Sync dispatch — use in Django views, Flask routes, or sync scripts.
+
+            Blocks the calling thread for ~1ms (admission check) then dispatches.
+            Does NOT block on task completion — fire-and-forget like .delay().
+            """
+            try:
+                # Inside a Celery worker — reuse the persistent loop
+                import relier.tasks.app
+
+                loop = relier.tasks.app.worker_loop
+                if loop and loop.is_running():
+                    future = asyncio.run_coroutine_threadsafe(
+                        apush(*d_args, **d_kwargs), loop
+                    )
+                    return future.result(timeout=5.0)
+            except (ImportError, AttributeError):
+                pass
+
+            # Outside Celery (Django view, Flask route, script)
+            return asyncio.run(apush(*d_args, **d_kwargs))
+
+        task.apush = apush
+        task.push = push  # ← add this
+        return cast(Callable[..., Any], task)
 
     return decorator
 
@@ -363,10 +471,10 @@ def _get_worker_loop() -> asyncio.AbstractEventLoop:
         import os
 
         if "CELERY_LOADER" in os.environ:
-            from relier.tasks.app import init_worker
+            from relier.tasks.app import init_worker_process
 
             logger.warning("init_worker didn't fire; performing lazy initialization.")
-            init_worker()
+            init_worker_process()
             if relier.tasks.app.worker_loop is not None:
                 return relier.tasks.app.worker_loop
     except (ImportError, AttributeError):

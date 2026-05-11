@@ -4,11 +4,12 @@ from unittest.mock import patch
 import pytest
 
 from relier.core.dlq import DeadLetterQueue
+from relier.core.keys import RedisKeys
 
 pytestmark = pytest.mark.asyncio
 
 
-async def test_quarantine_with_payload(mock_redis):
+async def test_quarantine_with_payload(mock_redis) -> None:
     payload = {
         "task_name": "test.task",
         "queue": "high-priority",
@@ -27,11 +28,11 @@ async def test_quarantine_with_payload(mock_redis):
     assert entry["reason"] == "failure"
 
 
-async def test_quarantine_fetches_payload_from_redis(mock_redis):
+async def test_quarantine_fetches_payload_from_redis(mock_redis) -> None:
     task_id = "123"
     # Manual key construction to match what DeadLetterQueue.quarantine uses
     # Usually rl:phoenix:{task_id} or rl:heartbeat:{task_id}
-    key = f"rl:phoenix:{task_id}"
+    key = RedisKeys.phoenix(task_id)
 
     payload = {
         "task_name": "redis.task",
@@ -52,7 +53,7 @@ async def test_quarantine_fetches_payload_from_redis(mock_redis):
     assert entry["error"] == "test_error"
 
 
-async def test_quarantine_payload_missing(mock_redis):
+async def test_quarantine_payload_missing(mock_redis) -> None:
     await DeadLetterQueue.quarantine("123", "error")
 
     stored = await mock_redis.hget(DeadLetterQueue.DLQ_HASH_KEY, "123")
@@ -60,7 +61,7 @@ async def test_quarantine_payload_missing(mock_redis):
     assert entry["task_name"] == "unknown"
 
 
-async def test_list_tasks_sorted(mock_redis):
+async def test_list_tasks_sorted(mock_redis) -> None:
     await mock_redis.hset(
         DeadLetterQueue.DLQ_HASH_KEY,
         "1",
@@ -78,28 +79,29 @@ async def test_list_tasks_sorted(mock_redis):
     assert tasks[0]["quarantined_at"] > tasks[1]["quarantined_at"]
 
 
-async def test_list_tasks_skips_invalid_json(mock_redis):
+async def test_list_tasks_skips_invalid_json(mock_redis) -> None:
     await mock_redis.hset(DeadLetterQueue.DLQ_HASH_KEY, "1", "invalid-json")
 
     tasks = await DeadLetterQueue.list_tasks()
     assert tasks == []
 
 
-async def test_inspect_found(mock_redis):
+async def test_inspect_found(mock_redis) -> None:
     await mock_redis.hset(
         DeadLetterQueue.DLQ_HASH_KEY, "123", json.dumps({"task_id": "123"})
     )
 
     result = await DeadLetterQueue.inspect("123")
+    assert result is not None
     assert result["task_id"] == "123"
 
 
-async def test_inspect_not_found(mock_redis):
+async def test_inspect_not_found(mock_redis) -> None:
     result = await DeadLetterQueue.inspect("missing")
     assert result is None
 
 
-async def test_release_success(mock_redis):
+async def test_release_success(mock_redis) -> None:
     entry = {
         "task_name": "test.task",
         "args": [1],
@@ -107,7 +109,7 @@ async def test_release_success(mock_redis):
         "queue": "default",
     }
 
-    await mock_redis.hset(DeadLetterQueue.DLQ_HASH_KEY, "123", json.dumps(entry))
+    await mock_redis.hset(RedisKeys.dlq_hash(), "123", json.dumps(entry))
 
     # Mock Celery so we don't actually send a message to a broker
     from relier.tasks.app import celery_app
@@ -116,15 +118,15 @@ async def test_release_success(mock_redis):
         result = await DeadLetterQueue.release("123")
         assert result is True
         mock_send.assert_called_once()
-    assert not await mock_redis.hexists(DeadLetterQueue.DLQ_HASH_KEY, "123")
+    assert not await mock_redis.hexists(RedisKeys.dlq_hash(), "123")
 
 
-async def test_release_not_found(mock_redis):
+async def test_release_not_found(mock_redis) -> None:
     result = await DeadLetterQueue.release("missing")
     assert result is False
 
 
-async def test_release_unknown_task(mock_redis):
+async def test_release_unknown_task(mock_redis) -> None:
     entry = {"task_name": "unknown"}
     await mock_redis.hset(DeadLetterQueue.DLQ_HASH_KEY, "123", json.dumps(entry))
 
@@ -132,7 +134,7 @@ async def test_release_unknown_task(mock_redis):
     assert result is False
 
 
-async def test_purge(mock_redis):
+async def test_purge(mock_redis) -> None:
     await mock_redis.hset(DeadLetterQueue.DLQ_HASH_KEY, "1", "{}")
     await mock_redis.hset(DeadLetterQueue.DLQ_HASH_KEY, "2", "{}")
 
@@ -142,6 +144,6 @@ async def test_purge(mock_redis):
     assert not await mock_redis.exists(DeadLetterQueue.DLQ_HASH_KEY)
 
 
-async def test_purge_empty(mock_redis):
+async def test_purge_empty(mock_redis) -> None:
     count = await DeadLetterQueue.purge()
     assert count == 0

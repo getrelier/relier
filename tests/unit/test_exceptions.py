@@ -9,7 +9,7 @@ from relier.core.exceptions import (
 )
 
 
-def test_custom_exceptions():
+def test_custom_exceptions() -> None:
     """
     Ensure all custom exceptions instantiate correctly, hold their
     custom state, and format their internal messages properly.

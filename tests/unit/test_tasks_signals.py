@@ -7,7 +7,7 @@ from relier.tasks.signals import on_task_failure, on_task_postrun
 
 
 @pytest.mark.asyncio
-async def test_on_task_postrun_success():
+async def test_on_task_postrun_success() -> None:
     """Verify that successful tasks trigger SLO metric recording."""
     mock_loop = MagicMock()
     mock_loop.is_running.return_value = True
@@ -35,9 +35,8 @@ async def test_on_task_postrun_success():
             return f
 
     with (
-        patch("relier.tasks.app.worker_loop", mock_loop),
+        patch("relier.tasks.signals.task_app.worker_loop", mock_loop),
         patch("relier.storage.redis.RedisManager.close", new_callable=AsyncMock),
-        patch("relier.storage.database.DatabaseManager.close", new_callable=AsyncMock),
         patch("relier.core.slo.SLOMetrics.record_event", AsyncMock()) as mock_record,
         patch(
             "asyncio.run_coroutine_threadsafe",
@@ -52,10 +51,10 @@ async def test_on_task_postrun_success():
 
 
 @pytest.mark.asyncio
-async def test_on_task_postrun_no_loop():
+async def test_on_task_postrun_no_loop() -> None:
     """Verify that it handles cases where the worker loop is missing."""
     with (
-        patch("relier.tasks.app.worker_loop", None),
+        patch("relier.tasks.signals.task_app.worker_loop", None),
         patch("relier.tasks.signals.logger") as mock_logger,
     ):
         on_task_postrun(state="SUCCESS", task_id="123")
@@ -65,7 +64,7 @@ async def test_on_task_postrun_no_loop():
     await asyncio.sleep(0)
 
 
-def test_on_task_failure_logging():
+def test_on_task_failure_logging() -> None:
     """Verify that task failures are logged with exception context."""
     with patch("relier.tasks.signals.logger") as mock_logger:
         on_task_failure(task_id="123", exception=ValueError("Boom"))

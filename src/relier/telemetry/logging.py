@@ -52,27 +52,22 @@ def setup_logging(level: str = "INFO", cache_loggers: bool = True) -> None:
 
     # Configure the stdlib root logger so third-party libraries
     # (SQLAlchemy, httpx, celery, etc.) also flow through structlog.
-    logging.basicConfig(
-        format="%(message)s",
-        stream=sys.stdout,
-        level=numeric_level,
-    )
 
     shared_processors: list = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
+        structlog.stdlib.ExtraAdder(),
         structlog.processors.TimeStamper(fmt="iso", utc=True),
         structlog.processors.StackInfoRenderer(),
         inject_otel_context,
     ]
 
-    if level.upper() == "DEBUG":
-        # Development: pretty-print with colors.
-        renderer = structlog.dev.ConsoleRenderer(colors=True)
-    else:
-        # Production: machine-readable JSON.
-        renderer = structlog.processors.JSONRenderer()  # type: ignore[assignment]
+    renderer = (
+        structlog.dev.ConsoleRenderer(colors=True)
+        if level.upper() == "DEBUG"
+        else structlog.processors.JSONRenderer()
+    )
 
     structlog.configure(
         processors=[

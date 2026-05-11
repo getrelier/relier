@@ -7,7 +7,7 @@ from relier.core.timeouts import TaskContext, TimeoutEnforcer
 
 @pytest.mark.asyncio
 class TestTimeoutEnforcer:
-    async def test_soft_timeout_fires_cleanup_hook(self):
+    async def test_soft_timeout_fires_cleanup_hook(self) -> None:
         """Verifies on_soft hook is called safely."""
         cleanup_called = False
 
@@ -25,14 +25,14 @@ class TestTimeoutEnforcer:
                 func=slow_func,
                 args=(),
                 kwargs={},
-                soft=0.1,
-                hard=0.5,
+                soft=0.1, # type: ignore[arg-type]
+                hard=0.5, # type: ignore[arg-type]
                 on_soft=mock_cleanup,
                 task_id="test_soft_hook",
             )
         assert cleanup_called is True
 
-    async def test_hard_timeout_terminates_task(self):
+    async def test_hard_timeout_terminates_task(self) -> None:
         """Verifies hard timeout raises TimeoutError and cancels task."""
 
         async def infinite_task():
@@ -44,12 +44,12 @@ class TestTimeoutEnforcer:
                 args=(),
                 kwargs={},
                 soft=None,
-                hard=0.1,
+                hard=0.1, # type: ignore[arg-type]
                 on_soft=None,
                 task_id="test_hard_kill",
             )
 
-    async def test_task_completes_normally(self):
+    async def test_task_completes_normally(self) -> None:
         """Verifies successful path doesn't trigger timeouts."""
 
         async def fast_task(x):

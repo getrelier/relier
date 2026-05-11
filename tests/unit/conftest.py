@@ -10,14 +10,9 @@ import pytest
 
 
 @pytest.fixture(scope="session", autouse=True)
-def setup_env():
+def setup_env() -> None:
     """Override conftest.py fixture to prevent starting containers."""
     pass
-
-
-@pytest.fixture(scope="session")
-def postgres_url():
-    return "postgresql+asyncpg://user:pass@localhost:5432/db"
 
 
 @pytest.fixture(scope="session")
@@ -213,6 +208,10 @@ class FakePipeline:
 
     def set(self, *args, **kwargs):
         self.commands.append(("set", args, kwargs))
+        return self
+
+    def incr(self, *args, **kwargs):
+        self.commands.append(("incr", args, kwargs))
         return self
 
     def hset(self, *args, **kwargs):

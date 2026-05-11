@@ -24,7 +24,6 @@ from relier import __version__
 from relier.api.middleware import AdmissionControlMiddleware
 from relier.api.routers import admin, health, tasks
 from relier.config import get_settings
-from relier.storage.database import db_manager
 from relier.storage.redis import redis_manager
 from relier.telemetry.logging import setup_logging
 from relier.telemetry.setup import setup_telemetry
@@ -44,6 +43,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # them with the celery_app in this specific process.
     if settings.env != "production":
         try:
+            import relier.tasks.debug  # noqa: F401
             from relier.tasks.app import celery_app
 
             logger.info(
@@ -59,7 +59,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
     # Shutdown — close connection pools cleanly.
     await redis_manager.close()
-    await db_manager.close()
     logger.info("Relier API shut down.")
 
 

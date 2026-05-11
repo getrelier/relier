@@ -4,11 +4,36 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from celery.exceptions import SoftTimeLimitExceeded
 
-from relier.core.exceptions import IdempotencyInFlightError, SchemaMigrationError
+from relier.core.exceptions import (
+    AdmissionRejectedError,
+    IdempotencyInFlightError,
+    SchemaMigrationError,
+)
 from relier.tasks.decorator import rl_task
 
 
 class TestTasksDecorator:
+    @pytest.fixture(autouse=True)
+    async def cleanup_coroutines(self):
+        """Global reaper to kill 'never awaited' warnings from nested coros."""
+        yield
+        import gc
+
+        for obj in gc.get_objects():
+            if asyncio.iscoroutine(obj) and any(
+                name in str(obj)
+                for name in [
+                    "init_worker_process",
+                    "_warm_up",
+                    "_presence_loop",
+                    "_cleanup_dead_workers",
+                    "get_client",
+                    "_orchestrate",
+                    "_execute_mock_call"
+                ]
+            ):
+                obj.close()
+
     @pytest.fixture(autouse=True)
     def reset_worker_loop(self):
         """Ensure worker_loop is reset for every test."""
@@ -18,32 +43,80 @@ class TestTasksDecorator:
         yield
         relier.tasks.app.worker_loop = None
 
+    def test_push_dispatch(self) -> None:
+        @rl_task()
+        async def my_task(x):
+            return x
+
+        with (
+            patch("celery.app.task.Task.apply_async") as mock_apply,
+            patch("relier.core.schema.SchemaRegistry.wrap") as mock_wrap,
+            patch(
+                "relier.core.admission.admission_control.check_capacity",
+                new_callable=AsyncMock,
+            ) as mock_capacity,
+        ):
+            mock_capacity.return_value = (True, None)
+
+            mock_wrap.return_value = {
+                "schema_version": 1,
+                "payload": {"kwargs": {"x": 1}},
+            }
+
+            my_task.push(x=1)
+
+            assert mock_apply.called
+
     @pytest.mark.asyncio
-    async def test_delay_versioned(self):
-        """Verify that delay_versioned wraps arguments in a schema envelope."""
+    async def test_apush_dispatch(self) -> None:
+        """Verify async admission-controlled dispatch."""
 
         @rl_task()
         async def my_task(x):
             return x
 
         with (
-            patch.object(my_task, "apply_async") as mock_apply,
+            patch("celery.app.task.Task.apply_async") as mock_apply,
             patch("relier.core.schema.SchemaRegistry.wrap") as mock_wrap,
+            patch(
+                "relier.core.admission.admission_control.check_capacity",
+                new_callable=AsyncMock,
+            ) as mock_capacity,
         ):
+            mock_capacity.return_value = (True, None)
+
             mock_wrap.return_value = {
                 "schema_version": 1,
                 "payload": {"kwargs": {"x": 1}},
             }
-            my_task.delay_versioned(x=1)
+
+            await my_task.apush(x=1)
 
             assert mock_apply.called
-            args, kwargs = mock_apply.call_args
+
+            _, kwargs = mock_apply.call_args
+
             envelope = kwargs["args"][0]
+
             assert envelope["schema_version"] == 1
 
-        # Explicitly await a sleep(0) to allow any background
-        # cleanup coroutines triggered by the decorator to finish
-        await asyncio.sleep(0)
+    @pytest.mark.asyncio
+    async def test_apush_rejected(self) -> None:
+        """Verify admission control rejection."""
+
+        @rl_task()
+        async def my_task(x):
+            return x
+
+        with patch(
+            "relier.core.admission.admission_control.check_capacity",
+            new_callable=AsyncMock,
+        ) as mock_capacity:
+
+            mock_capacity.return_value = (False, 30)
+
+            with pytest.raises(AdmissionRejectedError):
+                await my_task.apush(x=1)
 
     # -----------------------------------------------------------------------
     # Use standard synchronous tests below. This forces the decorator to use
@@ -59,7 +132,7 @@ class TestTasksDecorator:
         except RuntimeError:
             pass
 
-    def test_orchestrate_idempotency_hit_full(self, mock_redis):
+    def test_orchestrate_idempotency_hit_full(self, mock_redis) -> None:
         """Verify idempotency returns cached result without executing."""
 
         @rl_task(idempotent=True)
@@ -88,7 +161,7 @@ class TestTasksDecorator:
             assert result == "cached_real"
             mock_get_loop.return_value.close()
 
-    def test_orchestrate_schema_quarantine(self, mock_redis):
+    def test_orchestrate_schema_quarantine(self, mock_redis) -> None:
         """Verify tasks with invalid schemas are pushed to the DLQ."""
 
         @rl_task()
@@ -115,7 +188,7 @@ class TestTasksDecorator:
             assert mock_q.called
             mock_get_loop.return_value.close()
 
-    def test_orchestrate_success_async(self, mock_redis):
+    def test_orchestrate_success_async(self, mock_redis) -> None:
         """Verify successful async execution and Phoenix registration."""
 
         @rl_task()
@@ -148,7 +221,7 @@ class TestTasksDecorator:
             assert mock_comp.called
             mock_get_loop.return_value.close()
 
-    def test_orchestrate_sync_task_thread_dispatch(self, mock_redis):
+    def test_orchestrate_sync_task_thread_dispatch(self, mock_redis) -> None:
         """Verify synchronous tasks are executed in asyncio.to_thread."""
 
         @rl_task()
@@ -178,7 +251,7 @@ class TestTasksDecorator:
             assert result == 11
             mock_get_loop.return_value.close()
 
-    def test_orchestrate_hard_timeout_exception(self, mock_redis):
+    def test_orchestrate_hard_timeout_exception(self, mock_redis) -> None:
         """Verify hard timeouts correctly raise SoftTimeLimitExceeded."""
 
         @rl_task(hard_timeout=1)
@@ -212,7 +285,7 @@ class TestTasksDecorator:
             timeout_task.run(x=1)
             mock_get_loop.return_value.close()
 
-    def test_orchestrate_idempotency_in_flight_retry(self, mock_redis):
+    def test_orchestrate_idempotency_in_flight_retry(self, mock_redis) -> None:
         """Verify concurrent execution triggers Celery retry."""
 
         @rl_task(idempotent=True)
@@ -239,7 +312,7 @@ class TestTasksDecorator:
 
         idem_task.retry.assert_called_once()
 
-    def test_orchestrate_general_exception(self, mock_redis):
+    def test_orchestrate_general_exception(self, mock_redis) -> None:
         """Verify general exceptions are logged and re-raised."""
 
         @rl_task()
@@ -259,7 +332,7 @@ class TestTasksDecorator:
                 fail_task.run()
             mock_get_loop.return_value.close()
 
-    def test_bridge_run_coroutine_threadsafe(self, mock_redis):
+    def test_bridge_run_coroutine_threadsafe(self, mock_redis) -> None:
         """Verify the threadsafe bridge path (loop already running)."""
 
         @rl_task()
@@ -292,7 +365,7 @@ class TestTasksDecorator:
             assert mock_run.called
 
     @pytest.mark.filterwarnings("ignore::RuntimeWarning")
-    def test_get_worker_loop_fallbacks(self):
+    def test_get_worker_loop_fallbacks(self) -> None:
         """Verify _get_worker_loop creates a new loop if none exists.
 
         Note: The RuntimeWarning filter suppresses a phantom '_orchestrate'
@@ -320,22 +393,22 @@ class TestTasksDecorator:
             # Explicitly 'close' to prevent RuntimeWarnings
             loop.close()
 
-    def test_get_worker_loop_lazy_init(self):
+    def test_get_worker_loop_lazy_init(self) -> None:
         """Verify that _get_worker_loop performs lazy initialization."""
-        import relier.tasks.app
+        import relier.tasks.app as task_app
         from relier.tasks.decorator import _get_worker_loop
 
-        original_loop = relier.tasks.app.worker_loop
-        relier.tasks.app.worker_loop = None
+        original_loop = task_app.worker_loop
+        task_app.worker_loop = None
         try:
             with (
                 patch.dict("os.environ", {"CELERY_LOADER": "1"}),
-                patch("relier.tasks.app.init_worker") as mock_init,
+                patch("relier.tasks.app.init_worker_process") as mock_init,
             ):
                 mock_loop = MagicMock()
 
                 def set_loop(**kwargs):
-                    relier.tasks.app.worker_loop = mock_loop
+                    task_app.worker_loop = mock_loop
 
                 mock_init.side_effect = set_loop
 
@@ -343,4 +416,4 @@ class TestTasksDecorator:
                 assert mock_init.called
                 assert loop == mock_loop
         finally:
-            relier.tasks.app.worker_loop = original_loop
+            task_app.worker_loop = original_loop

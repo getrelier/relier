@@ -1,65 +1,101 @@
 """
 Relier Tasks — Celery Signal Handlers.
 
-Hooks into Celery's built-in signal system to automatically record SLO
-metrics (success/failure counts) after every task execution, without
-modifying user-facing task code.
+Hooks into Celery's lifecycle signals purely for structured logging.
+All reliability logic (SLO, metrics, Phoenix) lives in the decorator.
+These signals give us Celery-native completion/failure visibility.
 """
 
-import logging
+import asyncio
+from typing import Any
 
-from celery.signals import task_failure, task_postrun
+import structlog
+from celery.signals import task_failure, task_postrun, task_prerun, task_retry
 
+import relier.tasks.app as task_app
 from relier.core.slo import SLOMetrics
 
-logger = logging.getLogger(__name__)
+logger = structlog.getLogger(__name__)
+
+
+@task_prerun.connect
+def on_task_prerun(
+    sender: Any = None,
+    task_id: str = "",
+    task: Any = None,
+    args: Any = None,
+    kwargs: Any = None,
+    **extra: Any,
+) -> None:
+    """Log when a task begins executing in a worker child process."""
+    logger.info(
+        "Task started.",
+        task_id=task_id,
+        task_name=getattr(task, "name", "unknown"),
+    )
 
 
 @task_postrun.connect
 def on_task_postrun(
-    sender: object = None,
+    sender: Any = None,
     task_id: str = "",
+    task: Any = None,
     state: str = "",
-    **kwargs: object,
+    retval: Any = None,
+    **extra: Any,
 ) -> None:
-    """Record a success or failure event in the SLO sliding window.
+    """Log when a task finishes — success or failure."""
+    logger.info(
+        "Task finished.",
+        task_id=task_id,
+        task_name=getattr(task, "name", "unknown"),
+        state=state,
+    )
+    if state == "SUCCESS":
+        if task_app.worker_loop and task_app.worker_loop.is_running():
 
-    Fires after every task execution regardless of outcome.
-    """
-    import asyncio
+            async def _record() -> None:
+                await SLOMetrics.record_event("success")
 
-    import relier.tasks.app
-
-    status = "success" if state == "SUCCESS" else "failure"
-
-    if relier.tasks.app.worker_loop and relier.tasks.app.worker_loop.is_running():
-        asyncio.run_coroutine_threadsafe(
-            SLOMetrics.record_event(status), relier.tasks.app.worker_loop
-        )
-    else:
-        logger.warning(
-            "Worker loop unavailable; SLO metric not recorded.",
-            extra={"task_id": task_id, "state": state},
-        )
+            asyncio.run_coroutine_threadsafe(_record(), loop=task_app.worker_loop)
+        else:
+            logger.warning(
+                "Worker loop unavailable; skipping SLO metric recording.",
+                task_id=task_id,
+            )
 
 
 @task_failure.connect
 def on_task_failure(
-    sender: object = None,
+    sender: Any = None,
     task_id: str = "",
     exception: BaseException | None = None,
-    **kwargs: object,
+    **extra: Any,
 ) -> None:
-    """Log unhandled task exceptions with structured context.
-
-    This fires in addition to ``task_postrun`` on failure, giving us a
-    dedicated log entry for alerting pipelines.
-    """
+    """Log unhandled task exceptions for alerting pipelines."""
     logger.error(
         "Task failed with unhandled exception.",
         extra={
             "task_id": task_id,
             "exception_type": type(exception).__name__ if exception else "unknown",
             "exception": str(exception),
+        },
+    )
+
+
+@task_retry.connect
+def on_task_retry(
+    sender: Any = None,
+    task_id: str = "",
+    reason: Any = None,
+    **extra: Any,
+) -> None:
+    """Log Celery-level retries (e.g. idempotency backoff)."""
+    logger.warning(
+        "Task retrying.",
+        extra={
+            "task_id": task_id,
+            "task_name": getattr(sender, "name", "unknown"),
+            "reason": str(reason),
         },
     )

@@ -1,13 +1,16 @@
 """
 Relier Core — Dead Letter Queue (DLQ).
 
-Quarantines tasks that exceed their maximum resurrection limit or suffer
-catastrophic, unrecoverable failures.  Quarantined tasks are parked in a
-Redis Hash and can be inspected, released, or purged via the CLI or API.
+Provides quarantine storage for tasks that can no longer be executed
+safely, including poison-pill workloads, resurrection-limit exhaustion,
+and unrecoverable task failures.
 
-DLQ key layout::
+Quarantined tasks are persisted in Redis and can later be inspected,
+released, retried, or permanently purged through the CLI.
 
-    rl:dlq                  — Hash: {task_id → JSON envelope}
+DLQ storage layout::
+
+    rl:dlq  — Redis hash mapping {task_id -> JSON envelope}
 """
 
 import json
@@ -16,15 +19,24 @@ from collections.abc import Awaitable
 from datetime import UTC, datetime
 from typing import Any, cast
 
+from relier.core.keys import RedisKeys
 from relier.storage.redis import get_relier_redis
 
 logger = logging.getLogger(__name__)
 
 
 class DeadLetterQueue:
-    """Manages quarantine, inspection, and release of permanently failed tasks."""
+    """
+    Central DLQ manager for quarantined task lifecycle operations.
 
-    DLQ_HASH_KEY = "rl:dlq"
+    Responsible for:
+    - quarantining unrecoverable tasks
+    - preserving diagnostic metadata
+    - re-submitting released tasks
+    - preventing infinite poison-pill resurrection loops
+    """
+
+    DLQ_HASH_KEY = RedisKeys.dlq_hash()
 
     @classmethod
     async def quarantine(
@@ -34,25 +46,36 @@ class DeadLetterQueue:
         payload: dict[str, Any] | None = None,
         partial_result: Any | None = None,
     ) -> None:
-        """Move a task into the DLQ and clean up its active Phoenix state.
+        """
+        Quarantine a task and remove all active execution state.
 
-        Args:
-            task_id: The Celery task ID.
-            reason:  Human-readable reason (e.g., ``"max_resurrections_exceeded"``).
-            payload: Optional payload dict.  If omitted, it is fetched from Redis.
+        Tasks enter the DLQ after exceeding resurrection limits or encountering
+        failures considered unsafe to retry automatically.
+
+        The quarantine record preserves enough metadata for:
+        - forensic inspection
+        - manual replay
+        - partial-result recovery
+        - operational debugging
         """
         redis = await get_relier_redis()
 
-        # Fetch payload from Redis if not supplied.  The Phoenix state is
-        # typically stored as a Hash with a `payload` field, but older code or
-        # tooling may store a raw JSON string at the key. Try both formats so
-        # quarantine is resilient.
+        # Recover the original task payload if the caller did not provide one.
+        #
+        # Phoenix state is normally stored as a Redis hash containing a ``payload``
+        # field. Older tooling or recovery paths may instead persist the payload as
+        # a raw JSON string at the same key.
+        #
+        # Support both layouts so DLQ quarantine remains backward-compatible and
+        # resilient to mixed storage formats.
+
         if payload is None:
-            phoenix_key = f"rl:phoenix:{task_id}"
-            raw = await cast(Awaitable[Any], redis.hget(phoenix_key, "payload"))
+            raw = await cast(
+                Awaitable[Any], redis.hget(RedisKeys.phoenix(task_id), "payload")
+            )
             if not raw:
                 # Fallback: try a plain string value at the same key.
-                raw = await cast(Awaitable[Any], redis.get(phoenix_key))
+                raw = await cast(Awaitable[Any], redis.get(RedisKeys.phoenix(task_id)))
 
             payload = (
                 json.loads(raw)
@@ -60,18 +83,20 @@ class DeadLetterQueue:
                 else {"error": "Payload lost prior to quarantine."}
             )
 
-        # Fetch resurrection count
-        raw_count = raw_count = await cast(
-            Awaitable[Any], redis.get(f"rl:resurrections:{task_id}")
+        # Preserve resurrection history so operators can distinguish transient
+        # failures from poison-pill workloads.
+        raw_count = await cast(
+            Awaitable[Any], redis.get(RedisKeys.resurrection(task_id))
         )
         resurrection_count = int(raw_count) if raw_count else 0
 
-        # 3. Capture the partial result safely
+        # Recover any persisted checkpoint or partial execution result so released
+        # tasks can resume from the last known safe state.
         raw_partial = await cast(
-            Awaitable[Any], redis.hget(f"rl:phoenix:{task_id}", "partial_result")
+            Awaitable[Any], redis.hget(RedisKeys.phoenix(task_id), "partial_result")
         )
 
-        # Parse it if it exists and wasn't explicitly provided in the args
+        # Caller-provided partial results take precedence over persisted state.
         if not partial_result and raw_partial:
             try:
                 partial_result = json.loads(raw_partial)
@@ -86,26 +111,27 @@ class DeadLetterQueue:
             "kwargs": payload.get("kwargs", {}),
             "partial_result": partial_result,
             "reason": reason,
-            # Backwards compatibility: some callers / consumers expect an
-            # `error` field rather than `reason`.
+            # Backward compatibility: older consumers may still expect ``error``
+            # instead of ``reason``.
             "error": reason,
             "resurrections": resurrection_count,
             "quarantined_at": datetime.now(UTC).isoformat(),
         }
 
-        # Atomic: add to DLQ and delete all active state in one pipeline.
+        # Persist the DLQ record and clear active execution state together to
+        # minimize orphaned Phoenix metadata.
         pipe = redis.pipeline()
         pipe.hset(cls.DLQ_HASH_KEY, task_id, json.dumps(dlq_entry))
         pipe.delete(
-            f"rl:hb:{task_id}",
-            f"rl:phoenix:{task_id}",
-            f"rl:resurrections:{task_id}",
-            f"rl:lock:resurrect:{task_id}",
+            RedisKeys.heartbeat(task_id),
+            RedisKeys.phoenix(task_id),
+            RedisKeys.resurrection(task_id),
+            RedisKeys.resurrect_lock(task_id),
         )
         await cast(Awaitable[Any], pipe.execute())
 
         logger.critical(
-            "Task quarantined to DLQ.",
+            "Task moved to dead-letter queue.",
             extra={
                 "task_id": task_id,
                 "reason": reason,
@@ -115,7 +141,12 @@ class DeadLetterQueue:
 
     @classmethod
     async def list_tasks(cls, count: int = 100) -> list[dict[str, Any]]:
-        """Return up to *count* quarantined tasks, sorted newest-first."""
+        """
+        Return quarantined tasks ordered by most recent quarantine time first.
+
+        Malformed entries are skipped defensively so corrupted DLQ records do
+        not break inspection tooling.
+        """
         redis = await get_relier_redis()
 
         results: list[dict[str, Any]] = []
@@ -129,7 +160,7 @@ class DeadLetterQueue:
                     try:
                         results.append(json.loads(raw_json))
                     except json.JSONDecodeError:
-                        logger.warning("Skipping malformed DLQ entry.")
+                        logger.warning("Skipping malformed DLQ payload during scan.")
             if cursor == 0:
                 break
 
@@ -138,7 +169,11 @@ class DeadLetterQueue:
 
     @classmethod
     async def inspect(cls, task_id: str) -> dict[str, Any] | None:
-        """Fetch the full envelope for a specific quarantined task."""
+        """
+        Fetch the full persisted DLQ envelope for a quarantined task.
+
+        Returns ``None`` if the task is not present in the DLQ.
+        """
         redis = await get_relier_redis()
         raw = await redis.hget(cls.DLQ_HASH_KEY, task_id)  # type: ignore[misc]
         if raw:
@@ -147,10 +182,14 @@ class DeadLetterQueue:
 
     @classmethod
     async def release(cls, task_id: str) -> bool:
-        """Remove a task from the DLQ and re-submit it to the Celery broker.
+        """
+        Release a quarantined task back to the broker.
 
-        Returns:
-            ``True`` on success, ``False`` if the task was not found.
+        The original task ID is preserved so resurrection tracking, telemetry,
+        and inflight visibility continue seamlessly across the replay attempt.
+
+        If a partial result exists, it is injected into the task kwargs as a
+        checkpoint payload.
         """
         from relier.tasks.app import celery_app
 
@@ -159,7 +198,7 @@ class DeadLetterQueue:
 
         if not raw:
             logger.warning(
-                "Release failed: task not found in DLQ.", extra={"task_id": task_id}
+                "DLQ release requested for unknown task.", extra={"task_id": task_id}
             )
             return False
 
@@ -167,7 +206,7 @@ class DeadLetterQueue:
 
         if entry.get("task_name") == "unknown":
             logger.error(
-                "Cannot release task: task_name is unknown.",
+                "Cannot release DLQ task without a valid task name.",
                 extra={"task_id": task_id},
             )
             return False
@@ -179,7 +218,7 @@ class DeadLetterQueue:
             kwargs["checkpoint"] = partial
 
         logger.debug(
-            "Releasing DLQ task: sending to broker.",
+            "Replaying quarantined task from DLQ.",
             extra={"task_id": task_id, "task_name": entry.get("task_name")},
         )
 
@@ -191,11 +230,11 @@ class DeadLetterQueue:
             task_id=task_id,  # Preserve original ID so Phoenix tracking continues.
         )
 
-        # Preserve the resurrection count so poison-pill tasks can't cycle
-        # through DLQ releases indefinitely.
+        # Preserve resurrection history so poison-pill tasks cannot bypass
+        # quarantine limits through repeated manual releases..
         prev_count = entry.get("resurrections", 0)
         if prev_count > 0:
-            await redis.set(f"rl:resurrections:{task_id}", str(prev_count))
+            await redis.set(RedisKeys.resurrection(task_id), str(prev_count))
 
         await redis.hdel(cls.DLQ_HASH_KEY, task_id)  # type: ignore[misc]
         logger.info(
@@ -206,13 +245,13 @@ class DeadLetterQueue:
 
     @classmethod
     async def purge(cls) -> int:
-        """Permanently delete all tasks in the DLQ.
+        """
+        Permanently remove all quarantined tasks from the DLQ.
 
-        Returns:
-            The number of tasks deleted.
+        This operation is irreversible and clears all persisted failure history.
         """
         redis = await get_relier_redis()
         count = await redis.hlen(cls.DLQ_HASH_KEY)  # type: ignore[misc]
         await redis.delete(cls.DLQ_HASH_KEY)
-        logger.warning("DLQ purged.", extra={"count": count})
+        logger.warning("Dead-letter queue purged.", extra={"count": count})
         return int(count) if count else 0

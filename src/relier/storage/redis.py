@@ -1,9 +1,23 @@
 """
-Relier Storage Layer — Redis Integration.
+Relier Storage Layer — Redis Runtime Integration.
 
-This module manages the asynchronous connection pool to Redis, serving as
-the centralized state store for Relier's reliability features. It ensures
-thread-safe, lazy initialization, loop-aware caching, and robust connection lifecycle management.
+Provides lifecycle management for Relier's asynchronous Redis connection
+pools.
+
+Redis serves as the coordination backbone for:
+- Phoenix resurrection
+- idempotency
+- admission control
+- distributed locking
+- task state persistence
+- SLO telemetry
+
+The manager implements:
+- lazy pool initialization
+- event-loop affinity
+- fork-safe pool invalidation
+- async-safe concurrency guards
+- deterministic connection teardown
 """
 
 import asyncio
@@ -19,21 +33,29 @@ logger = logging.getLogger(__name__)
 
 class RedisManager:
     """
-    Manages the lifecycle of the Redis connection pool.
+    Coordinates loop-affined Redis connection pools for asynchronous runtimes.
 
-    CRITICAL DESIGN NOTE:
-    Do NOT call get_client() at module import time.
-    Call it only inside a running event loop (e.g., inside a task or a FastAPI
-    dependency). Calling at import time binds the pool to the wrong loop
-    and causes 'Task attached to a different loop' errors.
+    A separate Redis client is maintained per active asyncio event loop to
+    prevent cross-loop resource corruption and inherited post-fork state.
 
-    Relier handles this automatically via loop-aware caching (Dict[int, Redis]).
+    IMPORTANT:
+    Redis clients are event-loop bound and must only be initialized from
+    within an active asyncio runtime.
 
+    Creating clients during module import or process bootstrap may bind
+    the connection pool to the wrong loop, resulting in cross-loop
+    execution failures such as:
+
+        RuntimeError: Task attached to a different loop
+
+    Relier prevents this by maintaining loop-local client caches keyed
+    by ``id(asyncio.get_running_loop())``.
     """
 
     def __init__(self) -> None:
-        # Dictionary mappings to tie clients and locks to specific event loops
+        # Loop-local Redis client registry.
         self._clients: dict[int, Redis] = {}
+        # Per-loop initialization locks preventing concurrent pool creation.
         self._locks: dict[int, asyncio.Lock] = {}
 
     @property
@@ -42,12 +64,17 @@ class RedisManager:
         return get_settings()
 
     def _get_safe_log_url(self) -> str:
-        """Returns a sanitized Redis URL for logging (masks the password)."""
+        """
+        Return a sanitized Redis endpoint suitable for structured logging.
+        """
         url_obj = self.settings.redis_url
         return f"redis://***@{url_obj.host}:{url_obj.port}{url_obj.path or '/0'}"
 
     async def _test_reset(self) -> None:
-        """TESTING ONLY: Forcibly close all connections and clear state."""
+        """
+        Testing utility that forcefully tears down all managed pools and
+        clears loop-local runtime state.
+        """
         for client in self._clients.values():
             await client.aclose()
         self._clients.clear()
@@ -55,26 +82,42 @@ class RedisManager:
 
     async def get_client(self) -> Redis:
         """
-        Retrieve the active Redis client, initializing it if necessary.
-        Uses loop-aware caching to prevent 'Task attached to a different loop' errors.
+        Return the Redis client bound to the current asyncio event loop.
+
+        Pools are initialized lazily and cached per-loop to preserve asyncio
+        resource affinity guarantees.
         """
+
+        # Event-loop identity used for loop-local client ownership.
         loop_id = id(asyncio.get_running_loop())
 
-        # Ensure a lock exists for this loop to prevent concurrent initialization
         if loop_id not in self._locks:
-            logger.debug("Creating new Redis lock for loop %s.", loop_id)
+            logger.debug(
+                "Initializing loop-local Redis creation lock -> [%s].", loop_id
+            )
             self._locks[loop_id] = asyncio.Lock()
 
         if loop_id not in self._clients:
+            # Celery worker forks may inherit stale client pools from the parent
+            # process. Remove all foreign loop registrations so each worker process
+            # establishes its own isolated runtime connections.
+            if len(self._clients) > 0:
+                foreign_ids = [lid for lid in self._clients if lid != loop_id]
+                for lid in foreign_ids:
+                    self._clients.pop(lid, None)
+                    self._locks.pop(lid, None)
+
             async with self._locks[loop_id]:
-                # Double-checked locking pattern
+                # Double-check after acquiring the lock to prevent duplicate pool
+                # initialization under concurrent startup pressure.
                 if loop_id not in self._clients:
                     logger.info(
-                        "Initializing Relier Redis pool on loop %s -> %s",
+                        "Initializing loop-local Relier Redis connection pool. [%s -> %s]",
                         loop_id,
                         self._get_safe_log_url(),
                     )
 
+                    # Create a dedicated async connection pool for this event loop.
                     self._clients[loop_id] = redis.from_url(
                         str(self.settings.redis_url),
                         encoding="utf-8",
@@ -84,11 +127,20 @@ class RedisManager:
                         health_check_interval=self.settings.redis_health_check_interval,
                         max_connections=self.settings.redis_max_connections,
                     )
-                    logger.debug("Relier Redis pool initialized for loop %s.", loop_id)
+                    logger.debug(
+                        "Redis connection pool initialized successfully. %s.", loop_id
+                    )
+
         return self._clients[loop_id]
 
     async def close(self) -> None:
-        """Gracefully close the Redis connection pool for the current event loop."""
+        """
+        Gracefully tear down the Redis pool associated with the current
+        asyncio event loop.
+        """
+
+        # Shutdown may occur outside an active event loop during interpreter
+        # teardown or worker termination.
         try:
             loop_id = id(asyncio.get_running_loop())
         except RuntimeError:
@@ -98,7 +150,7 @@ class RedisManager:
             async with self._locks[loop_id]:
                 if loop_id in self._clients:
                     logger.info(
-                        "Closing Relier Redis connection pool.",
+                        "Closing loop-local Redis connection pool.",
                         extra={"loop_id": loop_id},
                     )
                     client = self._clients.pop(loop_id)
@@ -107,20 +159,24 @@ class RedisManager:
             self._locks.pop(loop_id, None)
 
     async def ping(self) -> bool:
-        """Perform a health check on the Redis connection."""
+        """
+        Perform a lightweight Redis liveness check against the active pool.
+        """
         try:
             client = await self.get_client()
             return await client.ping()  # type: ignore[no-any-return]
         except Exception as e:
-            logger.error("Redis ping failed.", extra={"error": str(e)})
+            logger.error("Redis health check failed.", extra={"error": str(e)})
             return False
 
 
-# Global instance for shared access across the library
+# Process-local Redis runtime manager shared across Relier subsystems.
 redis_manager = RedisManager()
 
 
-# Helper function to easily inject into FastAPI dependencies
+# Convenience dependency provider for FastAPI integration.
 async def get_relier_redis() -> Redis:
-    """Dependency injection helper for FastAPI routers."""
+    """
+    Return the Redis client associated with the current execution loop.
+    """
     return await redis_manager.get_client()

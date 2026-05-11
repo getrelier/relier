@@ -1,33 +1,45 @@
 """
 Relier Core — Admission Control.
 
-Enforces system-wide capacity limits using an atomic Redis Lua script.
-Requests are evaluated and rejected at the API boundary — before any
-FastAPI route handler, database call, or task enqueue.
+Provides cluster-wide backpressure enforcement using an atomic Redis Lua script.
 
-The Lua script runs atomically inside Redis (no Python GIL, no race
-conditions) and implements a fixed-window counter with automatic TTL.
+Admission checks execute before task enqueue so overloaded systems reject
+traffic early rather than allowing unbounded queue growth or worker
+cascade failures.
 
-Failure mode: if the script cannot be executed (e.g., Redis unreachable),
-the controller **fails open** so that a Redis outage does not take down
-the entire API.
+Implementation details:
+- Uses Redis-side atomic execution via ``EVALSHA``.
+- Implements a fixed-window counter with automatic TTL expiration.
+- Avoids Python-side locking and race conditions entirely.
+
+Failure policy:
+If Redis is unavailable or script execution fails, admission control
+fails open to preserve API availability during infrastructure outages.
 """
 
 import logging
-import typing
+from collections.abc import Awaitable
+from typing import cast
 
 import redis.exceptions
+from redis.asyncio import Redis
 
 from relier.config import Settings, get_settings
+from relier.core.keys import RedisKeys
 from relier.storage.redis import get_relier_redis
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Lua script — atomic fixed-window rate limiter
+# ===========================================================================
+# Redis admission-control script.
 #
-# Returns: [admitted (1|0), current_count, retry_after_seconds]
-# ---------------------------------------------------------------------------
+# Atomic fixed-window counter implemented entirely inside Redis to avoid
+# race conditions under concurrent request spikes.
+#
+# Return shape:
+#   [is_admitted (1|0), current_count, retry_after_seconds]
+# ===========================================================================
+
 _ADMISSION_LUA = """
 local current = redis.call('INCR', KEYS[1])
 if current == 1 then
@@ -42,10 +54,12 @@ return {1, current, 0}
 
 
 class AdmissionController:
-    """Evaluates system capacity before admitting new requests.
+    """
+    Admission controller for cluster-wide capacity enforcement.
 
-    Typically invoked via ``AdmissionControlMiddleware`` on every inbound
-    HTTP request, or directly in task dispatch code.
+    Requests are evaluated before task enqueue so overload conditions are
+    handled at the decorator but [.apush() or .push()] boundary instead of propagating downstream into
+    workers and queues.
     """
 
     def __init__(self) -> None:
@@ -53,32 +67,51 @@ class AdmissionController:
 
     @property
     def settings(self) -> Settings:
-        """Lazy load settings locally to pick up testcontainer URLs."""
+        """
+        Resolve settings lazily at runtime.
+
+        Avoids capturing stale configuration during module import, which is
+        important for tests that dynamically provision Redis containers.
+        """
         return get_settings()
 
-    async def _load_script(self, redis_client: object) -> str:
-        """Load the Lua script into Redis and cache the SHA.
+    async def _load_script(self, redis_client: Redis) -> str:
+        """
+        Load the admission Lua script into Redis and cache its SHA locally.
 
-        Uses ``EVALSHA`` on subsequent calls for maximum performance.
+        Subsequent executions use ``EVALSHA`` to avoid repeatedly transmitting
+        the script body over the network.
         """
         if not self._script_sha:
-            self._script_sha = await redis_client.script_load(_ADMISSION_LUA)  # type: ignore[attr-defined]
+            self._script_sha = await redis_client.script_load(_ADMISSION_LUA)
         return self._script_sha
 
     async def check_capacity(self, resource_key: str = "global") -> tuple[bool, int]:
-        """Evaluate whether a new request can be admitted.
+        """
+        Evaluate whether a task can enter the system.
+
+        Admission checks are enforced using a Redis-backed fixed-window counter.
+        If the configured limit is exceeded, the task is rejected and a
+        retry-after duration is returned.
 
         Args:
-            resource_key: Scoping key for the rate-limit window.
-                Use ``"global"`` for cluster-wide limits, or a tenant ID for
-                per-customer limits.
+            resource_key:
+                Scope identifier for the admission window.
+
+                Examples:
+                - ``"global"`` for cluster-wide limits
+                - tenant IDs for per-customer isolation
+                - endpoint-specific keys for fine-grained throttling
 
         Returns:
-            ``(is_admitted, retry_after_seconds)`` — if admitted, retry_after
-            is always ``0``.
+            Tuple of ``(is_admitted, retry_after_seconds)``.
+
+            When admitted, ``retry_after_seconds`` is always ``0``.
         """
         redis_client = await get_relier_redis()
-        window_key = f"rl:admission:{resource_key}"
+
+        window_key = RedisKeys.admission(resource_key)
+
         limit = self.settings.admission_limit
         window_secs = self.settings.admission_window
 
@@ -89,7 +122,7 @@ class AdmissionController:
             )
 
             is_admitted = bool(result[0])
-            retry_after = int(result[2])
+            retry_after = max(0, int(result[2]))
 
             if not is_admitted:
                 logger.warning(
@@ -104,7 +137,9 @@ class AdmissionController:
             return is_admitted, retry_after
 
         except Exception as exc:
-            # Fail open — a Redis failure must not take down the API.
+            # Fail open by design.
+            # Admission control is a protective layer, not a hard dependency.
+            # Preserving API availability takes priority during Redis outages.
             logger.error(
                 "Admission control error; failing open.",
                 extra={"error": str(exc)},
@@ -113,27 +148,37 @@ class AdmissionController:
 
     async def _evalsha_with_fallback(
         self,
-        redis_client: typing.Any,
+        redis_client: Redis,
         sha: str,
         window_key: str,
         limit: int,
         window_secs: int,
-    ) -> typing.Any:
-        """Execute the cached Lua script, reloading it on NOSCRIPT errors.
-
-        Redis flushes its script cache on restart (``SCRIPT FLUSH`` or server
-        restart).  This method transparently recovers by re-loading the script
-        and retrying with ``EVALSHA`` once.
+    ) -> list[int]:
         """
+        Execute the cached Lua script with transparent NOSCRIPT recovery.
+
+        Redis clears its script cache after restart or ``SCRIPT FLUSH``.
+        When that occurs, the controller automatically reloads the script and
+        retries execution once without surfacing the failure to callers.
+        """
+        args = [str(limit), str(window_secs)]
+
         try:
-            return await redis_client.evalsha(sha, 1, window_key, limit, window_secs)
-        except redis.exceptions.NoScriptError:
-            logger.warning("Redis script cache miss (NOSCRIPT); reloading.")
-            self._script_sha = await redis_client.script_load(_ADMISSION_LUA)
-            return await redis_client.evalsha(
-                self._script_sha, 1, window_key, limit, window_secs
+            result = await cast(
+                Awaitable[list[int]], redis_client.evalsha(sha, 1, window_key, *args)
             )
+            return result
+        except redis.exceptions.NoScriptError:
+            logger.warning(
+                "Redis Lua script missing from cache; reloading admission script."
+            )
+            self._script_sha = await redis_client.script_load(_ADMISSION_LUA)
+            result = await cast(
+                Awaitable[list[int]],
+                redis_client.evalsha(self._script_sha, 1, window_key, *args),
+            )
+            return result
 
 
-# Module-level singleton.
+# Shared admission controller instance used across the process.
 admission_control = AdmissionController()

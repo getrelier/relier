@@ -7,10 +7,8 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from relier.api.dependencies import get_relier_db, get_relier_redis_client
+from relier.api.dependencies import get_relier_redis_client
 from relier.core.slo import SLOMetrics
 
 logger = logging.getLogger(__name__)
@@ -55,7 +53,6 @@ async def liveness() -> HealthResponse:
 @router.get("/ready", response_model=ReadinessResponse)
 async def readiness(
     redis: Annotated[Any, Depends(get_relier_redis_client)],
-    db: Annotated[AsyncSession, Depends(get_relier_db)],
 ) -> ReadinessResponse:
     """Kubernetes readiness probe — checks Redis and PostgreSQL connectivity.
 
@@ -69,14 +66,6 @@ async def readiness(
     except Exception as exc:
         errors["redis"] = str(exc)
         logger.error("Readiness check: Redis unavailable.", extra={"error": str(exc)})
-
-    try:
-        await db.execute(text("SELECT 1"))
-    except Exception as exc:
-        errors["postgres"] = str(exc)
-        logger.error(
-            "Readiness check: PostgreSQL unavailable.", extra={"error": str(exc)}
-        )
 
     if errors:
         raise HTTPException(

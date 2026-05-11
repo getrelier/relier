@@ -14,14 +14,14 @@ pytestmark = pytest.mark.asyncio
 
 
 class TestCoverageGap:
-    async def test_idempotency_edge_cases(self):
+    async def test_idempotency_edge_cases(self) -> None:
         """Hit missing lines in idempotency.py."""
         # if not self._key: return
         res = IdempotencyResult(already_executed=False)
         await res.record_result({"foo": "bar"})
         assert idempotency_manager.settings is not None
 
-    async def test_schema_edge_cases(self):
+    async def test_schema_edge_cases(self) -> None:
         """Hit missing lines in schema.py."""
         payload = {"args": [], "kwargs": {}}
         checksum = SchemaRegistry._generate_checksum(payload)
@@ -37,7 +37,7 @@ class TestCoverageGap:
             assert args == ()
             assert kwargs == {}
 
-    async def test_slo_edge_cases(self):
+    async def test_slo_edge_cases(self) -> None:
         """Hit missing lines in slo.py."""
         mock_redis = AsyncMock()
         mock_redis.zcount.side_effect = [10, 10]
@@ -45,7 +45,7 @@ class TestCoverageGap:
             burn = await SLOMetrics.get_burn_rate(target_slo=1.0)
             assert burn == 100.0
 
-    async def test_timeouts_edge_cases(self):
+    async def test_timeouts_edge_cases(self) -> None:
         """Hit missing lines in timeouts.py."""
 
         async def mock_on_soft(ctx):
@@ -55,7 +55,7 @@ class TestCoverageGap:
             await asyncio.sleep(0.2)
             return "done"
 
-        await TimeoutEnforcer.run(slow_func, (), {}, 0.1, 1.0, mock_on_soft, "t1")
+        await TimeoutEnforcer.run(slow_func, (), {}, 0.1, 1.0, mock_on_soft, "t1") # type: ignore[arg-type]
 
         with (
             patch("asyncio.wait", side_effect=asyncio.CancelledError),
@@ -63,10 +63,10 @@ class TestCoverageGap:
         ):
             await TimeoutEnforcer.run(slow_func, (), {}, None, None, None, "t2")
 
-    async def test_redis_edge_cases(self):
+    async def test_redis_edge_cases(self) -> None:
         """Hit missing lines in redis.py."""
         mock_client = AsyncMock()
-        redis_manager._client = mock_client
+        redis_manager._client = mock_client # type: ignore[attr-defined]
         await redis_manager.close()
 
         with (
@@ -77,7 +77,7 @@ class TestCoverageGap:
 
 
 @pytest.mark.asyncio
-async def test_phoenix_is_active():
+async def test_phoenix_is_active() -> None:
     """Hit missing lines in phoenix.py is_active()."""
     with (
         patch("relier.storage.redis.RedisManager.close", new_callable=AsyncMock),
@@ -94,7 +94,7 @@ async def test_phoenix_is_active():
 
 
 @pytest.mark.asyncio
-async def test_phoenix_bg_send_failure():
+async def test_phoenix_bg_send_failure() -> None:
     """Hit missing lines in phoenix.py _bg_send()."""
     with patch("relier.storage.redis.RedisManager.close", new_callable=AsyncMock):
         mock_app = MagicMock()
@@ -107,7 +107,7 @@ async def test_phoenix_bg_send_failure():
 
 
 @pytest.mark.asyncio
-async def test_redis_ping_failure():
+async def test_redis_ping_failure() -> None:
     """Hit missing lines in redis.py (ping failure)."""
     manager = RedisManager()
     with (
