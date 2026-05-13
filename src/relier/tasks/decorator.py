@@ -4,7 +4,7 @@ Relier Task Decorator — ``@rl_task``.
 The single user-facing primitive that wraps any Celery task with the full
 Relier reliability stack:
 
-* **Schema versioning** — payloads dispatched via ``delay_versioned()`` are
+* **Schema versioning** — payloads dispatched via ``push() or apush()`` are
   wrapped in a signed, versioned envelope and migrated on the worker side.
 * **Idempotency** — optional duplicate-execution prevention backed by Redis.
 * **Phoenix heartbeat** — heartbeat emitted every N seconds so the resurrector
@@ -92,6 +92,12 @@ def rl_task(
         soft_timeout:     Seconds before the cleanup hook fires.
         hard_timeout:     Seconds before the task is unconditionally cancelled.
         on_soft_timeout:  Async callable receiving a ``TaskContext`` at soft timeout.
+    Raises:
+        ValueError:
+            If timeout parameters are used on a synchronous function.
+
+        AdmissionRejectedError:
+            If cluster admission control rejects task dispatch.
     """
 
     def decorator(func: Callable) -> Callable:
@@ -111,7 +117,7 @@ def rl_task(
 
         @functools.wraps(func)
         def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
-            """The Celery task wrapper function that orchestrates the entire lifecycle."""
+            """Execute the task inside Relier's reliability orchestration layer."""
             task_id: str = self.request.id or str(uuid.uuid4())
             worker_id: str = self.request.hostname or "unknown-worker"
             loop = _get_worker_loop()
@@ -124,9 +130,12 @@ def rl_task(
                 try:
                     args, kwargs = SchemaRegistry.unwrap_and_migrate(task_name, args[0])
                 except (SchemaMigrationError, PayloadIntegrityError) as exc:
-                    logger.critical(
+                    logger.error(
                         "Task failed schema validation; quarantining.",
-                        extra={"task_id": task_id, "error": str(exc)},
+                        extra={
+                            "task_id": task_id,
+                            "error_type": type(exc).__name__,
+                        },
                     )
                     # Quarantine is handled inside _orchestrate() which has
                     # async context.  Flag the error and fall through.
@@ -146,9 +155,9 @@ def rl_task(
             }
 
             async def _orchestrate() -> Any:
-                """Async lifecycle manager — all Relier logic runs here."""
-                logger.info(
-                    "Starting orchestration.",
+                """Run the complete task lifecycle within the worker event loop."""
+                logger.debug(
+                    "Starting task orchestration.",
                     extra={"task_id": task_id, "worker_id": worker_id},
                 )
 
@@ -156,7 +165,9 @@ def rl_task(
                 if _schema_error is not None:
                     from relier.core.dlq import DeadLetterQueue
 
-                    await DeadLetterQueue.quarantine(task_id, reason=str(_schema_error))
+                    await DeadLetterQueue.quarantine(
+                        task_id, reason=type(_schema_error).__name__
+                    )
                     return {"status": "quarantined", "error": str(_schema_error)}
 
                 idem_result = None
@@ -189,6 +200,18 @@ def rl_task(
 
                 await PhoenixRegistry.register(task_id, worker_id, phoenix_payload)
 
+                # LEASING + FENCING ENFORCEMENT (START)
+
+                fence_token = kwargs.pop("_fence_token", None)
+                lease_key = kwargs.pop("_lease_key", None)
+                fence_key = kwargs.pop("_fence_key", None)
+
+                is_valid = await PhoenixRegistry.validate_execution(
+                    task_id, redis, fence_token, lease_key, fence_key
+                )
+                if not is_valid:
+                    return {"status": "rejected", "reason": "duplicate_or_stale"}
+
                 inflight_key = RedisKeys.inflight(worker_id)
 
                 try:
@@ -199,6 +222,8 @@ def rl_task(
                 if _sh is not None:
                     _sh.track_task(task_id)
 
+                # Update worker heartbeat and inflight tracking atomically to avoid
+                # inconsistent scheduler state during worker crashes.
                 pipe = redis.pipeline()
                 pipe.zadd(RedisKeys.workers(), {worker_id: time.time()})
                 pipe.zadd(inflight_key, {task_id: time.time()})
@@ -220,7 +245,6 @@ def rl_task(
                 token = _task_context_var.set(ctx)
 
                 try:
-                    # Check if the user wants the context
                     sig = inspect.signature(func)
                     if "ctx" in sig.parameters:
                         kwargs["ctx"] = ctx
@@ -235,6 +259,10 @@ def rl_task(
                         },
                     ) as span:
                         try:
+                            # RELIER INTERNAL: Final safety purge of internal tokens before calling func
+                            for k in ["_fence_token", "_lease_key", "_fence_key"]:
+                                kwargs.pop(k, None)
+
                             if is_async:
                                 if soft_timeout or hard_timeout:
                                     result = await TimeoutEnforcer.run(
@@ -251,10 +279,17 @@ def rl_task(
                             else:
                                 result = await asyncio.to_thread(func, *args, **kwargs)
 
+                            # FENCING CHECK (END) - Before committing results
+                            can_commit = await PhoenixRegistry.validate_commit(
+                                task_id, redis, fence_token, lease_key, fence_key
+                            )
+                            if not can_commit:
+                                return {"status": "discarded", "reason": "zombie_fence"}
+
                             if idempotent and idem_result is not None:
                                 await idem_result.record_result(result)
 
-                            # Record Success - BOTH GLOBAL AND PER-WORKER
+                            # Record both cluster-wide and per-worker success metrics.
                             await SLOMetrics.record_event("success")
 
                             pipe = redis.pipeline()
@@ -290,7 +325,7 @@ def rl_task(
                             )
                             await SLOMetrics.record_event("failure")
 
-                            # Record failure - BOTH GLOBAL AND PER-WORKER
+                            # Record both cluster-wide and per-worker success metrics.
                             pipe = redis.pipeline()
                             pipe.incr(RedisKeys.metric_global("failed"))
                             pipe.incr(RedisKeys.metric_worker(worker_id, "failed"))
@@ -318,7 +353,7 @@ def rl_task(
                             )
                             await DeadLetterQueue.quarantine(
                                 task_id,
-                                reason=str(exc),
+                                reason=type(exc).__name__,
                                 payload=phoenix_payload,
                                 partial_result=checkpoint,
                             )
@@ -327,12 +362,17 @@ def rl_task(
                         except Exception as exc:
                             logger.error(
                                 "Task execution failed.",
-                                extra={"task_id": task_id},
+                                extra={
+                                    "task_id": task_id,
+                                    "task_name": task_name,
+                                    "worker_id": worker_id,
+                                    "queue": phoenix_payload.get("queue", "default"),
+                                },
                                 exc_info=True,
                             )
                             await SLOMetrics.record_event("failure")
 
-                            # Record failure - BOTH GLOBAL AND PER-WORKER
+                            # Record both cluster-wide and per-worker success metrics.
                             pipe = redis.pipeline()
                             pipe.incr(RedisKeys.metric_global("failed"))
                             pipe.incr(RedisKeys.metric_worker(worker_id, "failed"))
@@ -357,7 +397,7 @@ def rl_task(
 
                             await DeadLetterQueue.quarantine(
                                 task_id,
-                                reason=str(exc),
+                                reason=type(exc).__name__,
                                 payload=phoenix_payload,
                                 partial_result=checkpoint,
                             )
@@ -365,7 +405,6 @@ def rl_task(
                         finally:
                             duration_ms = (time.perf_counter() - start_time) * 1000
 
-                            # Record duration sample
                             try:
                                 await redis.lpush(
                                     RedisKeys.task_durations(),
@@ -378,7 +417,6 @@ def rl_task(
                             if _sh is not None:
                                 _sh.untrack_task(task_id)
 
-                            # Cleanup: Remove from inflight
                             await redis.zrem(inflight_key, task_id)
                             await PhoenixRegistry.complete(task_id)
                 finally:
@@ -397,7 +435,10 @@ def rl_task(
             except Exception as exc:
                 logger.error(
                     "Async bridge failed.",
-                    extra={"task_id": task_id, "error": str(exc)},
+                    extra={
+                        "task_id": task_id,
+                        "error_type": type(exc).__name__,
+                    },
                 )
                 raise
 
@@ -461,7 +502,12 @@ def rl_task(
 
 
 def _get_worker_loop() -> asyncio.AbstractEventLoop:
-    """Return the persistent asyncio event loop for this worker process."""
+    """
+    Return the worker-scoped asyncio event loop.
+
+    Falls back to lazy initialization inside Celery workers and creates
+    a standalone loop when running outside worker execution contexts.
+    """
     try:
         import relier.tasks.app
 

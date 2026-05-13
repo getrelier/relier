@@ -13,9 +13,7 @@ from relier.storage.redis import get_relier_redis
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
-# ==============================================================================
-# SCHEMAS
-# ==============================================================================
+# Schema definitions
 
 
 class QuarantinedTask(BaseModel):
@@ -40,9 +38,7 @@ class WorkerRegistry(BaseModel):
     count: int
 
 
-# ==============================================================================
-# ROUTES
-# ==============================================================================
+# API Route definitions
 
 
 @router.get(

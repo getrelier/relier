@@ -191,13 +191,40 @@ class FakeRedis:
             self.data[key] = val
             return [0, False]
         elif "==" in script and "DEL" in script:
-            # RELEASE_LUA
+            # RELEASE_LUA / CLEANUP_LUA
             key = args[0]
             val = args[1]
             if self.data.get(key) == val:
                 del self.data[key]
                 return 1
             return 0
+        elif "EXISTS" in script and "fence_ttl" in script:
+            # RESURRECT_LUA
+            lease_key = args[0]
+            fence_key = args[1]
+            token = args[2]
+            if lease_key in self.data:
+                return 0
+            self.data[lease_key] = token
+            self.data[fence_key] = token
+            return 1
+        elif "fence" in script and "expected" in script and "lease" in script:
+            # VALIDATE_LUA
+            lease_key = args[0]
+            fence_key = args[1]
+            expected = args[2]
+            if self.data.get(lease_key) != expected:
+                return 0
+            if self.data.get(fence_key) != expected:
+                return 2
+            return 1
+        elif "fence" in script and "expected" in script:
+            # COMMIT_CHECK_LUA
+            fence_key = args[0]
+            expected = args[1]
+            if self.data.get(fence_key) != expected:
+                return 0
+            return 1
         return None
 
 
@@ -270,7 +297,7 @@ def mock_run_coroutine(coro, loop=None):
         try:
             coro.send(None)
         except StopIteration as e:
-            f = asyncio.Future()
+            f = asyncio.Future() # type: ignore[var-annotated]
             f.set_result(e.value)
             return f
         except Exception as e:
@@ -300,7 +327,7 @@ async def mock_redis():
 
     # Silence asynchronous lifecycle warnings globally
     # We remove these as they break tests that actually test drain/close logic
-    lifecycle_patches = []
+    lifecycle_patches = [] # type: ignore[var-annotated]
 
     for p in patches + lifecycle_patches:
         p.start()

@@ -12,9 +12,7 @@ from relier.core.phoenix import PhoenixRegistry
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
 
-# =============================================================================
-# SCHEMAS
-# =============================================================================
+# Schema definitions
 
 
 class TaskTriggerRequest(BaseModel):
@@ -34,9 +32,7 @@ class TaskStatusResponse(BaseModel):
     # You could add more fields here later, like 'last_heartbeat' or 'retries'
 
 
-# =============================================================================
-# ROUTES
-# =============================================================================
+# API Route definitions
 
 
 @router.post("/trigger")

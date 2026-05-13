@@ -14,9 +14,7 @@ from relier.core.slo import SLOMetrics
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Health"])
 
-# =============================================================================
-# SCHEMAS
-# =============================================================================
+# Schema definitions
 
 
 class HealthResponse(BaseModel):
@@ -39,9 +37,7 @@ class SLOMetricsResponse(BaseModel):
     }
 
 
-# =============================================================================
-# ROUTES
-# =============================================================================
+# API Route definitions
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -65,7 +61,10 @@ async def readiness(
         await redis.ping()
     except Exception as exc:
         errors["redis"] = str(exc)
-        logger.error("Readiness check: Redis unavailable.", extra={"error": str(exc)})
+        logger.error(
+            "Readiness check: Redis unavailable.",
+            extra={"error_type": type(exc).__name__},
+        )
 
     if errors:
         raise HTTPException(

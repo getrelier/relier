@@ -130,12 +130,13 @@ class DeadLetterQueue:
         )
         await cast(Awaitable[Any], pipe.execute())
 
-        logger.critical(
-            "Task moved to dead-letter queue.",
+        logger.warning(
+            "Task moved to DLQ.",
             extra={
                 "task_id": task_id,
+                "task_name": dlq_entry.get("task_name"),
+                "queue": dlq_entry.get("queue"),
                 "reason": reason,
-                "resurrections": resurrection_count,
             },
         )
 

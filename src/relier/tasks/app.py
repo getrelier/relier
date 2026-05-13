@@ -106,7 +106,8 @@ async def _presence_loop(worker_id: str) -> None:
             backoff = settings.heartbeat_ttl // 2
         except Exception as exc:
             logger.error(
-                "Worker presence heartbeat update failed.", extra={"error": str(exc)}
+                "Worker presence heartbeat update failed.",
+                extra={"error_type": type(exc).__name__},
             )
 
             # Exponential backoff prevents tight retry loops during Redis outages.
@@ -137,7 +138,8 @@ async def _cleanup_dead_workers() -> None:
                 )
         except Exception as exc:
             logger.error(
-                "Worker registry cleanup pass failed.", extra={"error": str(exc)}
+                "Worker registry cleanup pass failed.",
+                extra={"error_type": type(exc).__name__},
             )
         await asyncio.sleep(interval)
 
@@ -269,11 +271,15 @@ def init_worker_process(**kwargs: Any) -> None:
     # Eagerly initialize Redis connectivity so failures surface during worker
     # bootstrap rather than first task execution.
     if worker_loop is not None:
-        asyncio.run_coroutine_threadsafe(redis_manager.get_client(), worker_loop)
+        future = asyncio.run_coroutine_threadsafe(
+            redis_manager.get_client(),
+            worker_loop,
+        )
+        future.result(timeout=5)
 
     logger.info(
         "Worker runtime infrastructure initialized successfully.",
-        extra={"hostname": hostname},
+        extra={"hostname": hostname, "loop": worker_loop},
     )
 
 
@@ -299,7 +305,7 @@ def start_relier_identity(sender: Any, **kwargs: Any) -> None:
 
     logger.info(
         "Worker coordination services started successfully.",
-        extra={"hostname": hostname},
+        extra={"hostname": hostname, "loop": worker_loop},
     )
 
 
@@ -329,7 +335,9 @@ def shutdown_worker(**kwargs: object) -> None:
             )
             fut.result(timeout=_get_settings().graceful_shutdown_timeout)
     except Exception as exc:
-        logger.error("Worker drain sequence failed.", extra={"error": str(exc)})
+        logger.error(
+            "Worker drain sequence failed.", extra={"error_type": type(exc).__name__}
+        )
     finally:
         try:
             # Gracefully release loop-affined Redis resources.

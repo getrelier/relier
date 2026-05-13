@@ -110,6 +110,16 @@ class RedisKeys:
         """
         return f"{cls.PREFIX}:lock:resurrect:{task_id}"
 
+    @classmethod
+    def lease(cls, task_id: str) -> str:
+        """Short-lived lease: only one worker may own this resurrected task right now."""
+        return f"{cls.PREFIX}:lease:{task_id}"
+
+    @classmethod
+    def fence(cls, task_id: str) -> str:
+        """Fencing token: tags this incarnation. Stale workers get rejected."""
+        return f"{cls.PREFIX}:fence:{task_id}"
+
     # =============================================================================
     # Global / singleton namespaces
     # =============================================================================

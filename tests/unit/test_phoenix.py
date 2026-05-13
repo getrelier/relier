@@ -79,11 +79,17 @@ class TestPhoenixRegistry:
                 if mock_celery.send_task.called:
                     break
 
+            from unittest.mock import ANY
             # Assert the receipt
             mock_celery.send_task.assert_called_once_with(
                 "requeue_me",
                 args=[1, 2],
-                kwargs={"foo": "bar"},
+                kwargs={
+                    "foo": "bar",
+                    "_fence_token": ANY,
+                    "_lease_key": RedisKeys.lease(task_id),
+                    "_fence_key": RedisKeys.fence(task_id),
+                },
                 queue="high-priority",
                 task_id=task_id,
                 priority=9,
