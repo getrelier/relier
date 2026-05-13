@@ -636,8 +636,8 @@ class PhoenixRegistry:
         # dispatching the same task simultaneously.
 
         lease_acquired = await redis.eval(
-            RESURRECT_LUA, 2, lease_key, fence_key, fence_token, 180, 600
-        )  # type: ignore[arg-type, misc]
+            RESURRECT_LUA, 2, lease_key, fence_key, fence_token, "180", "600"
+        ) # type: ignore[misc]
 
         if lease_acquired != 1:
             logger.warning(
