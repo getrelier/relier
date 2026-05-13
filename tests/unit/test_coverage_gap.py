@@ -23,7 +23,7 @@ class TestCoverageGap:
 
     async def test_schema_edge_cases(self) -> None:
         """Hit missing lines in schema.py."""
-        payload = {"args": [], "kwargs": {}}
+        payload = {"args": [], "kwargs": {}} # type: ignore[var-annotated]
         checksum = SchemaRegistry._generate_checksum(payload)
         env = {
             "task_id": "t1",

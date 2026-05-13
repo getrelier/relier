@@ -156,7 +156,7 @@ class TestSchemaMigration:
         Tests that schema versions completely out of bounds (e.g. >100 or <1)
         trigger a PayloadIntegrityError via Pydantic validation.
         """
-        payload = {"args": (), "kwargs": {}}
+        payload = {"args": (), "kwargs": {}} # type: ignore[var-annotated]
         envelope = {
             "task_id": "bad_version_task",
             "schema_version": 999,  # Invalid according to Pydantic Field(le=100)
@@ -200,7 +200,7 @@ class TestSchemaMigration:
         def faulty_migration(args, kwargs):
             raise TypeError("Expected dict but got list in legacy payload")
 
-        payload = {"args": (), "kwargs": {}}
+        payload = {"args": (), "kwargs": {}} # type: ignore[var-annotated]
         envelope = {
             "task_id": "crash_task",
             "schema_version": 1,

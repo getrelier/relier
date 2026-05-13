@@ -17,7 +17,7 @@ def mock_run_coroutine(coro, loop=None):
             try:
                 coro.send(None)
             except StopIteration as e:
-                f = concurrent.futures.Future()
+                f = concurrent.futures.Future() # type: ignore[var-annotated]
                 f.set_result(e.value)
                 return f
             except Exception as e:

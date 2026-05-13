@@ -270,7 +270,7 @@ def mock_run_coroutine(coro, loop=None):
         try:
             coro.send(None)
         except StopIteration as e:
-            f = asyncio.Future()
+            f = asyncio.Future() # type: ignore[var-annotated]
             f.set_result(e.value)
             return f
         except Exception as e:
@@ -300,7 +300,7 @@ async def mock_redis():
 
     # Silence asynchronous lifecycle warnings globally
     # We remove these as they break tests that actually test drain/close logic
-    lifecycle_patches = []
+    lifecycle_patches = [] # type: ignore[var-annotated]
 
     for p in patches + lifecycle_patches:
         p.start()

@@ -51,31 +51,10 @@ from typing import Any
 
 from relier.config import Settings, get_settings
 from relier.core.keys import RedisKeys
+from relier.storage.lua.scripts import ACQUIRE_LUA, RELEASE_LUA
 from relier.storage.redis import get_relier_redis
 
 logger = logging.getLogger(__name__)
-
-# =============================================================================
-# Redis-side atomic primitives
-# =============================================================================
-
-# Atomically resolve a cached result or claim execution ownership.
-_ACQUIRE_LUA = """
-local existing = redis.call('GET', KEYS[1])
-if existing then
-    return {1, existing}
-end
-redis.call('SET', KEYS[1], ARGV[1], 'NX', 'EX', ARGV[2])
-return {0, false}
-"""
-
-# Release ownership only if the stored lock ID matches ours.
-_RELEASE_LUA = """
-if redis.call('GET', KEYS[1]) == ARGV[1] then
-    return redis.call('DEL', KEYS[1])
-end
-return 0
-"""
 
 
 # ===========================================================================
@@ -158,7 +137,7 @@ class IdempotencyManager:
         full_key = RedisKeys.idempotency(key)
         lock_id = RedisKeys.in_flight()
 
-        raw = await redis.eval(_ACQUIRE_LUA, 1, full_key, lock_id, str(ttl))  # type: ignore[misc]
+        raw = await redis.eval(ACQUIRE_LUA, 1, full_key, lock_id, str(ttl))  # type: ignore[misc]
 
         is_existing = bool(raw[0])
         raw_val = raw[1]
@@ -198,7 +177,7 @@ class IdempotencyManager:
         """
         redis = await get_relier_redis()
         full_key = RedisKeys.idempotency(key)
-        await redis.eval(_RELEASE_LUA, 1, full_key, lock_id)  # type: ignore[misc]
+        await redis.eval(RELEASE_LUA, 1, full_key, lock_id)  # type: ignore[misc]
 
 
 # Shared process-wide idempotency manager instance.

@@ -32,6 +32,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import secrets
 from typing import Any
 
 from celery import Celery
@@ -40,6 +41,12 @@ from redis.asyncio import Redis
 from relier.config import Settings, get_settings
 from relier.core.dlq import DeadLetterQueue
 from relier.core.keys import RedisKeys
+from relier.storage.lua.scripts import (
+    CLEANUP_LUA,
+    COMMIT_CHECK_LUA,
+    RESURRECT_LUA,
+    VALIDATE_LUA,
+)
 from relier.storage.redis import get_relier_redis
 
 logger = logging.getLogger(__name__)
@@ -158,7 +165,11 @@ class PhoenixRegistry:
         except Exception as exc:
             logger.error(
                 "Unexpected error while refreshing Phoenix heartbeat.",
-                extra={"task_id": task_id, "worker_id": worker_id, "error": str(exc)},
+                extra={
+                    "task_id": task_id,
+                    "worker_id": worker_id,
+                    "error_type": type(exc).__name__,
+                },
             )
         finally:
             cls._active_loops.pop(task_id, None)
@@ -264,7 +275,7 @@ class PhoenixRegistry:
             except Exception as exc:
                 logger.error(
                     "Unhandled exception in resurrection coordinator loop.",
-                    extra={"error": str(exc), "loop": loop_count},
+                    extra={"error_type": type(exc).__name__, "loop": loop_count},
                     exc_info=True,
                 )
             await asyncio.sleep(settings.resurrection_check_interval)
@@ -412,8 +423,11 @@ class PhoenixRegistry:
             raw_payload = state_data.get(b"payload") or state_data.get("payload")
             try:
                 payload = json.loads(raw_payload) if raw_payload else {}
-            except (TypeError, json.JSONDecodeError):
-                logger.error("Failed to decode task payload", extra={"task_id": t_id})
+            except (TypeError, json.JSONDecodeError) as exc:
+                logger.error(
+                    "Failed to decode task payload",
+                    extra={"task_id": t_id, "error_type": type(exc).__name__},
+                )
                 payload = {}
 
             # Recover any persisted checkpoint state for resumable execution.
@@ -496,14 +510,7 @@ class PhoenixRegistry:
 
             # Replay resurrected tasks with elevated broker priority to minimize
             # recovery latency after worker loss.
-            asyncio.create_task(
-                cls._safe_bg_send(
-                    t_id,
-                    payload,
-                    celery_app,
-                    priority=9,
-                )
-            )
+            await cls.resurrect_task(t_id, payload, celery_app, priority=9)
 
             resurrected_count += 1
 
@@ -529,7 +536,10 @@ class PhoenixRegistry:
         except Exception as exc:
             logger.error(
                 "Unexpected failure while scheduling resurrected task replay.",
-                extra={"task_id": task_id, "error": str(exc)},
+                    extra={
+                        "task_id": task_id,
+                        "error_type": type(exc).__name__,
+                    },
                 exc_info=True,
             )
 
@@ -593,10 +603,215 @@ class PhoenixRegistry:
                 "Failed to submit resurrected task to broker.",
                 extra={
                     "task_id": task_id,
-                    "error": str(exc),
                     "error_type": type(exc).__name__,
                 },
                 exc_info=True,
+            )
+
+    # ==============================================================================
+    # RESURRECTION
+    # ==============================================================================
+    @classmethod
+    async def resurrect_task(
+        cls,
+        task_id: str,
+        payload: dict[str, Any],
+        celery_app: Celery,
+        priority: int = 9,
+    ) -> None:
+        """
+        Atomically resurrect with leasing + fencing using Redis LUA.
+
+        - Generates a new fence token (incarnation ID).
+        - Claims a short lease (prevents duplicate pickup).
+        - Stores the fence (prevents zombie writes later).
+        - Submits to Celery with tokens attached.
+        """
+        redis = await get_relier_redis()
+        fence_token = secrets.token_hex(16)
+        lease_key = RedisKeys.lease(task_id)
+        fence_key = RedisKeys.fence(task_id)
+
+
+        # Lease acquisition prevents concurrent resurrectors from
+        # dispatching the same task simultaneously.
+
+        lease_acquired = await redis.eval(RESURRECT_LUA, 2, lease_key, fence_key, fence_token, "180", "600") # type: ignore[misc]
+
+        if lease_acquired != 1:
+            logger.warning(
+                "Lease already claimed by another resurrector - skipping",
+                extra={"task_id": task_id, "lease-key":lease_key}
+            )
+            return
+
+        logger.info(
+            "Acquired resurrection lease",
+            extra={
+                "task_id": task_id,
+                "lease_key": lease_key,
+                "lease_ttl": 180,
+            }
+        )
+
+        # Enrich payload with fencing metadata
+        enriched = {
+            **payload,
+            "kwargs": {
+                **payload.get("kwargs", {}),
+                "_fence_token": fence_token,
+                "_lease_key": lease_key,
+                "_fence_key": fence_key,
+            }
+        }
+
+        # Dispatch asynchronously so resurrection does not block the scanner loop.
+        asyncio.create_task(
+            cls._safe_bg_send(task_id, enriched, celery_app, priority)
+        )
+
+
+    # ==========================================================================
+    # EXECUTION VALIDATION
+    # ==========================================================================
+    @classmethod
+    async def validate_execution(
+        cls,
+        task_id: str,
+        redis: Any,
+        fence_token: str | None,
+        lease_key: str | None,
+        fence_key: str | None,
+    ) -> bool:
+        """
+        Validate lease ownership BEFORE execution begins.
+
+        Rejects:
+        - Duplicate pickups
+        - Zombie workers
+        - Superseded resurrections
+        """
+        if not all([fence_token, lease_key, fence_key]):
+            return True
+
+        logger.debug(
+            "Validating lease + fence.",
+            extra={"task_id": task_id},
+        )
+
+        result = await redis.eval(
+            VALIDATE_LUA,
+            2,
+            lease_key,
+            fence_key,
+            fence_token,
+        )
+
+        if result == 0:
+            logger.info(
+                "Duplicate execution rejected — lease mismatch.",
+                extra={"task_id": task_id, "lease_key": lease_key},
+            )
+            return False
+
+        if result == 2:
+            logger.info(
+                "Zombie execution rejected — stale fence.",
+                extra={"task_id": task_id, "lease_key": lease_key},
+            )
+
+            # Cleanup stale lease.
+            if lease_key and fence_token:
+                await cls.release_lease(redis, lease_key, fence_token)
+
+            return False
+
+        logger.info(
+            "Lease + fence validation passed.",
+            extra={"task_id": task_id, "lease_key": lease_key},
+        )
+
+        return True
+
+    # =========================================================================
+    # COMMIT VALIDATION
+    # =========================================================================
+
+    @classmethod
+    async def validate_commit(
+        cls,
+        task_id: str,
+        redis: Any,
+        fence_token: str | None,
+        lease_key: str | None,
+        fence_key: str | None,
+    ) -> bool:
+        """
+        Validate fence BEFORE committing results.
+
+        Prevents stale/zombie writes.
+        """
+        if not all([fence_token, lease_key, fence_key]):
+            return True
+
+        logger.debug(
+            "Validating fence before commit.",
+            extra={"task_id": task_id, "lease_key": lease_key},
+        )
+
+        result = await redis.eval(
+            COMMIT_CHECK_LUA,
+            1,
+            fence_key,
+            fence_token,
+        )
+
+        if result != 1:
+            logger.warning(
+                "Zombie result discarded.",
+                extra={"task_id": task_id, "lease_key": lease_key},
+            )
+            return False
+
+        logger.info(
+            "Fence validation passed — committing results.",
+            extra={"task_id": task_id, "lease_key": lease_key},
+        )
+
+        # Release lease now that execution completed successfully.
+        if lease_key and fence_token:
+            await cls.release_lease(redis, lease_key, fence_token)
+
+        return True
+
+    # =========================================================================
+    # LEASE CLEANUP
+    # =========================================================================
+
+    @classmethod
+    async def release_lease(
+        cls,
+        redis: Any,
+        lease_key: str,
+        fence_token: str,
+    ) -> None:
+        """
+        Release lease ONLY if caller still owns it.
+
+        Prevents deleting another worker's lease accidentally.
+        """
+        try:
+            await redis.eval(
+                CLEANUP_LUA,
+                1,
+                lease_key,
+                fence_token,
+            )
+
+        except Exception as exc:
+            logger.error(
+                "Failed to release lease.",
+                extra={"error": str(exc)},
             )
 
     # ==========================================================================

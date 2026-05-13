@@ -57,6 +57,29 @@ filterwarnings = [
     "ignore::DeprecationWarning:testcontainers.*:"
 ]
 
+[tool.coverage.run]
+concurrency = ["multiprocessing", "thread"]
+sigterm = true
+# Already measuring only src/relier because of --cov=src/relier
+# But we can explicitly omit things we don't want to count yet
+omit = [
+    "src/relier/cli/*",
+    "src/relier/chaos/*",
+    "src/relier/debug.py",
+    "src/relier/*/__init__.py", 
+]
+
+# Exclude from the final report
+[tool.coverage.report]
+omit = [
+    "src/relier/cli/*",
+    "src/relier/chaos/*",
+    "src/relier/debug.py",
+    "src/relier/*/__init__.py",
+]
+show_missing = true
+skip_covered = true
+
 [tool.ruff]
 # Set the maximum line length to 88 (standard Black compatibility)
 line-length = 88
@@ -95,3 +118,8 @@ module = [
     "relier.tasks.*",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+check_untyped_defs = true

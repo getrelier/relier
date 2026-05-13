@@ -26,31 +26,10 @@ from redis.asyncio import Redis
 
 from relier.config import Settings, get_settings
 from relier.core.keys import RedisKeys
+from relier.storage.lua.scripts import ADMISSION_LUA
 from relier.storage.redis import get_relier_redis
 
 logger = logging.getLogger(__name__)
-
-# ===========================================================================
-# Redis admission-control script.
-#
-# Atomic fixed-window counter implemented entirely inside Redis to avoid
-# race conditions under concurrent request spikes.
-#
-# Return shape:
-#   [is_admitted (1|0), current_count, retry_after_seconds]
-# ===========================================================================
-
-_ADMISSION_LUA = """
-local current = redis.call('INCR', KEYS[1])
-if current == 1 then
-    redis.call('EXPIRE', KEYS[1], ARGV[2])
-end
-local limit = tonumber(ARGV[1])
-if current > limit then
-    return {0, current, redis.call('TTL', KEYS[1])}
-end
-return {1, current, 0}
-"""
 
 
 class AdmissionController:
@@ -83,7 +62,7 @@ class AdmissionController:
         the script body over the network.
         """
         if not self._script_sha:
-            self._script_sha = await redis_client.script_load(_ADMISSION_LUA)
+            self._script_sha = await redis_client.script_load(ADMISSION_LUA)
         return self._script_sha
 
     async def check_capacity(self, resource_key: str = "global") -> tuple[bool, int]:
@@ -108,14 +87,13 @@ class AdmissionController:
 
             When admitted, ``retry_after_seconds`` is always ``0``.
         """
-        redis_client = await get_relier_redis()
-
-        window_key = RedisKeys.admission(resource_key)
-
-        limit = self.settings.admission_limit
-        window_secs = self.settings.admission_window
-
         try:
+            redis_client = await get_relier_redis()
+            window_key = RedisKeys.admission(resource_key)
+
+            limit = self.settings.admission_limit
+            window_secs = self.settings.admission_window
+
             sha = await self._load_script(redis_client)
             result = await self._evalsha_with_fallback(
                 redis_client, sha, window_key, limit, window_secs
@@ -142,7 +120,7 @@ class AdmissionController:
             # Preserving API availability takes priority during Redis outages.
             logger.error(
                 "Admission control error; failing open.",
-                extra={"error": str(exc)},
+                extra={"error_type": type(exc).__name__},
             )
             return True, 0
 
@@ -172,7 +150,7 @@ class AdmissionController:
             logger.warning(
                 "Redis Lua script missing from cache; reloading admission script."
             )
-            self._script_sha = await redis_client.script_load(_ADMISSION_LUA)
+            self._script_sha = await redis_client.script_load(ADMISSION_LUA)
             result = await cast(
                 Awaitable[list[int]],
                 redis_client.evalsha(self._script_sha, 1, window_key, *args),
