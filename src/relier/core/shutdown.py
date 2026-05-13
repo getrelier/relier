@@ -17,6 +17,8 @@ abandoning in-flight workloads.
 import asyncio
 import logging
 import signal
+from collections.abc import Callable
+from typing import Any
 
 from relier.config import Settings, get_settings
 from relier.storage.redis import get_relier_redis
@@ -47,21 +49,34 @@ class GracefulShutdownHandler:
         """
         return get_settings()
 
-    def install(self) -> None:
+    def install(self, loop: asyncio.AbstractEventLoop | None = None) -> None:
         """
         Register OS signal handlers for controlled worker termination.
 
-        Must be called from within an active asyncio event loop so signal
-        callbacks can safely schedule asynchronous drain operations.
+        Args:
+            loop: The event loop to install handlers on. Must be provided
+                  explicitly since the loop runs in a separate thread.
+
+        Note: Signal handlers must be installed on the event loop thread,
+              but can be triggered from any thread. We use call_soon_threadsafe
+              to safely schedule the drain coroutine from signal context.
         """
         try:
-            loop = asyncio.get_running_loop()
             for sig in (signal.SIGTERM, signal.SIGINT):
-                # Schedule drain asynchronously because signal handlers cannot await.
-                loop.add_signal_handler(
-                    sig,
-                    lambda: asyncio.create_task(self.drain()),
-                )
+                # Signal handlers execute in the main thread but need to schedule
+                # work on the event loop thread. Use run_coroutine_threadsafe for
+                # cross-thread coordination.
+                def create_handler(
+                    sig_loop: asyncio.AbstractEventLoop | None = loop,
+                ) -> Callable[[int, Any], None]:
+                    def handler(signum: int, frame: Any) -> None:
+                        if sig_loop is not None:
+                            asyncio.run_coroutine_threadsafe(self.drain(), sig_loop)
+
+                    return handler
+
+                signal.signal(sig, create_handler())
+
             logger.info(
                 "Graceful shutdown signal handlers installed.",
                 extra={"worker_id": self.worker_id},

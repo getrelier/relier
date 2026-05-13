@@ -74,6 +74,24 @@ tracer = get_tracer("relier.tasks")
 
 logger = logging.getLogger(__name__)
 
+# =============================================================================
+# Queue Topology
+# =============================================================================
+
+INTERNAL_QUEUES = {"re-queue"}
+
+PUBLIC_QUEUES = {
+    "high_priority",
+    "default",
+    "low_priority",
+}
+
+ALL_QUEUES = PUBLIC_QUEUES | INTERNAL_QUEUES
+
+# =============================================================================
+# Decorator
+# =============================================================================
+
 
 def rl_task(
     queue: str = "default",
@@ -99,6 +117,11 @@ def rl_task(
         AdmissionRejectedError:
             If cluster admission control rejects task dispatch.
     """
+
+    if queue not in PUBLIC_QUEUES:
+        raise ValueError(
+            f"Unknown public queue '{queue}'. Allowed queues: {sorted(PUBLIC_QUEUES)}"
+        )
 
     def decorator(func: Callable) -> Callable:
         """The actual decorator applied to the user function."""
@@ -454,6 +477,9 @@ def rl_task(
 
         async def apush(*d_args: Any, **d_kwargs: Any) -> Any:
             """Async dispatch — use in FastAPI or async Django."""
+
+            _validate_public_dispatch(queue)
+
             is_admitted, retry_after = await admission_control.check_capacity(
                 "celery-dispatch"
             )
@@ -464,12 +490,12 @@ def rl_task(
                 )
             task_id = str(uuid.uuid4())
             envelope = SchemaRegistry.wrap(task_id, d_args, d_kwargs)
-            loop = asyncio.get_running_loop()
-            return await loop.run_in_executor(
-                None,
-                lambda: task.apply_async(
-                    args=(envelope,), queue=queue, task_id=task_id
-                ),
+
+            return await _dispatch_internal(
+                task=task,
+                queue=queue,
+                envelope=envelope,
+                task_id=task_id,
             )
 
         def push(*d_args: Any, **d_kwargs: Any) -> Any:
@@ -495,10 +521,58 @@ def rl_task(
             return asyncio.run(apush(*d_args, **d_kwargs))
 
         task.apush = apush
-        task.push = push  # ← add this
+        task.push = push
         return cast(Callable[..., Any], task)
 
     return decorator
+
+
+# ======================================================================================
+# Helpers
+# ======================================================================================
+def _validate_public_dispatch(queue: str) -> None:
+    """
+    Prevent user-facing APIs from publishing into internal queues.
+    """
+    if queue in INTERNAL_QUEUES:
+        raise ValueError(
+            f"Queue '{queue}' is reserved for Relier internal recovery and "
+            "cannot be used for task routing. "
+            f"Allowed queues: {sorted(PUBLIC_QUEUES)}"
+        )
+
+    if queue not in PUBLIC_QUEUES:
+        raise RuntimeError(
+            f"Unknown queue '{queue}'. Allowed queues: {sorted(PUBLIC_QUEUES)}"
+        )
+
+
+async def _dispatch_internal(
+    *,
+    task: Any,
+    queue: str,
+    envelope: dict[str, Any],
+    task_id: str,
+) -> Any:
+    """
+    Internal privileged dispatch path.
+
+    Used exclusively by Relier recovery/runtime subsystems.
+    """
+
+    if queue not in ALL_QUEUES:
+        raise RuntimeError(f"Unknown queue '{queue}'.")
+
+    loop = asyncio.get_running_loop()
+
+    return await loop.run_in_executor(
+        None,
+        lambda: task.apply_async(
+            args=(envelope,),
+            queue=queue,
+            task_id=task_id,
+        ),
+    )
 
 
 def _get_worker_loop() -> asyncio.AbstractEventLoop:

@@ -64,11 +64,6 @@ class Settings(BaseSettings):
         gt=0,
         description="Interval in seconds between resurrector scan passes.",
     )
-    resurrection_queue_priority: int = Field(
-        default=9,
-        gt=0,
-        description="Queue priority for resurrection.",
-    )
 
     # =========================================================================
     # Idempotency

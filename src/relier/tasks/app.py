@@ -210,6 +210,7 @@ def create_celery_app() -> Celery:
                 "high_priority", Exchange("high_priority"), routing_key="high_priority"
             ),
             Queue("low_priority", Exchange("low_priority"), routing_key="low_priority"),
+            Queue("re-queue", Exchange("re-queue"), routing_key="re-queue"),
         ),
         # Prevent workers from hoarding unacknowledged tasks.
         worker_prefetch_multiplier=1,
@@ -220,6 +221,7 @@ def create_celery_app() -> Celery:
         task_track_started=True,
         worker_redirect_stdouts=False,  # Preserve native stdout/stderr ownership for structured logging systems.
         worker_redirect_stdouts_level="INFO",
+        task_create_missing_queues=True,
     )
     return app
 
@@ -266,7 +268,7 @@ def init_worker_process(**kwargs: Any) -> None:
 
     # Process-local graceful shutdown coordinator.
     shutdown_handler = GracefulShutdownHandler(hostname)
-    shutdown_handler.install()
+    shutdown_handler.install(worker_loop)
 
     # Eagerly initialize Redis connectivity so failures surface during worker
     # bootstrap rather than first task execution.
@@ -279,7 +281,9 @@ def init_worker_process(**kwargs: Any) -> None:
 
     logger.info(
         "Worker runtime infrastructure initialized successfully.",
-        extra={"hostname": hostname, "loop": worker_loop},
+        extra={
+            "hostname": hostname,
+        },
     )
 
 

@@ -250,7 +250,7 @@ class PhoenixRegistry:
                 start_time = asyncio.get_running_loop().time()
 
                 if loop_count % 10 == 0:
-                    logger.info(
+                    logger.debug(
                         f"Phoenix resurrector heartbeat (loop={loop_count})",
                         extra={"uptime_loops": loop_count},
                     )
@@ -508,9 +508,13 @@ class PhoenixRegistry:
             # Track global resurrection count for CLI metrics
             await redis.incr(RedisKeys.metric_global("resurrected"))
 
-            # Replay resurrected tasks with elevated broker priority to minimize
+            # Replay resurrected tasks which goes to a dedicated re-queue worker to minimize
             # recovery latency after worker loss.
-            await cls.resurrect_task(t_id, payload, celery_app, priority=9)
+            await cls.resurrect_task(
+                t_id,
+                payload,
+                celery_app,
+            )
 
             resurrected_count += 1
 
@@ -525,14 +529,21 @@ class PhoenixRegistry:
 
     @classmethod
     async def _safe_bg_send(
-        cls, task_id: str, payload: dict, celery_app: Celery, priority: int
+        cls,
+        task_id: str,
+        payload: dict,
+        celery_app: Celery,
     ) -> None:
         """
         Bound concurrent broker replay submissions during resurrection bursts.
         """
         try:
             async with cls._send_semaphore:
-                await cls._bg_send(task_id, payload, celery_app, priority)
+                await cls._bg_send(
+                    task_id,
+                    payload,
+                    celery_app,
+                )
         except Exception as exc:
             logger.error(
                 "Unexpected failure while scheduling resurrected task replay.",
@@ -549,7 +560,6 @@ class PhoenixRegistry:
         task_id: str,
         payload: dict[str, Any],
         celery_app: Celery,
-        priority: int = 5,
     ) -> None:
         """
         Replay a resurrected task onto the Celery broker.
@@ -566,7 +576,6 @@ class PhoenixRegistry:
                     "task_id": task_id,
                     "task_name": payload.get("task_name"),
                     "queue": payload.get("queue", "default"),
-                    "priority": priority,
                 },
             )
 
@@ -577,9 +586,8 @@ class PhoenixRegistry:
                         payload["task_name"],
                         args=payload.get("args", []),
                         kwargs=payload.get("kwargs", {}),
-                        queue=payload.get("queue", "default"),
+                        queue="re-queue",
                         task_id=task_id,
-                        priority=priority,
                     ),
                 ),
                 timeout=10.0,
@@ -590,7 +598,6 @@ class PhoenixRegistry:
                 extra={
                     "task_id": task_id,
                     "task_name": payload.get("task_name"),
-                    "priority": priority,
                 },
             )
         except TimeoutError:
@@ -617,7 +624,6 @@ class PhoenixRegistry:
         task_id: str,
         payload: dict[str, Any],
         celery_app: Celery,
-        priority: int = 9,
     ) -> None:
         """
         Atomically resurrect with leasing + fencing using Redis LUA.
@@ -667,7 +673,13 @@ class PhoenixRegistry:
         }
 
         # Dispatch asynchronously so resurrection does not block the scanner loop.
-        asyncio.create_task(cls._safe_bg_send(task_id, enriched, celery_app, priority))
+        asyncio.create_task(
+            cls._safe_bg_send(
+                task_id,
+                enriched,
+                celery_app,
+            )
+        )
 
     # ==========================================================================
     # EXECUTION VALIDATION
