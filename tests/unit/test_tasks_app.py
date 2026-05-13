@@ -78,7 +78,7 @@ class TestTasksApp:
         assert app.conf.task_serializer == "json"
         assert app.conf.task_acks_late is True
         assert app.conf.task_reject_on_worker_lost is True
-        assert len(app.conf.task_queues) == 3
+        assert len(app.conf.task_queues) == 4
 
     # =========================================================
     # SHUTDOWN TESTS

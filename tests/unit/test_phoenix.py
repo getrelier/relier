@@ -90,9 +90,8 @@ class TestPhoenixRegistry:
                     "_lease_key": RedisKeys.lease(task_id),
                     "_fence_key": RedisKeys.fence(task_id),
                 },
-                queue="high-priority",
+                queue="re-queue",
                 task_id=task_id,
-                priority=9,
             )
 
     @pytest.mark.asyncio
