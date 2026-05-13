@@ -536,10 +536,10 @@ class PhoenixRegistry:
         except Exception as exc:
             logger.error(
                 "Unexpected failure while scheduling resurrected task replay.",
-                    extra={
-                        "task_id": task_id,
-                        "error_type": type(exc).__name__,
-                    },
+                extra={
+                    "task_id": task_id,
+                    "error_type": type(exc).__name__,
+                },
                 exc_info=True,
             )
 
@@ -632,16 +632,17 @@ class PhoenixRegistry:
         lease_key = RedisKeys.lease(task_id)
         fence_key = RedisKeys.fence(task_id)
 
-
         # Lease acquisition prevents concurrent resurrectors from
         # dispatching the same task simultaneously.
 
-        lease_acquired = await redis.eval(RESURRECT_LUA, 2, lease_key, fence_key, fence_token, "180", "600") # type: ignore[misc]
+        lease_acquired = await redis.eval(
+            RESURRECT_LUA, 2, lease_key, fence_key, fence_token, 180, 600
+        )  # type: ignore[arg-type, misc]
 
         if lease_acquired != 1:
             logger.warning(
                 "Lease already claimed by another resurrector - skipping",
-                extra={"task_id": task_id, "lease-key":lease_key}
+                extra={"task_id": task_id, "lease-key": lease_key},
             )
             return
 
@@ -651,7 +652,7 @@ class PhoenixRegistry:
                 "task_id": task_id,
                 "lease_key": lease_key,
                 "lease_ttl": 180,
-            }
+            },
         )
 
         # Enrich payload with fencing metadata
@@ -662,14 +663,11 @@ class PhoenixRegistry:
                 "_fence_token": fence_token,
                 "_lease_key": lease_key,
                 "_fence_key": fence_key,
-            }
+            },
         }
 
         # Dispatch asynchronously so resurrection does not block the scanner loop.
-        asyncio.create_task(
-            cls._safe_bg_send(task_id, enriched, celery_app, priority)
-        )
-
+        asyncio.create_task(cls._safe_bg_send(task_id, enriched, celery_app, priority))
 
     # ==========================================================================
     # EXECUTION VALIDATION
