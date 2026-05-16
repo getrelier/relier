@@ -655,6 +655,9 @@ class PhoenixRegistry:
     # ==============================================================================
     # RESURRECTION
     # ==============================================================================
+
+    _active_resurrections: dict[str, "asyncio.Task[None]"] = {}
+
     @classmethod
     async def resurrect_task(
         cls,
@@ -710,12 +713,33 @@ class PhoenixRegistry:
         }
 
         # Dispatch asynchronously so resurrection does not block the scanner loop.
-        asyncio.create_task(
+        bg_task = asyncio.create_task(
             cls._safe_bg_send(
                 task_id,
                 enriched,
                 celery_app,
             )
+        )
+        cls._active_resurrections[task_id] = bg_task
+
+        def cleanup(_) -> None:  # type: ignore[no-untyped-def]
+            cls._active_resurrections.pop(task_id, None)
+
+        bg_task.add_done_callback(cleanup)
+
+    @classmethod
+    async def wait_for_resurrection(cls, timeout: float = 5.0) -> None:
+        """
+        Wait for all pending resurrection dispatches to complete.
+        Useful in tests to ensure tasks are actually in the queue
+        before starting new workers.
+        """
+        if not cls._active_resurrections:
+            return
+
+        await asyncio.wait_for(
+            asyncio.gather(*cls._active_resurrections.values(), return_exceptions=True),
+            timeout=timeout,
         )
 
     # ==========================================================================

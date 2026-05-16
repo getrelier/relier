@@ -24,12 +24,11 @@ async def test_worker_kill_resurrects_task(celery_worker_manager, redis_client) 
 
     # Submit the task
     marker_key = "resurrect_me_123"
-    # Use a long duration so we have time to kill the worker
     task = resurrection_task.delay(duration=10, marker_key=marker_key)
 
     # Wait for Worker A to start processing it
     started = False
-    for _ in range(40):  # up to 20 seconds
+    for _ in range(40):
         if await redis_client.exists(f"test_marker:{marker_key}:started"):
             started = True
             break
@@ -43,22 +42,33 @@ async def test_worker_kill_resurrects_task(celery_worker_manager, redis_client) 
     # KILL WORKER A
     celery_worker_manager.kill_worker(worker_a)
 
-    # Simulate heartbeat expiration (to avoid waiting 30 seconds)
-    # The heartbeat key is rl:hb:{task_id}
+    # Simulate heartbeat expiration COMPLETELY
+    # Delete the heartbeat key
     await redis_client.delete(RedisKeys.heartbeat(task.id))
 
-    # Run the resurrection scan (simulating the background beat process)
-    # This should find the orphaned task and requeue it
-    await PhoenixRegistry._scan_and_resurrect(
+    # Mark the task as expired in the expiry index
+    # Set score to 0 (definitely in the past) so the scan finds it
+    await redis_client.zadd(
+        RedisKeys.phoenix_expiry_index(),
+        {task.id: 0},  # Score 0 = expired
+    )
+
+    # Run the resurrection scan
+    resurrected_count = await PhoenixRegistry._scan_and_resurrect(
         redis_client, dead_letter_queue, celery_app
     )
 
-    # Start Worker B
+    assert resurrected_count == 1, "Expected one task to be resurrected"
+
+    # Wait for async dispatch to complete
+    await PhoenixRegistry.wait_for_resurrection(timeout=2.0)
+
+    # Start Worker B AFTER resurrection completes
     await celery_worker_manager.start_worker(redis_client)
 
     # Wait for task to finish on Worker B
     finished = False
-    for _ in range(40):  # up to 20 seconds
+    for _ in range(40):
         if await redis_client.exists(f"test_marker:{marker_key}:finished"):
             finished = True
             break
@@ -77,7 +87,6 @@ async def test_checkpoint_resume_real_flow(celery_worker_manager, redis_client) 
     worker_a = await celery_worker_manager.start_worker(redis_client)
 
     marker = "checkpoint_real"
-
     task = checkpoint_task.delay(steps=5, marker=marker)
 
     # wait until checkpoint step 2 is reached
@@ -92,21 +101,28 @@ async def test_checkpoint_resume_real_flow(celery_worker_manager, redis_client) 
     # kill worker mid-execution
     celery_worker_manager.kill_worker(worker_a)
 
-    # simulate heartbeat expiry
+    # Simulate heartbeat expiry COMPLETELY
     await redis_client.delete(RedisKeys.heartbeat(task.id))
+
+    # Mark as expired in index
+    await redis_client.zadd(RedisKeys.phoenix_expiry_index(), {task.id: 0})
 
     from relier.core.dlq import DeadLetterQueue
 
     dead_letter_queue = DeadLetterQueue()
 
-    await PhoenixRegistry._scan_and_resurrect(
+    resurrected_count = await PhoenixRegistry._scan_and_resurrect(
         redis_client, dead_letter_queue, celery_app
     )
+
+    assert resurrected_count == 1, "Expected one task to be resurrected"
+
+    # Wait for dispatch
+    await PhoenixRegistry.wait_for_resurrection(timeout=2.0)
 
     # start new worker
     await celery_worker_manager.start_worker(redis_client)
 
     # wait for completion
     result = task.get(timeout=15)
-
     assert result == "done"
