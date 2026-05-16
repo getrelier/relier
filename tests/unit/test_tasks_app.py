@@ -23,7 +23,7 @@ def mock_run_coroutine(coro, loop=None):
             try:
                 coro.send(None)
             except StopIteration as e:
-                f = concurrent.futures.Future() # type: ignore[var-annotated]
+                f = concurrent.futures.Future()  # type: ignore[var-annotated]
                 f.set_result(e.value)
                 return f
             except Exception as e:
@@ -47,7 +47,14 @@ class TestTasksApp:
             # Combined the coroutine check and the name filter
             if asyncio.iscoroutine(obj) and any(
                 name in str(obj)
-                for name in ["init_worker_process", "_warm_up", "_presence_loop", "_cleanup_dead_workers", "get_client", "_execute_mock_call"]
+                for name in [
+                    "init_worker_process",
+                    "_warm_up",
+                    "_presence_loop",
+                    "_cleanup_dead_workers",
+                    "get_client",
+                    "_execute_mock_call",
+                ]
             ):
                 obj.close()
 
@@ -141,12 +148,19 @@ class TestTasksApp:
     # INITIALIZATION & WORKER LOGIC
     # =========================================================
     def test_init_worker(self) -> None:
-        """Verify init_worker sets up loop, logging, telemetry, and warms up."""
+        """Verify init_worker sets up loop, logging, telemetry, and validation paths."""
         with (
             patch("threading.Thread") as mock_thread,
             patch("relier.tasks.app.setup_logging") as mock_setup_logging,
             patch("relier.tasks.app.setup_telemetry") as mock_setup_telemetry,
             patch("relier.tasks.app.redis_manager") as mock_rm,
+            patch(
+                "relier.core.validation.validate_redis_config", new_callable=AsyncMock
+            ) as mock_val_redis,
+            patch(
+                "relier.core.validation.validate_connection_pool",
+                new_callable=AsyncMock,
+            ) as mock_val_pool,
             patch(
                 "asyncio.run_coroutine_threadsafe", side_effect=mock_run_coroutine
             ) as mock_run,
@@ -157,9 +171,40 @@ class TestTasksApp:
             init_worker_process(hostname="test-host")
 
             assert mock_thread.called
-            assert mock_run.call_count == 1
+
+            assert mock_run.call_count == 2
             mock_setup_logging.assert_called_once()
             mock_setup_telemetry.assert_called_once()
+            mock_val_redis.assert_called_once()
+            mock_val_pool.assert_called_once()
+
+    def test_init_worker_validation_failure(self) -> None:
+        """Verify init_worker aborts initialization if validation fails inside inline imports."""
+
+        async def mock_validation_crash(*args, **kwargs):
+            raise RuntimeError("Validation blocked: Cannot verify Redis settings.")
+
+        with (
+            patch("threading.Thread"),
+            patch("relier.tasks.app.setup_logging"),
+            patch("relier.tasks.app.setup_telemetry"),
+            patch("relier.tasks.app.redis_manager") as mock_rm,
+            patch(
+                "relier.core.validation.validate_redis_config",
+                side_effect=mock_validation_crash,
+            ),
+            patch(
+                "relier.core.validation.validate_connection_pool",
+                new_callable=AsyncMock,
+            ),
+            patch("asyncio.new_event_loop"),
+            patch("asyncio.run_coroutine_threadsafe", side_effect=mock_run_coroutine),
+        ):
+            # Ensure the patched redis_manager returns an awaitable client
+            mock_rm.get_client = AsyncMock()
+
+            with pytest.raises(RuntimeError, match="Validation blocked"):
+                init_worker_process(hostname="fail-host")
 
     @pytest.mark.asyncio
     async def test_init_worker_internal_coroutines(self, fake_sender) -> None:
@@ -171,7 +216,7 @@ class TestTasksApp:
             captured_coros.append(coro)
             if "_warm_up" in str(coro):
                 return mock_run_coroutine(coro, loop)
-            f = concurrent.futures.Future() # type: ignore[var-annotated]
+            f = concurrent.futures.Future()  # type: ignore[var-annotated]
             f.set_result(None)
             return f
 

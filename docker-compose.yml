@@ -9,7 +9,7 @@ services:
     container_name: relier-redis
     ports:
       - "6379:6379"
-    command: redis-server --save 60 1 --loglevel warning
+    command: redis-server --save 60 1 --loglevel warning --maxmemory-policy noeviction
     volumes:
       - redis_data:/data
     healthcheck:
@@ -50,7 +50,7 @@ services:
       celery -A relier.tasks.app worker 
       --loglevel=info 
       --concurrency=8
-      -Q default,low_priority
+      -Q high_priority,default
       --hostname=rl-worker-high@%h
     volumes:
       - ./src:/app/src  # Hot-reloading
@@ -73,8 +73,30 @@ services:
       celery -A relier.tasks.app worker 
       --loglevel=info 
       --concurrency=8
-      -Q high_priority,default
+      -Q default,low_priority
       --hostname=rl-worker-default@%h
+    volumes:
+      - ./src:/app/src  # Hot-reloading
+    environment:
+      - RELIER_ENV=development
+      - RELIER_REDIS_URL=redis://redis:6379/0
+      - C_FORCE_ROOT=true
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  worker-recovery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Note: concurrency=8 ensures we can test multiplexing,
+    # but we set worker_prefetch_multiplier=1 in the app.py to prevent OOMs
+    command: >
+      celery -A relier.tasks.app worker 
+      --loglevel=info 
+      --concurrency=8
+      -Q re-queue
+      --hostname=rl-worker-re-queue@%h
     volumes:
       - ./src:/app/src  # Hot-reloading
     environment:

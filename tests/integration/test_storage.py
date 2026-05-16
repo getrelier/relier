@@ -29,6 +29,3 @@ async def test_redis_manager_lazy_initialization(redis_url: str) -> None:
 
     await manager.close()
     assert len(manager._clients) == 0
-
-
-

@@ -14,7 +14,7 @@ async def test_lifespan_task_discovery(monkeypatch) -> None:
     class DummyCelery:
         tasks = {"relier.tasks.debug.sample": None}
 
-    fake_mod.celery_app = DummyCelery() # type: ignore[attr-defined]
+    fake_mod.celery_app = DummyCelery()  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, mod_name, fake_mod)
 
     from relier.api.main import app, lifespan
