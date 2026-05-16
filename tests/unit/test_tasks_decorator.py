@@ -29,7 +29,7 @@ class TestTasksDecorator:
                     "_cleanup_dead_workers",
                     "get_client",
                     "_orchestrate",
-                    "_execute_mock_call"
+                    "_execute_mock_call",
                 ]
             ):
                 obj.close()
@@ -112,7 +112,6 @@ class TestTasksDecorator:
             "relier.core.admission.admission_control.check_capacity",
             new_callable=AsyncMock,
         ) as mock_capacity:
-
             mock_capacity.return_value = (False, 30)
 
             with pytest.raises(AdmissionRejectedError):

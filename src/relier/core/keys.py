@@ -55,11 +55,6 @@ class RedisKeys:
         return f"{cls.PREFIX}:hb:{task_id}"
 
     @classmethod
-    def payload(cls, task_id: str) -> str:
-        """Pattern: rl:payload:{task_id}"""
-        return f"{cls.PREFIX}:payload:{task_id}"
-
-    @classmethod
     def inflight(cls, worker_id: str) -> str:
         """
         Worker-local sorted-set tracking currently executing task IDs.
@@ -159,6 +154,14 @@ class RedisKeys:
         # does not provide one explicitly.
         suffix = unique_id or uuid.uuid4().hex
         return f"rl:inflight:{suffix}"
+
+    @staticmethod
+    def phoenix_expiry_index() -> str:
+        """
+        Sorted set of task_ids scored by heartbeat expiry timestamp.
+        Enables O(log N) lookup of tasks needing resurrection check.
+        """
+        return f"{RedisKeys.PREFIX}:phoenix:expiry_index"
 
     # =============================================================================
     # Worker & Cluster Health

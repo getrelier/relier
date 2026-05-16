@@ -17,7 +17,7 @@ def mock_run_coroutine(coro, loop=None):
             try:
                 coro.send(None)
             except StopIteration as e:
-                f = concurrent.futures.Future() # type: ignore[var-annotated]
+                f = concurrent.futures.Future()  # type: ignore[var-annotated]
                 f.set_result(e.value)
                 return f
             except Exception as e:
@@ -50,7 +50,7 @@ class TestLogging:
             mock_span.get_span_context().is_valid = False
             mock_get_span.return_value = mock_span
 
-            result = inject_otel_context(None, None, event_dict.copy()) # type: ignore[arg-type]
+            result = inject_otel_context(None, None, event_dict.copy())  # type: ignore[arg-type]
             assert result == event_dict
 
         await asyncio.sleep(0)
@@ -67,7 +67,7 @@ class TestLogging:
             mock_span.get_span_context.return_value = mock_ctx
             mock_get_span.return_value = mock_span
 
-            result = inject_otel_context(None, None, event_dict.copy()) # type: ignore[arg-type]
+            result = inject_otel_context(None, None, event_dict.copy())  # type: ignore[arg-type]
             assert result["trace_id"] == "1234567890abcdef1234567890abcdef"
             assert result["span_id"] == "1234567890abcdef"
 
@@ -99,7 +99,7 @@ class TestLogging:
 class TestMetrics:
     def test_inflight_tasks_callback(self) -> None:
         """Verify the metrics callback yields a valid Observation."""
-        observations = list(_inflight_tasks_callback(None)) # type: ignore[arg-type]
+        observations = list(_inflight_tasks_callback(None))  # type: ignore[arg-type]
         assert len(observations) == 1
         obs = observations[0]
         assert obs.value == 0

@@ -248,6 +248,10 @@ def init_worker_process(**kwargs: Any) -> None:
     """
     global worker_loop, shutdown_handler
 
+    settings = _get_settings()
+    hostname = str(kwargs.get("hostname") or f"celery@{socket.gethostname()}")
+    worker_id = hostname
+
     # Celery prefork workers inherit the parent's event loop object after
     # fork(), but not the thread actively driving it.
     #
@@ -259,22 +263,55 @@ def init_worker_process(**kwargs: Any) -> None:
     t = threading.Thread(target=_run_event_loop, args=(worker_loop,), daemon=True)
     t.start()
 
+    async def _startup_checks() -> None:
+        from relier.core.validation import (
+            validate_connection_pool,
+            validate_redis_config,
+        )
+
+        redis = await redis_manager.get_client()
+
+        # fails hard if noeviction not set
+        await validate_redis_config(redis, settings)
+
+        # Warning only -logs if connection pool might be too large
+        await validate_connection_pool(settings)
+
+    try:
+        # Run validation before anything else
+        future = asyncio.run_coroutine_threadsafe(_startup_checks(), worker_loop)
+        future.result(timeout=10)  # Give it 10s to complete
+        logger.info(
+            f"Worker {worker_id} passed all validation checks",
+            extra={"worker_id": worker_id},
+        )
+    except Exception as exc:
+        logger.error(
+            f"Worker {worker_id} FAILED validation checks - refusing to start",
+            extra={"worker_id": worker_id, "error": str(exc)},
+            exc_info=True,
+        )
+        # Don't let the worker start if validation fails
+        raise
+
     # Reinitialize structured logging inside the isolated worker process.
     setup_logging(level=_get_settings().log_level, cache_loggers=False)
     # Bind telemetry exporters to the child process runtime.
     setup_telemetry(service_name="relier-worker")
 
-    hostname = str(kwargs.get("hostname") or f"celery@{socket.gethostname()}")
-
     # Process-local graceful shutdown coordinator.
     shutdown_handler = GracefulShutdownHandler(hostname)
     shutdown_handler.install(worker_loop)
+
+    # Wrap connection pool initialization to yield a strict Coroutine[Any, Any, None]
+    async def _warmup_pool() -> None:
+        await redis_manager.get_client()
 
     # Eagerly initialize Redis connectivity so failures surface during worker
     # bootstrap rather than first task execution.
     if worker_loop is not None:
         future = asyncio.run_coroutine_threadsafe(
-            redis_manager.get_client(),
+            _warmup_pool(),
             worker_loop,
         )
         future.result(timeout=5)

@@ -80,6 +80,7 @@ class TestPhoenixRegistry:
                     break
 
             from unittest.mock import ANY
+
             # Assert the receipt
             mock_celery.send_task.assert_called_once_with(
                 "requeue_me",
@@ -251,7 +252,7 @@ class TestPhoenixResurrectionEdgeCases:
     async def test_refresh_loop_handles_unexpected_error(self, mock_redis) -> None:
         """Test that the loop logs error but doesn't crash global registry."""
         task_id = "error_task"
-        # We trigger an error by patching expire to raise an exception
+
         with patch.object(mock_redis, "expire", side_effect=Exception("Redis Down")):
             await PhoenixRegistry._refresh_loop(task_id, "worker-1")
 
@@ -283,7 +284,7 @@ class TestPhoenixResurrectionEdgeCases:
 
     async def test_resurrection_loop_handles_iteration_error(self, mock_redis) -> None:
         """Test that the main loop survives a single pass failure."""
-        # Patch a core pass helper to raise an error
+
         import contextlib
 
         with (
@@ -297,3 +298,91 @@ class TestPhoenixResurrectionEdgeCases:
         ):
             # we expect the CancelledError to propagate
             await PhoenixRegistry.resurrection_loop()
+
+
+class TestPhoenixValidation:
+    async def test_validate_execution_branches(self, mock_redis):
+        # Duplicate lease (0) -> rejected
+        mock_redis.eval = AsyncMock(return_value=0)
+        res = await PhoenixRegistry.validate_execution(
+            "t1", mock_redis, "token", "lease", "fence"
+        )
+        assert res is False
+
+        # Stale fence (2) -> rejected and release_lease called
+        mock_redis.eval = AsyncMock(return_value=2)
+        called = []
+
+        async def fake_release(redis, lease_key, token):
+            called.append((lease_key, token))
+
+        with patch.object(
+            PhoenixRegistry, "release_lease", new=AsyncMock(side_effect=fake_release)
+        ):
+            res2 = await PhoenixRegistry.validate_execution(
+                "t2", mock_redis, "token2", "lease2", "fence2"
+            )
+            assert res2 is False
+            assert called and called[0] == ("lease2", "token2")
+
+        # Valid (1) -> accepted
+        mock_redis.eval = AsyncMock(return_value=1)
+        res3 = await PhoenixRegistry.validate_execution(
+            "t3", mock_redis, "token3", "lease3", "fence3"
+        )
+        assert res3 is True
+
+    async def test_validate_commit_and_release(self, mock_redis):
+        # Commit check fails -> False
+        mock_redis.eval = AsyncMock(return_value=0)
+        res = await PhoenixRegistry.validate_commit(
+            "t", mock_redis, "token", "lease", "fence"
+        )
+        assert res is False
+
+        # Commit check passes -> True and release_lease invoked
+        mock_redis.eval = AsyncMock(return_value=1)
+        called = []
+
+        async def fake_release(redis, lease_key, token):
+            called.append((lease_key, token))
+
+        with patch.object(
+            PhoenixRegistry, "release_lease", new=AsyncMock(side_effect=fake_release)
+        ):
+            res2 = await PhoenixRegistry.validate_commit(
+                "t", mock_redis, "token", "lease", "fence"
+            )
+            assert res2 is True
+            assert called and called[0] == ("lease", "token")
+
+    async def test_release_lease_handles_exception(self):
+        mock = MagicMock()
+        mock.eval = AsyncMock(side_effect=Exception("boom"))
+
+        await PhoenixRegistry.release_lease(mock, "lease", "token")
+
+    async def test_update_partial_state_persists(self, mock_redis):
+        task_id = "pstate"
+        await PhoenixRegistry.update_partial_state(task_id, {"i": 5})
+        data = await mock_redis.hgetall(RedisKeys.phoenix(task_id))
+        assert b"partial_result" in data or "partial_result" in data
+
+    async def test_safe_bg_send_and_bg_send_timeout(self, monkeypatch):
+        # _safe_bg_send should swallow exceptions from _bg_send
+        async def bad_bg_send(task_id, payload, app):
+            raise Exception("send fail")
+
+        with patch.object(
+            PhoenixRegistry, "_bg_send", new=AsyncMock(side_effect=bad_bg_send)
+        ):
+            await PhoenixRegistry._safe_bg_send("t", {}, MagicMock())
+
+        # _bg_send handles TimeoutError raised by wait_for
+        async def fake_wait_for(coro, timeout):
+            raise TimeoutError()
+
+        monkeypatch.setattr(asyncio, "wait_for", fake_wait_for)
+
+        mock_celery = MagicMock()
+        await PhoenixRegistry._bg_send("t", {"task_name": "x"}, mock_celery)

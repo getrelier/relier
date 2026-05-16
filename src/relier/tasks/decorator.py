@@ -117,10 +117,39 @@ def rl_task(
         AdmissionRejectedError:
             If cluster admission control rejects task dispatch.
     """
+    from relier.config import get_settings
+
+    settings = get_settings()
 
     if queue not in PUBLIC_QUEUES:
         raise ValueError(
             f"Unknown public queue '{queue}'. Allowed queues: {sorted(PUBLIC_QUEUES)}"
+        )
+
+    if (
+        idempotent
+        and hard_timeout is not None
+        and hard_timeout >= settings.idempotency_inflight_ttl
+    ):
+        raise ValueError(
+            f"CONFIGURATION ERROR: hard_timeout ({hard_timeout}s) must be "
+            f"< IDEMPOTENCY_INFLIGHT_TTL ({settings.idempotency_inflight_ttl}s).\n"
+            f"\n"
+            f"Why: If a task runs longer than IN_FLIGHT_TTL, the idempotency key "
+            f"expires while the task is still executing, allowing a duplicate "
+            f"worker to start the same task (double execution).\n"
+            f"\n"
+            f"Fix: Either increase RELIER_IDEMPOTENCY_INFLIGHT_TTL or reduce hard_timeout.\n"
+            f"Safe formula: hard_timeout < IN_FLIGHT_TTL - 10s (safety buffer)"
+        )
+
+    if (
+        soft_timeout is not None
+        and hard_timeout is not None
+        and soft_timeout >= hard_timeout
+    ):
+        raise ValueError(
+            f"soft_timeout ({soft_timeout}s) must be < hard_timeout ({hard_timeout}s)"
         )
 
     def decorator(func: Callable) -> Callable:
@@ -195,8 +224,12 @@ def rl_task(
 
                 idem_result = None
                 redis = await get_relier_redis()
+                expiry_timestamp = time.time() + settings.heartbeat_ttl
 
                 await redis.set(RedisKeys.presence(worker_id), "1", ex=60)
+                await redis.zadd(
+                    RedisKeys.phoenix_expiry_index(), {task_id: expiry_timestamp}
+                )
 
                 if idempotent:
                     arg_sig = json.dumps(

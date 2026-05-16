@@ -23,7 +23,7 @@ class TestCoverageGap:
 
     async def test_schema_edge_cases(self) -> None:
         """Hit missing lines in schema.py."""
-        payload = {"args": [], "kwargs": {}} # type: ignore[var-annotated]
+        payload = {"args": [], "kwargs": {}}  # type: ignore[var-annotated]
         checksum = SchemaRegistry._generate_checksum(payload)
         env = {
             "task_id": "t1",
@@ -55,7 +55,7 @@ class TestCoverageGap:
             await asyncio.sleep(0.2)
             return "done"
 
-        await TimeoutEnforcer.run(slow_func, (), {}, 0.1, 1.0, mock_on_soft, "t1") # type: ignore[arg-type]
+        await TimeoutEnforcer.run(slow_func, (), {}, 0.1, 1.0, mock_on_soft, "t1")  # type: ignore[arg-type]
 
         with (
             patch("asyncio.wait", side_effect=asyncio.CancelledError),
@@ -66,7 +66,7 @@ class TestCoverageGap:
     async def test_redis_edge_cases(self) -> None:
         """Hit missing lines in redis.py."""
         mock_client = AsyncMock()
-        redis_manager._client = mock_client # type: ignore[attr-defined]
+        redis_manager._client = mock_client  # type: ignore[attr-defined]
         await redis_manager.close()
 
         with (

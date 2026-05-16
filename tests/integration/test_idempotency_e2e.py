@@ -5,7 +5,9 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-async def test_idempotency_concurrent_executions(celery_worker_manager, redis_client) -> None:
+async def test_idempotency_concurrent_executions(
+    celery_worker_manager, redis_client
+) -> None:
     """
     Test that an idempotent task executing concurrently only processes once
     but returns the cached result for all invocations.

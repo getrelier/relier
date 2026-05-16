@@ -51,7 +51,6 @@ async def test_readiness_fails_when_redis_down(monkeypatch) -> None:
 
         yield BadRedis()
 
-
     from relier.api import dependencies as deps_mod
     from relier.api.main import app
 

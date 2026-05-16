@@ -47,6 +47,21 @@ class Settings(BaseSettings):
     redis_health_check_interval: int = Field(default=30, ge=0)
 
     # =========================================================================
+    # Celery Integration
+    # =========================================================================
+    celery_worker_count: int = Field(
+        default=8,
+        gt=0,
+        description="Number of Celery worker processes. Used for Redis connection pool sizing and admission control.",
+    )
+
+    celery_worker_concurrency: int = Field(
+        default=8,
+        gt=0,
+        description="Number of concurrent tasks per Celery worker process. Used for Redis connection pool sizing and admission control.",
+    )
+
+    # =========================================================================
     # Phoenix — Task Resurrection
     # =========================================================================
     heartbeat_ttl: int = Field(
@@ -65,6 +80,12 @@ class Settings(BaseSettings):
         description="Interval in seconds between resurrector scan passes.",
     )
 
+    resurrection_requeue_delay: float = Field(
+        default=0.05,
+        gt=0.0,
+        description="Delay in seconds between re-queueing resurrected tasks.",
+    )
+
     # =========================================================================
     # Idempotency
     # =========================================================================
@@ -72,6 +93,11 @@ class Settings(BaseSettings):
         default=3600,
         gt=0,
         description="Default TTL in seconds for idempotency result cache keys.",
+    )
+    idempotency_inflight_ttl: int = Field(
+        default=120,
+        gt=0,
+        description="TTL in seconds for in-flight idempotency locks to prevent indefinite blocking.",  # must be > max hard_timeout
     )
 
     # =========================================================================
