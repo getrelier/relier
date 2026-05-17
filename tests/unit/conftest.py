@@ -102,6 +102,13 @@ class FakeRedis:
         self.data[key] = str(val)
         return val
 
+    async def mget(self, keys):
+        out = []
+        for key in keys:
+            val = self.data.get(self._s(key))
+            out.append(val.encode() if isinstance(val, str) else val)
+        return out
+
     async def expire(self, key, time):
         return key in self.data or key in self.hdata or key in self.zdata
 
@@ -299,6 +306,14 @@ class FakePipeline:
 
     def hset(self, *args, **kwargs):
         self.commands.append(("hset", args, kwargs))
+        return self
+
+    def hdel(self, *args, **kwargs):
+        self.commands.append(("hdel", args, kwargs))
+        return self
+
+    def hgetall(self, *args, **kwargs):
+        self.commands.append(("hgetall", args, kwargs))
         return self
 
     def zadd(self, *args, **kwargs):

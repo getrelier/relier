@@ -62,22 +62,6 @@ class RedisKeys:
         return f"{cls.PREFIX}:inflight:{worker_id}"
 
     @classmethod
-    def dlq_worker(cls, worker_id: str) -> str:
-        """
-        Worker-scoped Dead Letter Queue namespace.
-
-        Used for operational grouping or future worker-level quarantine policies.
-        """
-        return f"{cls.PREFIX}:dlq:{worker_id}"
-
-    @classmethod
-    def dlq_task(cls, task_id: str) -> str:
-        """
-        Task-scoped Dead Letter Queue entry namespace.
-        """
-        return f"{cls.PREFIX}:dlq:{task_id}"
-
-    @classmethod
     def phoenix(cls, task_id: str) -> str:
         """
         Persistent Phoenix task state record.
@@ -198,11 +182,14 @@ class RedisKeys:
         return f"{cls.PREFIX}:m:w:{worker_id}:{status}"
 
     @classmethod
-    def slo(cls, window: str, status: str) -> str:
+    def slo_bucket(cls, status: str, bucket: int) -> str:
         """
-        SLO rolling window sorted-set namespace.
+        Fixed-window SLO outcome counter for a single time bucket.
+
+        Each bucket is a plain integer counter with a TTL, so SLO telemetry
+        uses O(1) memory per bucket instead of growing unbounded with traffic.
         """
-        return f"{cls.PREFIX}:slo:{window}:{status}"
+        return f"{cls.PREFIX}:slo:{status}:{bucket}"
 
     @staticmethod
     def task_durations() -> str:

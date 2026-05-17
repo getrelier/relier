@@ -16,7 +16,6 @@ allowed error budget faster than intended.
 """
 
 import logging
-import os
 import time
 
 from relier.core.keys import RedisKeys
@@ -29,9 +28,11 @@ class SLOMetrics:
     """
     Records task outcome telemetry and computes rolling SLO burn rates.
 
-    Metrics are maintained in Redis-backed time windows to enable
-    low-latency reliability calculations without requiring a dedicated
-    metrics backend.
+    Outcomes are aggregated into fixed-size time buckets (plain Redis integer
+    counters with a TTL). This keeps SLO storage and per-event cost O(1)
+    regardless of throughput — unlike a per-event sorted set, whose member
+    count grows linearly with traffic and can reach hundreds of millions of
+    entries over a multi-day window.
     """
 
     # Rolling observation windows used for burn-rate calculations.
@@ -40,10 +41,22 @@ class SLOMetrics:
     # smooth transient spikes and identify sustained reliability degradation.
     WINDOW_SIZES = {"1h": 3600, "6h": 21600, "3d": 259200}
 
+    # Width of a single counter bucket, in seconds.
+    BUCKET_SECONDS = 60
+
+    # Buckets are retained slightly beyond the largest window so a burn-rate
+    # query never races a just-expired bucket out of existence.
+    _RETENTION_SECONDS = max(WINDOW_SIZES.values()) + BUCKET_SECONDS
+
+    @classmethod
+    def _bucket(cls, ts: float) -> int:
+        """Return the bucket epoch (floored to ``BUCKET_SECONDS``) for ``ts``."""
+        return int(ts) - (int(ts) % cls.BUCKET_SECONDS)
+
     @classmethod
     async def record_event(cls, status: str) -> None:
         """
-        Record a task execution outcome into all active SLO windows.
+        Record a task execution outcome into the current time bucket.
 
         Args:
             status:
@@ -51,20 +64,29 @@ class SLOMetrics:
                 ``"success"`` or ``"failure"``.
         """
         redis = await get_relier_redis()
-        now = time.time()
-        # Use a unique sorted-set member to avoid timestamp collisions when
-        # multiple events are recorded within the same clock tick under load.
-        unique_member = f"{now}:{os.urandom(4).hex()}"
+        key = RedisKeys.slo_bucket(status, cls._bucket(time.time()))
 
+        # A single INCR per event; the TTL bounds total key count so old
+        # buckets expire on their own without an explicit trim pass.
         pipe = redis.pipeline()
-        for label, seconds in cls.WINDOW_SIZES.items():
-            # Store outcome events as timestamp-scored sorted-set entries so old
-            # observations can be trimmed efficiently per rolling window.
-            key = RedisKeys.slo(label, status)
-            pipe.zadd(key, {unique_member: now})
-            pipe.zremrangebyscore(key, 0, now - seconds)
-
+        pipe.incr(key)
+        pipe.expire(key, cls._RETENTION_SECONDS)
         await pipe.execute()
+
+    @classmethod
+    async def _count_window(cls, redis: object, status: str, window_secs: int) -> int:
+        """Sum the outcome counters for ``status`` across the rolling window."""
+        end = cls._bucket(time.time())
+        start = end - window_secs + cls.BUCKET_SECONDS
+        keys = [
+            RedisKeys.slo_bucket(status, b)
+            for b in range(start, end + 1, cls.BUCKET_SECONDS)
+        ]
+        if not keys:
+            return 0
+        # One MGET round-trip regardless of window size.
+        values = await redis.mget(keys)  # type: ignore[attr-defined]
+        return sum(int(v) for v in values if v)
 
     @classmethod
     async def get_burn_rate(
@@ -79,12 +101,11 @@ class SLOMetrics:
         - ``<1.0`` → operating within reliability targets
         """
         redis = await get_relier_redis()
-        now = time.time()
-        start = now - cls.WINDOW_SIZES.get(window, 3600)
+        window_secs = cls.WINDOW_SIZES.get(window, 3600)
 
         # Count execution outcomes that fall within the active observation window.
-        successes = await redis.zcount(RedisKeys.slo(window, "success"), start, now)
-        failures = await redis.zcount(RedisKeys.slo(window, "failure"), start, now)
+        successes = await cls._count_window(redis, "success", window_secs)
+        failures = await cls._count_window(redis, "failure", window_secs)
 
         total = successes + failures
         # Avoid reporting burn when no execution traffic exists in the window.

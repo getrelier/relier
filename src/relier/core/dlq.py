@@ -140,10 +140,18 @@ class DeadLetterQueue:
             },
         )
 
+    # Page size for the internal HSCAN cursor. Not a cap on returned results.
+    _SCAN_BATCH_SIZE = 200
+
     @classmethod
-    async def list_tasks(cls, count: int = 100) -> list[dict[str, Any]]:
+    async def list_tasks(cls, limit: int | None = None) -> list[dict[str, Any]]:
         """
         Return quarantined tasks ordered by most recent quarantine time first.
+
+        Args:
+            limit:
+                Optional cap on the number of (most-recent) tasks returned.
+                When ``None`` all quarantined tasks are returned.
 
         Malformed entries are skipped defensively so corrupted DLQ records do
         not break inspection tooling.
@@ -154,7 +162,7 @@ class DeadLetterQueue:
         cursor = 0
         while True:
             cursor, data = await redis.hscan(
-                cls.DLQ_HASH_KEY, cursor=cursor, count=count
+                cls.DLQ_HASH_KEY, cursor=cursor, count=cls._SCAN_BATCH_SIZE
             )
             for raw_json in data.values():
                 if raw_json:
@@ -166,7 +174,7 @@ class DeadLetterQueue:
                 break
 
         results.sort(key=lambda x: x.get("quarantined_at", ""), reverse=True)
-        return results
+        return results[:limit] if limit is not None else results
 
     @classmethod
     async def inspect(cls, task_id: str) -> dict[str, Any] | None:

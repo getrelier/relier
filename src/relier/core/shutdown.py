@@ -21,6 +21,7 @@ from collections.abc import Callable
 from typing import Any
 
 from relier.config import Settings, get_settings
+from relier.core.keys import RedisKeys
 from relier.storage.redis import get_relier_redis
 
 logger = logging.getLogger(__name__)
@@ -185,8 +186,7 @@ class GracefulShutdownHandler:
         """
         redis = await get_relier_redis()
         for task_id in list(self._active_tasks):
-            hb_key = f"rl:hb:{task_id}"
-            await redis.delete(hb_key)
+            await redis.delete(RedisKeys.heartbeat(task_id))
             logger.warning(
                 "Transferred unfinished task to Phoenix recovery.",
                 extra={"task_id": task_id, "worker_id": self.worker_id},
