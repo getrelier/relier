@@ -9,44 +9,42 @@ pytestmark = pytest.mark.asyncio
 
 
 class TestSLOMetrics:
-    async def test_record_event_updates_all_windows(self, mock_redis) -> None:
-        """Test that recording a success/failure adds entries to all window sorted sets."""
+    async def test_record_event_increments_window_count(self, mock_redis) -> None:
+        """Recording an outcome makes it visible inside the rolling window."""
         await SLOMetrics.record_event("success")
 
-        # SLOMetrics has 3 windows: 1h, 6h, 3d
-        for window in SLOMetrics.WINDOW_SIZES:
-            key = RedisKeys.slo(window, "success")
-            # Check if something was added to the sorted set
-            assert await mock_redis.zcount(key, 0, time.time() + 10) == 1
+        total = await SLOMetrics._count_window(mock_redis, "success", 3600)
+        assert total == 1
+
+    async def test_record_event_writes_current_bucket(self, mock_redis) -> None:
+        """Recording an outcome increments the counter for a time bucket."""
+        await SLOMetrics.record_event("failure")
+
+        bucket = SLOMetrics._bucket(time.time())
+        val = await mock_redis.get(RedisKeys.slo_bucket("failure", bucket))
+        assert val is not None and int(val) == 1
 
     async def test_get_burn_rate_empty_returns_zero(self, mock_redis) -> None:
-        """Test that burn rate is 0.0 when no events have occurred."""
+        """Burn rate is 0.0 when no events have occurred."""
         rate = await SLOMetrics.get_burn_rate("1h")
         assert rate == 0.0
 
     async def test_get_burn_rate_calculation(self, mock_redis) -> None:
-        """Test burn rate calculation with specific event counts.
+        """Burn rate = actual_error_rate / allowed_error_rate.
 
-        SLO Target: 99.9% (allowed error rate: 0.1%)
-        Burn Rate = actual_error_rate / allowed_error_rate
+        1 failure + 99 successes -> 1% error rate.
+        Target 99.9% -> allowed error rate 0.1%.
+        Expected burn rate = 0.01 / 0.001 = 10.0
         """
-        now = time.time()
-        window = "1h"
+        bucket = SLOMetrics._bucket(time.time())
+        await mock_redis.set(RedisKeys.slo_bucket("failure", bucket), "1")
+        await mock_redis.set(RedisKeys.slo_bucket("success", bucket), "99")
 
-        # Case: 1 failure, 99 successes -> 1% error rate
-        # Target: 0.1% error rate
-        # Expected Burn Rate = 0.01 / 0.001 = 10.0
-
-        await mock_redis.zadd(RedisKeys.slo(window, "failure"), {"f1": now})
-        for i in range(99):
-            await mock_redis.zadd(RedisKeys.slo(window, "success"), {f"s{i}": now})
-
-        rate = await SLOMetrics.get_burn_rate(window, target_slo=0.999)
+        rate = await SLOMetrics.get_burn_rate("1h", target_slo=0.999)
         assert rate == pytest.approx(10.0)
 
     async def test_get_report_returns_all_windows(self, mock_redis) -> None:
-        """Test that the report contains data for all configured windows."""
-        # Record some events to ensure the report has data
+        """The report contains a float burn rate for every configured window."""
         await SLOMetrics.record_event("success")
         await SLOMetrics.record_event("failure")
 
@@ -55,21 +53,18 @@ class TestSLOMetrics:
         for val in report.values():
             assert isinstance(val, float)
 
-    async def test_zremrangebyscore_cleanup(self, mock_redis) -> None:
-        """Test that recording an event cleans up old entries outside the window."""
+    async def test_old_buckets_excluded_from_window(self, mock_redis) -> None:
+        """Counters outside the rolling window are not included in the count."""
         now = time.time()
-        window = "1h"
-        seconds = SLOMetrics.WINDOW_SIZES[window]
-        key = RedisKeys.slo(window, "success")
+        window_secs = SLOMetrics.WINDOW_SIZES["1h"]
 
-        # Add an old event (2 hours ago)
-        await mock_redis.zadd(key, {"old": now - (seconds + 100)})
-        assert await mock_redis.zcount(key, 0, now) == 1
+        # A bucket well outside the 1h window.
+        old_bucket = SLOMetrics._bucket(now - window_secs - 600)
+        await mock_redis.set(RedisKeys.slo_bucket("success", old_bucket), "5")
 
-        # Record a new event, which triggers cleanup
-        await SLOMetrics.record_event("success")
+        # A bucket inside the window.
+        current_bucket = SLOMetrics._bucket(now)
+        await mock_redis.set(RedisKeys.slo_bucket("success", current_bucket), "3")
 
-        # The old event should be gone from the 1h window
-        assert await mock_redis.zcount(key, 0, now - seconds) == 0
-        # But the new one should be there
-        assert await mock_redis.zcount(key, now - seconds, now + 10) == 1
+        successes = await SLOMetrics._count_window(mock_redis, "success", window_secs)
+        assert successes == 3

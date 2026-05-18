@@ -38,9 +38,10 @@ class TestCoverageGap:
             assert kwargs == {}
 
     async def test_slo_edge_cases(self) -> None:
-        """Hit missing lines in slo.py."""
+        """Hit missing lines in slo.py (target SLO permitting zero failures)."""
         mock_redis = AsyncMock()
-        mock_redis.zcount.side_effect = [10, 10]
+        # One MGET per status: successes then failures.
+        mock_redis.mget.side_effect = [[b"10"], [b"10"]]
         with patch("relier.core.slo.get_relier_redis", return_value=mock_redis):
             burn = await SLOMetrics.get_burn_rate(target_slo=1.0)
             assert burn == 100.0

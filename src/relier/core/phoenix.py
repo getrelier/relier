@@ -133,7 +133,9 @@ class PhoenixRegistry:
             mapping={
                 "payload": json.dumps(payload),
                 "worker_id": worker_id,
-                "registered_at": str(int(asyncio.get_running_loop().time())),
+                # Wall-clock time: the event-loop clock has an arbitrary,
+                # per-process epoch and is not a usable timestamp.
+                "registered_at": str(int(now)),
             },
         )
         pipe.expire(task_key, 86400)  # 24h TTL
@@ -282,7 +284,7 @@ class PhoenixRegistry:
                     redis, dead_letter_queue, celery_app
                 )
 
-                duration = asyncio.get_event_loop().time() - start_time
+                duration = asyncio.get_running_loop().time() - start_time
 
                 if (monitored_count or 0) > 0 or (resurrected_count or 0) > 0:
                     logger.info(
@@ -316,18 +318,27 @@ class PhoenixRegistry:
         - successfully revived
         - failed again after replay
         - fully completed
+
+        The monitor registry is paged with ``HSCAN`` rather than loaded whole,
+        and all state mutations are flushed in a single pipelined round-trip,
+        so a pass costs O(1) round-trips regardless of how many tasks are
+        being tracked.
         """
         monitor_key = RedisKeys.monitor()
-        raw = await redis.hgetall(monitor_key)  # type: ignore[misc]
-        if not raw:
-            return 0
+        expiry_index_key = RedisKeys.phoenix_expiry_index()
 
-        monitoring_data = {
-            (k.decode() if isinstance(k, bytes) else k): (
-                v.decode() if isinstance(v, bytes) else v
-            )
-            for k, v in raw.items()
-        }
+        # Page through the registry instead of loading it entirely; it can
+        # grow large during mass-failure resurrection bursts.
+        monitoring_data: dict[str, str] = {}
+        cursor = 0
+        while True:
+            cursor, batch = await redis.hscan(monitor_key, cursor=cursor, count=500)
+            monitoring_data.update(batch)
+            if cursor == 0:
+                break
+
+        if not monitoring_data:
+            return 0
 
         task_ids = list(monitoring_data.keys())
 
@@ -343,7 +354,11 @@ class PhoenixRegistry:
 
         results = await pipe.execute()
 
-        transitions = {"alive": 0, "dead_again": 0, "completed": 0}
+        transitions = {"alive": 0, "dead_again": 0, "lost": 0, "completed": 0}
+
+        # All monitor mutations are collected and flushed once at the end.
+        writes = redis.pipeline()
+        now = time.time()
 
         for i, t_id in enumerate(task_ids):
             hb_exists = bool(results[i * 2])
@@ -352,32 +367,65 @@ class PhoenixRegistry:
 
             if state == 0 and hb_exists:
                 # A healthy worker reclaimed execution ownership.
-                await redis.hset(monitor_key, t_id, "1")  # type: ignore[misc]
+                writes.hset(monitor_key, t_id, "1")
                 transitions["alive"] += 1
                 logger.info("Resurrected task is now alive", extra={"task_id": t_id})
 
             elif state == 1 and not hb_exists and payload_exists:
                 # The replacement worker also disappeared before completion.
-                await redis.hdel(monitor_key, t_id)  # type: ignore[misc]
+                # It re-registered on pickup, so it is already back in the
+                # expiry index — just release it from the monitor.
+                writes.hdel(monitor_key, t_id)
                 transitions["dead_again"] += 1
                 logger.warning(
                     "Resurrected task died AGAIN - releasing back to scan",
                     extra={"task_id": t_id},
                 )
 
+            elif state == 0 and not hb_exists and payload_exists:
+                # Dispatched for resurrection but no worker ever registered a
+                # heartbeat (broker drop, or worker crash before
+                # registration). It is NOT in the expiry index, so re-add it
+                # explicitly. The resurrection lease prevents a duplicate
+                # dispatch until it expires.
+                writes.hdel(monitor_key, t_id)
+                writes.zadd(expiry_index_key, {t_id: now})
+                transitions["lost"] += 1
+                logger.warning(
+                    "Resurrected task never claimed - releasing back to scan",
+                    extra={"task_id": t_id},
+                )
+
             elif not payload_exists:
                 # Execution completed and Phoenix state was cleaned up normally.
-                await redis.hdel(monitor_key, t_id)  # type: ignore[misc]
+                writes.hdel(monitor_key, t_id)
                 transitions["completed"] += 1
                 logger.info(
                     "Resurrected task completed successfully", extra={"task_id": t_id}
                 )
+
+        await writes.execute()
 
         # Emit transition metrics only when task state changed during the pass.
         if any(transitions.values()):
             logger.info("Resurrection monitoring summary", extra=transitions)
 
         return len(task_ids)
+
+    @staticmethod
+    def _decode_hash(raw: dict[Any, Any]) -> dict[str, str]:
+        """
+        Normalize a Redis hash to ``str`` keys/values.
+
+        The async client runs with ``decode_responses=True`` in production,
+        but this keeps the resurrection path robust if a differently
+        configured client (or a test double) hands back ``bytes``.
+        """
+
+        def _d(v: Any) -> Any:
+            return v.decode() if isinstance(v, bytes) else v
+
+        return {_d(k): _d(v) for k, v in raw.items()}
 
     @classmethod
     async def _scan_and_resurrect(
@@ -393,14 +441,20 @@ class PhoenixRegistry:
         - payload state still exists
         - the heartbeat has expired
         - no other resurrector owns the replay lock
+
+        The cheap liveness/monitor checks and the payload loads are pipelined
+        across all candidates, so a scan costs a small constant number of
+        round-trips instead of O(N) sequential calls — which matters during
+        mass worker failure, when the expiry index is largest.
         """
         settings = cls._get_settings()
         resurrected_count = 0
         now = time.time()
 
         expiry_index_key = RedisKeys.phoenix_expiry_index()
+        monitor_key = RedisKeys.monitor()
 
-        # Get all tasks whose heartbeat should have expired by now
+        # Get all tasks whose heartbeat should have expired by now.
         expired_task_ids = await redis.zrangebyscore(
             expiry_index_key,
             min=0,
@@ -412,24 +466,46 @@ class PhoenixRegistry:
         if not expired_task_ids:
             return 0
 
+        # Batch the heartbeat + monitor checks for every candidate into a
+        # single pipelined round-trip.
+        pipe = redis.pipeline()
         for task_id in expired_task_ids:
-            # Verify heartbeat is actually missing (double-check)
-            hb_key = RedisKeys.heartbeat(task_id)
-            hb_exists = await redis.exists(hb_key)
+            pipe.exists(RedisKeys.heartbeat(task_id))
+            pipe.hexists(monitor_key, task_id)
+        checks = await pipe.execute()
 
-            if hb_exists:
-                # Remove from expiry index
+        stale_index_ids: list[str] = []
+        candidates: list[str] = []
+        for i, task_id in enumerate(expired_task_ids):
+            hb_exists = bool(checks[i * 2])
+            is_monitored = bool(checks[i * 2 + 1])
+            # A live heartbeat or an active monitor entry means the task no
+            # longer needs scan-driven resurrection; drop the stale index row.
+            if hb_exists or is_monitored:
+                stale_index_ids.append(task_id)
+            else:
+                candidates.append(task_id)
+
+        if stale_index_ids:
+            await redis.zrem(expiry_index_key, *stale_index_ids)
+
+        if not candidates:
+            return 0
+
+        # Batch the payload loads for the remaining candidates.
+        pipe = redis.pipeline()
+        for task_id in candidates:
+            pipe.hgetall(RedisKeys.phoenix(task_id))
+        raw_states = await pipe.execute()
+
+        for task_id, raw_state in zip(candidates, raw_states, strict=True):
+            if not raw_state:
+                # Orphaned index entry — Phoenix state already gone.
                 await redis.zrem(expiry_index_key, task_id)
                 continue
 
-            # Verify not already being resurrected
-            monitor_key = RedisKeys.monitor()
-            is_monitored = await redis.hexists(monitor_key, task_id)  # type: ignore[misc]
-            if is_monitored:
-                await redis.zrem(expiry_index_key, task_id)
-                continue
-
-            # Acquire distributed lock
+            # Acquire the distributed replay lock so only one coordinator
+            # processes this task.
             lock_key = RedisKeys.resurrect_lock(task_id)
             acquired = await redis.set(lock_key, "1", nx=True, ex=30)
             if not acquired:
@@ -439,20 +515,18 @@ class PhoenixRegistry:
                 )
                 continue
 
-            # Load payload from phoenix entry
-            phoenix_key = RedisKeys.phoenix(task_id)
-            state_data = await redis.hgetall(phoenix_key)  # type: ignore[misc]
+            state_data = cls._decode_hash(raw_state)
 
-            if not state_data:
-                # Orphaned entry - clean up
-                await redis.zrem(expiry_index_key, task_id)
-                continue
-
+            # Resurrection attempt number. The counter is incremented only
+            # once a broker replay is *confirmed* (see `_bg_send`), so a
+            # broker outage cannot inflate the count and falsely quarantine
+            # an otherwise-healthy task.
             res_key = RedisKeys.resurrection(task_id)
-            count = await redis.incr(res_key)
+            raw_count = await redis.get(res_key)
+            attempt = int(raw_count or 0) + 1
 
             # Recover the persisted execution payload required for replay.
-            raw_payload = state_data.get(b"payload") or state_data.get("payload")
+            raw_payload = state_data.get("payload")
             try:
                 payload = json.loads(raw_payload) if raw_payload else {}
             except (TypeError, json.JSONDecodeError) as exc:
@@ -463,9 +537,7 @@ class PhoenixRegistry:
                 payload = {}
 
             # Recover any persisted checkpoint state for resumable execution.
-            raw_partial = state_data.get(b"partial_result") or state_data.get(
-                "partial_result"
-            )
+            raw_partial = state_data.get("partial_result")
             try:
                 partial_data = json.loads(raw_partial) if raw_partial else None
             except (TypeError, json.JSONDecodeError):
@@ -475,12 +547,12 @@ class PhoenixRegistry:
                 partial_data = None
 
             # Quarantine workloads that repeatedly destabilize workers.
-            if count > settings.max_resurrections:
+            if attempt > settings.max_resurrections:
                 logger.error(
                     "Task exceeded resurrection safety limit; quarantining to DLQ.",
                     extra={
                         "task_id": task_id,
-                        "attempt": count,
+                        "attempt": attempt,
                         "max": settings.max_resurrections,
                     },
                 )
@@ -492,6 +564,7 @@ class PhoenixRegistry:
                 )
                 await redis.delete(RedisKeys.phoenix(task_id), res_key)
                 await redis.hdel(monitor_key, task_id)  # type: ignore[misc]
+                await redis.zrem(expiry_index_key, task_id)
                 continue
 
             if not payload:
@@ -508,14 +581,8 @@ class PhoenixRegistry:
                     payload["kwargs"] = {}
                 payload["kwargs"]["checkpoint"] = partial_data
 
-            raw_worker = state_data.get(b"worker_id") or state_data.get("worker_id")
-            ghost_worker_id = (
-                raw_worker.decode("utf-8")
-                if isinstance(raw_worker, bytes)
-                else str(raw_worker)
-            )
-
             # Remove stale inflight ownership associated with the dead worker.
+            ghost_worker_id = state_data.get("worker_id") or ""
             if ghost_worker_id:
                 removed = await redis.zrem(RedisKeys.inflight(ghost_worker_id), task_id)
                 if removed:
@@ -529,7 +596,7 @@ class PhoenixRegistry:
                 extra={
                     "task_id": task_id,
                     "task_name": payload.get("task_name", "unknown"),
-                    "attempt": count,
+                    "attempt": attempt,
                     "max_attempts": settings.max_resurrections,
                     "ghost_worker": ghost_worker_id,
                     "queue": payload.get("queue", "default"),
@@ -537,23 +604,13 @@ class PhoenixRegistry:
                 },
             )
 
-            # Begin post-replay lifecycle tracking before broker submission.
-            await redis.hset(monitor_key, task_id, "0")  # type: ignore[misc]
-            # Track global resurrection count for CLI metrics
-            await redis.incr(RedisKeys.metric_global("resurrected"))
-
-            # Replay resurrected tasks which goes to a dedicated re-queue worker to minimize
-            # recovery latency after worker loss.
-            await cls.resurrect_task(
-                task_id,
-                payload,
-                celery_app,
-            )
-
-            # Remove from expiry index after successful resurrection
-            await redis.zrem(expiry_index_key, task_id)
-
-            resurrected_count += 1
+            # Replay the task. Post-replay monitoring, the resurrection +
+            # global counters, and expiry-index removal are all applied by
+            # the dispatch path only *after* the broker send is confirmed
+            # (see `_bg_send`). A failed send therefore leaves the task in the
+            # expiry index for a later retry instead of dropping it.
+            if await cls.resurrect_task(task_id, payload, celery_app):
+                resurrected_count += 1
 
         await asyncio.sleep(settings.resurrection_requeue_delay)
 
@@ -637,6 +694,20 @@ class PhoenixRegistry:
                     "task_name": payload.get("task_name"),
                 },
             )
+
+            # The broker replay is now confirmed. Only at this point do we
+            # record the resurrection: begin post-replay monitoring, bump the
+            # resurrection + global counters, and drop the task from the
+            # expiry index. Gating this on a successful send means a failed
+            # send leaves the task in the expiry index for a later retry
+            # instead of silently losing it.
+            redis = await get_relier_redis()
+            pipe = redis.pipeline()
+            pipe.hset(RedisKeys.monitor(), task_id, "0")
+            pipe.incr(RedisKeys.resurrection(task_id))
+            pipe.incr(RedisKeys.metric_global("resurrected"))
+            pipe.zrem(RedisKeys.phoenix_expiry_index(), task_id)
+            await pipe.execute()
         except TimeoutError:
             logger.error(
                 "Timed out while re-queueing resurrected task.",
@@ -664,7 +735,7 @@ class PhoenixRegistry:
         task_id: str,
         payload: dict[str, Any],
         celery_app: Celery,
-    ) -> None:
+    ) -> bool:
         """
         Atomically resurrect with leasing + fencing using Redis LUA.
 
@@ -672,6 +743,11 @@ class PhoenixRegistry:
         - Claims a short lease (prevents duplicate pickup).
         - Stores the fence (prevents zombie writes later).
         - Submits to Celery with tokens attached.
+
+        Returns:
+            ``True`` if this coordinator acquired the lease and scheduled the
+            replay dispatch; ``False`` if another coordinator already owns the
+            lease and the task was skipped.
         """
         redis = await get_relier_redis()
         fence_token = secrets.token_hex(16)
@@ -690,7 +766,7 @@ class PhoenixRegistry:
                 "Lease already claimed by another resurrector - skipping",
                 extra={"task_id": task_id, "lease-key": lease_key},
             )
-            return
+            return False
 
         logger.info(
             "Acquired resurrection lease",
@@ -726,6 +802,7 @@ class PhoenixRegistry:
             cls._active_resurrections.pop(task_id, None)
 
         bg_task.add_done_callback(cleanup)
+        return True
 
     @classmethod
     async def wait_for_resurrection(cls, timeout: float = 5.0) -> None:

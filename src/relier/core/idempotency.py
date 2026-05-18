@@ -57,6 +57,13 @@ from relier.storage.redis import get_relier_redis
 logger = logging.getLogger(__name__)
 
 
+# In-flight sentinels are stored as the raw lock id, which always begins with
+# this prefix. A finalized result is JSON-encoded and can never begin with it,
+# so a prefix check unambiguously distinguishes an active execution from a
+# cached result — unlike a substring match, which a result value could spoof.
+_IN_FLIGHT_SENTINEL_PREFIX = "rl:inflight:"
+
+
 # ===========================================================================
 # Result object
 # ===========================================================================
@@ -137,14 +144,21 @@ class IdempotencyManager:
         full_key = RedisKeys.idempotency(key)
         lock_id = RedisKeys.in_flight()
 
-        raw = await redis.eval(ACQUIRE_LUA, 1, full_key, lock_id, str(ttl))  # type: ignore[misc]
+        # The in-flight sentinel is claimed with a short, bounded TTL so a
+        # worker that dies mid-execution without releasing the lock cannot
+        # block duplicates for the full result TTL. The completed result is
+        # written separately (see ``record_result``) with the result TTL.
+        inflight_ttl = self.settings.idempotency_inflight_ttl
+        raw = await redis.eval(ACQUIRE_LUA, 1, full_key, lock_id, str(inflight_ttl))  # type: ignore[misc]
 
         is_existing = bool(raw[0])
         raw_val = raw[1]
 
         if is_existing:
             # Distinguish active execution ownership from a finalized cached result.
-            if isinstance(raw_val, str) and "inflight" in raw_val.lower():
+            if isinstance(raw_val, str) and raw_val.startswith(
+                _IN_FLIGHT_SENTINEL_PREFIX
+            ):
                 logger.warning(
                     "Idempotent task already executing on another worker.",
                     extra={"key": key},

@@ -14,6 +14,7 @@ Attributes:
 import logging
 
 from redis.asyncio import Redis
+from redis.exceptions import ResponseError
 
 from relier.config import Settings
 
@@ -44,43 +45,52 @@ async def validate_redis_config(redis: Redis, settings: Settings) -> None:
     # CHECK 1: Ensure zero-eviction memory safety boundaries
     try:
         config = await redis.config_get("maxmemory-policy")
-        policy = config.get("maxmemory-policy", "")
-
-        if policy != "noeviction":
-            raise RuntimeError(
-                f"FATAL CONFIGURATION MISMATCH: Redis maxmemory-policy is set to '{policy}'.\n\n"
-                f"Relier explicitly requires a 'noeviction' policy to guarantee zero job loss.\n\n"
-                f"Threat Model:\n"
-                f"  Under extreme memory pressure, volatile or LRU eviction algorithms (e.g., 'allkeys-lru') "
-                f"  will drop 'rl:phoenix:*' schemas out of memory. This silently destroys job payloads "
-                f"  before they can be durably acknowledged or routed by healthy workers.\n\n"
-                f"Remediation Runbook:\n"
-                f"  1. Live Alteration:   redis-cli CONFIG SET maxmemory-policy noeviction\n"
-                f"  2. Persistent Config: Append 'maxmemory-policy noeviction' to your redis.conf\n"
-                f"  3. Docker Containers: Append '--maxmemory-policy noeviction' to the server command line.\n\n"
-                f"Current Unsafe Engine State: {policy}"
-            )
-
-        logger.info(
-            "Redis memory eviction strategy verified successfully.",
-            extra={"policy": policy},
+    except ResponseError as exc:
+        # The CONFIG command is commonly disabled, renamed, or ACL-restricted
+        # on managed Redis offerings (AWS ElastiCache, etc.). That is a
+        # verification gap, not a fault — degrade to a warning instead of
+        # blocking worker startup, which would make Relier unrunnable there.
+        logger.warning(
+            "Unable to verify Redis 'maxmemory-policy' because the CONFIG command "
+            "is disabled or restricted (common on managed Redis). Relier cannot "
+            "confirm the eviction policy automatically — ensure it is set to "
+            "'noeviction' so 'rl:phoenix:*' job payloads are never evicted.",
+            extra={"error": str(exc)},
         )
-
+        return
     except Exception as exc:
-        if isinstance(exc, RuntimeError):
-            # Pass our explicit architectural failure straight up the stack
-            raise
-
-        # Catching driver connectivity drops, auth challenges, or disabled CONFIG commands
+        # A genuine driver/connectivity failure: the worker cannot operate
+        # without Redis, so this remains a hard failure.
         logger.error(
-            "CRITICAL: System validation blocked. Unable to inspect Redis maxmemory-policy. "
-            "This typically occurs if the connection dropped mid-handshake or if the Redis ACL "
-            "rules restrict the 'CONFIG' command namespace.",
+            "CRITICAL: System validation blocked. Unable to reach Redis to inspect "
+            "the maxmemory-policy. This typically indicates the connection dropped "
+            "mid-handshake.",
             exc_info=True,
         )
         raise RuntimeError(
-            "Validation blocked: Cannot verify Redis engine configuration settings."
+            "Validation blocked: Cannot reach Redis to verify engine configuration."
         ) from exc
+
+    policy = config.get("maxmemory-policy", "")
+    if policy != "noeviction":
+        raise RuntimeError(
+            f"FATAL CONFIGURATION MISMATCH: Redis maxmemory-policy is set to '{policy}'.\n\n"
+            f"Relier explicitly requires a 'noeviction' policy to guarantee zero job loss.\n\n"
+            f"Threat Model:\n"
+            f"  Under extreme memory pressure, volatile or LRU eviction algorithms (e.g., 'allkeys-lru') "
+            f"  will drop 'rl:phoenix:*' schemas out of memory. This silently destroys job payloads "
+            f"  before they can be durably acknowledged or routed by healthy workers.\n\n"
+            f"Remediation Runbook:\n"
+            f"  1. Live Alteration:   redis-cli CONFIG SET maxmemory-policy noeviction\n"
+            f"  2. Persistent Config: Append 'maxmemory-policy noeviction' to your redis.conf\n"
+            f"  3. Docker Containers: Append '--maxmemory-policy noeviction' to the server command line.\n\n"
+            f"Current Unsafe Engine State: {policy}"
+        )
+
+    logger.info(
+        "Redis memory eviction strategy verified successfully.",
+        extra={"policy": policy},
+    )
 
 
 async def validate_connection_pool(settings: Settings) -> None:
