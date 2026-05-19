@@ -1,5 +1,20 @@
 name: relier-cluster
 
+# =============================================================================
+# Local development stack — lightweight single-node Redis.
+#
+# Dev runs ONE Redis node (Sentinel disabled) to stay fast. Persistence is
+# still on: redis.conf enables AOF + RDB, so dev data survives restarts.
+#
+# What dev does NOT exercise is failover. To test the Sentinel / HA path
+# locally, run the full topology from the production manifest instead:
+#
+#   REDIS_PASSWORD=dev SENTINEL_PASSWORD=dev \
+#     docker compose -f docker-compose.prod.yml up
+#
+# Production always uses docker-compose.prod.yml (master + replicas + Sentinels).
+# =============================================================================
+
 services:
   # =====================================================================
   # Infrastructure
@@ -7,10 +22,14 @@ services:
   redis:
     image: redis:7.2-alpine
     container_name: relier-redis
+    # Shares the data-node config with the HA topology so dev and prod have
+    # identical persistence behaviour (AOF + RDB + noeviction). The replication
+    # directives in the file are inert on a standalone node.
+    command: redis-server /etc/relier/redis.conf
     ports:
       - "6379:6379"
-    command: redis-server --save 60 1 --loglevel warning --maxmemory-policy noeviction
     volumes:
+      - ./scripts/redis/redis.conf:/etc/relier/redis.conf:ro
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -47,8 +66,8 @@ services:
     # Note: concurrency=8 ensures we can test multiplexing,
     # but we set worker_prefetch_multiplier=1 in the app.py to prevent OOMs
     command: >
-      celery -A relier.tasks.app worker 
-      --loglevel=info 
+      celery -A relier.tasks.app worker
+      --loglevel=info
       --concurrency=8
       -Q high_priority,default
       --hostname=rl-worker-high@%h
@@ -62,7 +81,7 @@ services:
       redis:
         condition: service_healthy
 
-    
+
   worker-default:
     build:
       context: .
@@ -70,8 +89,8 @@ services:
     # Note: concurrency=8 ensures we can test multiplexing,
     # but we set worker_prefetch_multiplier=1 in the app.py to prevent OOMs
     command: >
-      celery -A relier.tasks.app worker 
-      --loglevel=info 
+      celery -A relier.tasks.app worker
+      --loglevel=info
       --concurrency=8
       -Q default,low_priority
       --hostname=rl-worker-default@%h
@@ -92,8 +111,8 @@ services:
     # Note: concurrency=8 ensures we can test multiplexing,
     # but we set worker_prefetch_multiplier=1 in the app.py to prevent OOMs
     command: >
-      celery -A relier.tasks.app worker 
-      --loglevel=info 
+      celery -A relier.tasks.app worker
+      --loglevel=info
       --concurrency=8
       -Q re-queue
       --hostname=rl-worker-re-queue@%h

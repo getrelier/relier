@@ -92,6 +92,37 @@ async def validate_redis_config(redis: Redis, settings: Settings) -> None:
         extra={"policy": policy},
     )
 
+    # CHECK 2: Ensure append-only durability is active.
+    # Unlike the eviction policy this is a warning, not a hard failure: RDB-only
+    # operation is degraded but still runnable, and CONFIG may be restricted on
+    # managed Redis. A loud warning is enough to surface the misconfiguration.
+    try:
+        aof_config = await redis.config_get("appendonly")
+    except ResponseError:
+        logger.warning(
+            "Unable to verify Redis AOF ('appendonly') because the CONFIG command "
+            "is disabled or restricted. Ensure append-only persistence is enabled "
+            "so acknowledged writes survive a Redis crash."
+        )
+        return
+    except Exception:
+        # A genuine connectivity failure here is already fatal via CHECK 1's
+        # path on the next call; tolerate it rather than masking that error.
+        logger.warning("Skipped Redis AOF verification due to a transient error.")
+        return
+
+    appendonly = aof_config.get("appendonly", "")
+    if appendonly != "yes":
+        logger.warning(
+            "Redis AOF persistence is DISABLED (appendonly='%s'). Relier is running "
+            "without durable append-only journalling — acknowledged coordination "
+            "state will be lost if Redis crashes between RDB snapshots. Enable it "
+            "with 'appendonly yes' (see scripts/redis/redis.conf).",
+            appendonly,
+        )
+    else:
+        logger.info("Redis AOF persistence verified successfully.")
+
 
 async def validate_connection_pool(settings: Settings) -> None:
     """Evaluates cluster connection topologies against upper file-descriptor bounds.

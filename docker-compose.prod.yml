@@ -1,0 +1,290 @@
+name: relier-prod
+
+# =============================================================================
+# Production manifest — Redis HA topology.
+#
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Differences from the development stack (docker-compose.yml):
+#   - No source bind-mounts and no --reload (code ships baked into the image).
+#   - Redis data nodes and Sentinels require authentication.
+#   - Memory limits are declared per service.
+#   - RELIER_ENV=production (disables debug task modules).
+#
+# Required environment (provide via a .env file or the shell):
+#   REDIS_PASSWORD      password for the Redis data nodes
+#   SENTINEL_PASSWORD   password for the Sentinel instances
+# =============================================================================
+
+x-redis-node: &redis-node
+  image: redis:7.2-alpine
+  restart: unless-stopped
+  healthcheck:
+    # redis-cli picks up credentials from REDISCLI_AUTH automatically.
+    test: ["CMD", "redis-cli", "ping"]
+    interval: 5s
+    timeout: 3s
+    retries: 5
+  deploy:
+    resources:
+      limits:
+        memory: 512M
+
+x-redis-node-env: &redis-node-env
+  REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+  REDISCLI_AUTH: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+
+x-sentinel: &sentinel
+  image: redis:7.2-alpine
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+    interval: 5s
+    timeout: 3s
+    retries: 5
+  deploy:
+    resources:
+      limits:
+        memory: 128M
+
+x-sentinel-env: &sentinel-env
+  REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+  SENTINEL_PASSWORD: ${SENTINEL_PASSWORD:?SENTINEL_PASSWORD must be set}
+  REDISCLI_AUTH: ${SENTINEL_PASSWORD:?SENTINEL_PASSWORD must be set}
+
+x-relier-env: &relier-env
+  RELIER_ENV: production
+  RELIER_REDIS_USE_SENTINEL: "true"
+  RELIER_REDIS_SENTINEL_NODES: "relier-sentinel-1:26379,relier-sentinel-2:26379,relier-sentinel-3:26379"
+  RELIER_REDIS_SENTINEL_MASTER_NAME: "relier-master"
+  RELIER_REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+  RELIER_REDIS_SENTINEL_PASSWORD: ${SENTINEL_PASSWORD:?SENTINEL_PASSWORD must be set}
+  # Large task checkpoints spill to the shared checkpoint volume instead of
+  # bloating Redis. Small checkpoints still go inline. The directory below is
+  # the redis_checkpoints volume mounted into every app service.
+  RELIER_CHECKPOINT_BACKEND: "filesystem"
+  RELIER_CHECKPOINT_DIR: "/var/lib/relier/checkpoints"
+  C_FORCE_ROOT: "true"
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  environment: *relier-env
+  # Shared so a resurrected task can read a checkpoint written by whichever
+  # worker originally ran it.
+  volumes:
+    - redis_checkpoints:/var/lib/relier/checkpoints
+  deploy:
+    resources:
+      limits:
+        memory: 1G
+  depends_on:
+    sentinel-1:
+      condition: service_healthy
+    sentinel-2:
+      condition: service_healthy
+    sentinel-3:
+      condition: service_healthy
+
+services:
+  # ===========================================================================
+  # Redis data plane — master + replicas (authenticated)
+  # ===========================================================================
+  redis-master:
+    <<: *redis-node
+    container_name: relier-redis-master
+    environment: *redis-node-env
+    command: >
+      sh -c "cp /etc/relier/redis.conf /tmp/redis.conf &&
+      exec redis-server /tmp/redis.conf
+      --requirepass \"$$REDIS_PASSWORD\"
+      --masterauth \"$$REDIS_PASSWORD\""
+    volumes:
+      - ./scripts/redis/redis.conf:/etc/relier/redis.conf:ro
+      - redis_master_data:/data
+
+  redis-replica-1:
+    <<: *redis-node
+    container_name: relier-redis-replica-1
+    environment: *redis-node-env
+    command: >
+      sh -c "cp /etc/relier/redis.conf /tmp/redis.conf &&
+      exec redis-server /tmp/redis.conf
+      --replicaof relier-redis-master 6379
+      --replica-announce-ip relier-redis-replica-1
+      --requirepass \"$$REDIS_PASSWORD\"
+      --masterauth \"$$REDIS_PASSWORD\""
+    volumes:
+      - ./scripts/redis/redis.conf:/etc/relier/redis.conf:ro
+      - redis_replica1_data:/data
+    depends_on:
+      redis-master:
+        condition: service_healthy
+
+  redis-replica-2:
+    <<: *redis-node
+    container_name: relier-redis-replica-2
+    environment: *redis-node-env
+    command: >
+      sh -c "cp /etc/relier/redis.conf /tmp/redis.conf &&
+      exec redis-server /tmp/redis.conf
+      --replicaof relier-redis-master 6379
+      --replica-announce-ip relier-redis-replica-2
+      --requirepass \"$$REDIS_PASSWORD\"
+      --masterauth \"$$REDIS_PASSWORD\""
+    volumes:
+      - ./scripts/redis/redis.conf:/etc/relier/redis.conf:ro
+      - redis_replica2_data:/data
+    depends_on:
+      redis-master:
+        condition: service_healthy
+
+  # ===========================================================================
+  # Sentinel quorum (authenticated)
+  # ===========================================================================
+  sentinel-1:
+    <<: *sentinel
+    container_name: relier-sentinel-1
+    environment: *sentinel-env
+    command: >
+      sh -c "cp /etc/relier/sentinel.conf /tmp/sentinel.conf &&
+      exec redis-sentinel /tmp/sentinel.conf
+      --sentinel announce-ip relier-sentinel-1
+      --sentinel auth-pass relier-master \"$$REDIS_PASSWORD\"
+      --requirepass \"$$SENTINEL_PASSWORD\""
+    volumes:
+      - ./scripts/redis/sentinel.conf:/etc/relier/sentinel.conf:ro
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-replica-1:
+        condition: service_healthy
+      redis-replica-2:
+        condition: service_healthy
+
+  sentinel-2:
+    <<: *sentinel
+    container_name: relier-sentinel-2
+    environment: *sentinel-env
+    command: >
+      sh -c "cp /etc/relier/sentinel.conf /tmp/sentinel.conf &&
+      exec redis-sentinel /tmp/sentinel.conf
+      --sentinel announce-ip relier-sentinel-2
+      --sentinel auth-pass relier-master \"$$REDIS_PASSWORD\"
+      --requirepass \"$$SENTINEL_PASSWORD\""
+    volumes:
+      - ./scripts/redis/sentinel.conf:/etc/relier/sentinel.conf:ro
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-replica-1:
+        condition: service_healthy
+      redis-replica-2:
+        condition: service_healthy
+
+  sentinel-3:
+    <<: *sentinel
+    container_name: relier-sentinel-3
+    environment: *sentinel-env
+    command: >
+      sh -c "cp /etc/relier/sentinel.conf /tmp/sentinel.conf &&
+      exec redis-sentinel /tmp/sentinel.conf
+      --sentinel announce-ip relier-sentinel-3
+      --sentinel auth-pass relier-master \"$$REDIS_PASSWORD\"
+      --requirepass \"$$SENTINEL_PASSWORD\""
+    volumes:
+      - ./scripts/redis/sentinel.conf:/etc/relier/sentinel.conf:ro
+    depends_on:
+      redis-master:
+        condition: service_healthy
+      redis-replica-1:
+        condition: service_healthy
+      redis-replica-2:
+        condition: service_healthy
+
+  # ===========================================================================
+  # Backup sidecar
+  # ===========================================================================
+  redis-backup:
+    image: redis:7.2-alpine
+    container_name: relier-redis-backup
+    restart: unless-stopped
+    command: ["sh", "/backup.sh"]
+    environment:
+      BACKUP_REDIS_HOST: relier-redis-replica-1
+      BACKUP_INTERVAL_SECONDS: "3600"
+      BACKUP_RETENTION: "168"
+      # redis-cli authenticates to the replica via REDISCLI_AUTH.
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+      # Optional offsite copies — set BACKUP_S3_BUCKET to enable (image must
+      # provide the `aws` CLI).
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+    volumes:
+      - ./scripts/redis/backup.sh:/backup.sh:ro
+      - redis_replica1_data:/data:ro
+      - redis_backups:/backups
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    depends_on:
+      redis-replica-1:
+        condition: service_healthy
+
+  # ===========================================================================
+  # Application
+  # ===========================================================================
+  api:
+    <<: *app
+    container_name: relier-api
+    command: uvicorn relier.api.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+
+  worker-high:
+    <<: *app
+    command: >
+      celery -A relier.tasks.app worker
+      --loglevel=info
+      --concurrency=8
+      -Q high_priority,default
+      --hostname=rl-worker-high@%h
+
+  worker-default:
+    <<: *app
+    command: >
+      celery -A relier.tasks.app worker
+      --loglevel=info
+      --concurrency=8
+      -Q default,low_priority
+      --hostname=rl-worker-default@%h
+
+  worker-recovery:
+    <<: *app
+    command: >
+      celery -A relier.tasks.app worker
+      --loglevel=info
+      --concurrency=8
+      -Q re-queue
+      --hostname=rl-worker-re-queue@%h
+
+  resurrector:
+    <<: *app
+    container_name: relier-resurrector
+    command: rl run-resurrector
+    environment:
+      <<: *relier-env
+      RELIER_LOG_LEVEL: INFO
+
+
+volumes:
+  redis_master_data:
+  redis_replica1_data:
+  redis_replica2_data:
+  redis_backups:
+  # Shared checkpoint storage for the 'filesystem' checkpoint backend, mounted
+  # into every app service so a resurrected task can read a checkpoint written
+  # by a different worker.
+  redis_checkpoints:
