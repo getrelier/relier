@@ -66,7 +66,7 @@ omit = [
     "src/relier/cli/*",
     "src/relier/chaos/*",
     "src/relier/debug.py",
-    "src/relier/*/__init__.py", 
+    "src/relier/*/__init__.py",
 ]
 
 # Exclude from the final report
@@ -110,6 +110,13 @@ warn_redundant_casts = true
 strict_optional = true
 check_untyped_defs = true
 disallow_untyped_defs = true
+# Unfinished, intentionally untracked WIP directories (also omitted from
+# coverage). Excluded so the type checker does not gate commits on code that
+# is not part of the tracked codebase yet.
+exclude = [
+    "src/relier/cli/",
+    "src/relier/chaos/",
+]
 
 [[tool.mypy.overrides]]
 module = [

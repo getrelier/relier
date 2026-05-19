@@ -50,6 +50,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 from opentelemetry import trace
 
 from relier.core.admission import admission_control
+from relier.core.checkpoint import CheckpointStore
 from relier.core.exceptions import (
     AdmissionRejectedError,
     IdempotencyInFlightError,
@@ -287,7 +288,13 @@ def rl_task(
 
                 start_time = time.perf_counter()
 
-                checkpoint = kwargs.pop("checkpoint", None)
+                # A resurrected/released task receives its checkpoint as a
+                # stored value: either an inline checkpoint or a tiny
+                # blob-reference envelope. Dereference it to the real data
+                # before handing it to the task.
+                checkpoint = await CheckpointStore.resolve(
+                    kwargs.pop("checkpoint", None)
+                )
 
                 ctx = TaskContext(
                     task_id=task_id,
@@ -411,7 +418,6 @@ def rl_task(
                                 task_id,
                                 reason=type(exc).__name__,
                                 payload=phoenix_payload,
-                                partial_result=checkpoint,
                             )
                             raise SoftTimeLimitExceeded(str(exc)) from exc
 
@@ -455,7 +461,6 @@ def rl_task(
                                 task_id,
                                 reason=type(exc).__name__,
                                 payload=phoenix_payload,
-                                partial_result=checkpoint,
                             )
                             raise
                         finally:

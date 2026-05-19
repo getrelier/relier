@@ -19,6 +19,7 @@ from collections.abc import Awaitable
 from datetime import UTC, datetime
 from typing import Any, cast
 
+from relier.core.checkpoint import CheckpointStore
 from relier.core.keys import RedisKeys
 from relier.storage.redis import get_relier_redis
 
@@ -44,7 +45,6 @@ class DeadLetterQueue:
         task_id: str,
         reason: str,
         payload: dict[str, Any] | None = None,
-        partial_result: Any | None = None,
     ) -> None:
         """
         Quarantine a task and remove all active execution state.
@@ -57,6 +57,11 @@ class DeadLetterQueue:
         - manual replay
         - partial-result recovery
         - operational debugging
+
+        The task's checkpoint is carried over by reading whatever is stored on
+        the Phoenix hash. That value is always small — an inline checkpoint or
+        a blob-reference envelope — so the DLQ record never absorbs a large
+        payload itself.
         """
         redis = await get_relier_redis()
 
@@ -90,14 +95,15 @@ class DeadLetterQueue:
         )
         resurrection_count = int(raw_count) if raw_count else 0
 
-        # Recover any persisted checkpoint or partial execution result so released
-        # tasks can resume from the last known safe state.
+        # Recover the task's checkpoint so a released task can resume from the
+        # last known safe state. The stored value is either a small inline
+        # checkpoint or a blob-reference envelope — never dereferenced blob
+        # data — so the DLQ record stays small regardless of checkpoint size.
         raw_partial = await cast(
             Awaitable[Any], redis.hget(RedisKeys.phoenix(task_id), "partial_result")
         )
-
-        # Caller-provided partial results take precedence over persisted state.
-        if not partial_result and raw_partial:
+        partial_result: Any = None
+        if raw_partial:
             try:
                 partial_result = json.loads(raw_partial)
             except json.JSONDecodeError:
@@ -258,8 +264,28 @@ class DeadLetterQueue:
         Permanently remove all quarantined tasks from the DLQ.
 
         This operation is irreversible and clears all persisted failure history.
+        Blob-backed checkpoints referenced by quarantined tasks are released
+        first so purging the DLQ does not leak blob storage.
         """
         redis = await get_relier_redis()
+
+        # Release any blob-backed checkpoints before the records are dropped.
+        cursor = 0
+        while True:
+            cursor, data = await redis.hscan(
+                cls.DLQ_HASH_KEY, cursor=cursor, count=cls._SCAN_BATCH_SIZE
+            )
+            for raw_json in data.values():
+                if not raw_json:
+                    continue
+                try:
+                    entry = json.loads(raw_json)
+                except json.JSONDecodeError:
+                    continue
+                await CheckpointStore.gc(entry.get("partial_result"))
+            if cursor == 0:
+                break
+
         count = await redis.hlen(cls.DLQ_HASH_KEY)  # type: ignore[misc]
         await redis.delete(cls.DLQ_HASH_KEY)
         logger.warning("Dead-letter queue purged.", extra={"count": count})

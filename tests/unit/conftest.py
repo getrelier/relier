@@ -32,6 +32,7 @@ class FakeRedis:
         self.data = {}
         self.hdata = {}
         self.zdata = {}  # {key: {member: score}}
+        self.ldata = {}  # {key: [items]}
 
     def _s(self, key):
         return key.decode() if isinstance(key, bytes) else str(key)
@@ -52,6 +53,7 @@ class FakeRedis:
             self.data.pop(k_str, None)
             self.hdata.pop(k_str, None)
             self.zdata.pop(k_str, None)
+            self.ldata.pop(k_str, None)
 
     async def exists(self, key):
         return 1 if (key in self.data or key in self.hdata or key in self.zdata) else 0
@@ -210,6 +212,27 @@ class FakeRedis:
 
     async def hlen(self, name):
         return len(self.hdata.get(name, {}))
+
+    async def lpush(self, name, *values):
+        name = self._s(name)
+        lst = self.ldata.setdefault(name, [])
+        for v in values:
+            lst.insert(0, str(v))
+        return len(lst)
+
+    async def llen(self, name):
+        return len(self.ldata.get(self._s(name), []))
+
+    async def ltrim(self, name, start, stop):
+        name = self._s(name)
+        if name not in self.ldata:
+            return True
+        items = self.ldata[name]
+        if stop == -1:
+            self.ldata[name] = items[start:]
+        else:
+            self.ldata[name] = items[start : stop + 1]
+        return True
 
     async def hscan(self, name, cursor=0, match=None, count=None):
         data = self.hdata.get(name, {})
@@ -388,6 +411,7 @@ async def mock_redis():
         "relier.core.idempotency",
         "relier.core.dlq",
         "relier.core.slo",
+        "relier.core.checkpoint",
         "relier.storage.redis",
         "relier.tasks.decorator",
     ]

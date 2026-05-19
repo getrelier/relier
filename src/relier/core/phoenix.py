@@ -40,6 +40,7 @@ from celery import Celery
 from redis.asyncio import Redis
 
 from relier.config import Settings, get_settings
+from relier.core.checkpoint import CheckpointStore
 from relier.core.dlq import DeadLetterQueue
 from relier.core.keys import RedisKeys
 from relier.storage.lua.scripts import (
@@ -51,6 +52,10 @@ from relier.storage.lua.scripts import (
 from relier.storage.redis import get_relier_redis
 
 logger = logging.getLogger(__name__)
+
+# Celery queue that resurrected tasks are replayed onto, drained by the
+# dedicated recovery worker pool.
+_RECOVERY_QUEUE = "re-queue"
 
 
 class PhoenixRegistry:
@@ -217,6 +222,15 @@ class PhoenixRegistry:
                 await loop_task
 
         redis = await get_relier_redis()
+
+        # Release any blob-backed checkpoint before the Phoenix hash (which
+        # holds the reference) is deleted, otherwise the blob would leak.
+        checkpoint_field = await redis.hget(  # type: ignore[misc]
+            RedisKeys.phoenix(task_id), "partial_result"
+        )
+        if checkpoint_field:
+            await CheckpointStore.gc(checkpoint_field)
+
         pipe = redis.pipeline()
         # Delete persisted execution state before removing the heartbeat to
         # prevent false-positive resurrection windows.
@@ -278,6 +292,12 @@ class PhoenixRegistry:
                         f"Phoenix resurrector heartbeat (loop={loop_count})",
                         extra={"uptime_loops": loop_count},
                     )
+
+                # Periodically reclaim checkpoint blobs orphaned by tasks
+                # whose Phoenix hash TTL-expired. A no-op unless a blob
+                # backend is configured.
+                if loop_count % 300 == 0:
+                    await CheckpointStore.sweep()
 
                 monitored_count = await cls._monitor_resurrected_tasks(redis)
                 resurrected_count = await cls._scan_and_resurrect(
@@ -454,13 +474,29 @@ class PhoenixRegistry:
         expiry_index_key = RedisKeys.phoenix_expiry_index()
         monitor_key = RedisKeys.monitor()
 
-        # Get all tasks whose heartbeat should have expired by now.
+        # Backpressure: if the recovery queue is already deep, defer this scan
+        # so the resurrector cannot replay tasks faster than the recovery
+        # workers drain them — otherwise a mass failure would balloon the
+        # broker. Expired tasks remain in the expiry index for a later pass.
+        queue_depth: int = await redis.llen(_RECOVERY_QUEUE)  # type: ignore[misc]
+        if queue_depth >= settings.resurrection_max_queue_depth:
+            logger.warning(
+                "Resurrection scan deferred: recovery queue backlog too deep.",
+                extra={
+                    "queue_depth": queue_depth,
+                    "limit": settings.resurrection_max_queue_depth,
+                },
+            )
+            return 0
+
+        # Get the next batch of tasks whose heartbeat should have expired. The
+        # batch size bounds how fast a mass failure is replayed.
         expired_task_ids = await redis.zrangebyscore(
             expiry_index_key,
             min=0,
             max=now,
             start=0,
-            num=1000,  # Process max 1000 per cycle to bound latency
+            num=settings.resurrection_batch_size,
         )
 
         if not expired_task_ids:
@@ -560,7 +596,6 @@ class PhoenixRegistry:
                     task_id,
                     reason="max_resurrections_exceeded",
                     payload=payload,
-                    partial_result=partial_data,
                 )
                 await redis.delete(RedisKeys.phoenix(task_id), res_key)
                 await redis.hdel(monitor_key, task_id)  # type: ignore[misc]
@@ -680,7 +715,7 @@ class PhoenixRegistry:
                         payload["task_name"],
                         args=payload.get("args", []),
                         kwargs=payload.get("kwargs", {}),
-                        queue="re-queue",
+                        queue=_RECOVERY_QUEUE,
                         task_id=task_id,
                     ),
                 ),
@@ -973,11 +1008,13 @@ class PhoenixRegistry:
 
         Checkpoint data is injected back into the task during resurrection so
         execution can continue from the last persisted recovery point.
+
+        Storage is delegated to :class:`CheckpointStore`, which keeps small
+        checkpoints inline in Redis and spills large ones to a blob backend so
+        the coordination store cannot be exhausted by oversized payloads.
+
+        Raises:
+            CheckpointTooLargeError: the checkpoint exceeds the inline limit
+                and no blob backend is configured.
         """
-        redis = await get_relier_redis()
-        # Persist the latest checkpoint snapshot for resurrection recovery.
-        await redis.hset(
-            RedisKeys.phoenix(task_id),
-            "partial_result",
-            json.dumps(state),
-        )  # type: ignore[misc]
+        await CheckpointStore.save(task_id, state)

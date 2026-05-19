@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from relier.config import Settings
 from relier.core.keys import RedisKeys
 from relier.core.phoenix import PhoenixRegistry
 
@@ -144,7 +145,6 @@ class TestPhoenixRegistry:
             task_id,
             reason="max_resurrections_exceeded",
             payload=payload,
-            partial_result=partial,
         )
         # Verify keys were cleaned up
         assert await mock_redis.exists(RedisKeys.phoenix(task_id)) == 0
@@ -386,3 +386,46 @@ class TestPhoenixValidation:
 
         mock_celery = MagicMock()
         await PhoenixRegistry._bg_send("t", {"task_name": "x"}, mock_celery)
+
+    async def test_backpressure_defers_scan_when_queue_deep(self, mock_redis) -> None:
+        """A deep recovery queue makes the resurrector skip its scan entirely."""
+        task_id = "would_resurrect"
+        await mock_redis.hset(
+            RedisKeys.phoenix(task_id),
+            mapping={"payload": json.dumps({"task_name": "t", "kwargs": {}})},
+        )
+        await mock_redis.zadd(RedisKeys.phoenix_expiry_index(), {task_id: 1.0})
+
+        # Fill the recovery queue past the default max-queue-depth limit.
+        mock_redis.ldata["re-queue"] = ["msg"] * 10_001
+
+        mock_celery = MagicMock()
+        count = await PhoenixRegistry._scan_and_resurrect(
+            mock_redis, AsyncMock(), mock_celery
+        )
+
+        assert count == 0
+        mock_celery.send_task.assert_not_called()
+        # The task is left in the expiry index to be retried on a later pass.
+        remaining = await mock_redis.zrange(RedisKeys.phoenix_expiry_index(), 0, -1)
+        assert task_id in remaining
+
+    async def test_batch_size_caps_tasks_per_scan(self, mock_redis) -> None:
+        """resurrection_batch_size bounds how many tasks one scan replays."""
+        for i in range(5):
+            tid = f"batch_task_{i}"
+            await mock_redis.hset(
+                RedisKeys.phoenix(tid),
+                mapping={"payload": json.dumps({"task_name": "t", "kwargs": {}})},
+            )
+            await mock_redis.zadd(RedisKeys.phoenix_expiry_index(), {tid: 1.0})
+
+        small_batch = Settings(resurrection_batch_size=2)
+        with patch("relier.core.phoenix.get_settings", return_value=small_batch):
+            count = await PhoenixRegistry._scan_and_resurrect(
+                mock_redis, AsyncMock(), MagicMock()
+            )
+
+        # Only the batch-size's worth of tasks are replayed this pass.
+        assert count == 2
+        await asyncio.sleep(0.05)  # let fire-and-forget dispatch tasks settle

@@ -184,6 +184,46 @@ def _ensure_bridge() -> None:
 # =============================================================================
 
 
+def _broker_connection_config() -> dict[str, Any]:
+    """
+    Build Celery broker and result-backend configuration.
+
+    When Sentinel is enabled the broker is addressed through every Sentinel
+    node via the ``sentinel://`` transport, so Celery follows the elected
+    master across failovers. Otherwise the direct ``redis_url`` is used.
+    """
+    settings = _get_settings()
+
+    if not settings.redis_use_sentinel:
+        url = str(settings.redis_url)
+        return {"broker_url": url, "result_backend": url}
+
+    password = (
+        settings.redis_password.get_secret_value()
+        if settings.redis_password is not None
+        else None
+    )
+    auth = f":{password}@" if password else ""
+    url = ";".join(
+        f"sentinel://{auth}{host}:{port}" for host, port in settings.sentinel_node_list
+    )
+
+    transport_options: dict[str, Any] = {
+        "master_name": settings.redis_sentinel_master_name,
+    }
+    if settings.redis_sentinel_password is not None:
+        transport_options["sentinel_kwargs"] = {
+            "password": settings.redis_sentinel_password.get_secret_value(),
+        }
+
+    return {
+        "broker_url": url,
+        "result_backend": url,
+        "broker_transport_options": transport_options,
+        "result_backend_transport_options": transport_options,
+    }
+
+
 def create_celery_app() -> Celery:
     """
     Construct and configure the Relier Celery runtime instance.
@@ -196,8 +236,7 @@ def create_celery_app() -> Celery:
     # Runtime reliability defaults optimized for task durability and
     # crash recovery semantics.
     app.conf.update(
-        broker_url=str(_get_settings().redis_url),
-        result_backend=str(_get_settings().redis_url),
+        **_broker_connection_config(),
         task_serializer="json",
         accept_content=["json"],
         result_serializer="json",
