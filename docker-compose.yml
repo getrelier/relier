@@ -15,6 +15,14 @@ name: relier-cluster
 # Production always uses docker-compose.prod.yml (master + replicas + Sentinels).
 # =============================================================================
 
+# Shared environment injected into every app container.
+x-app-env: &app-env
+  RELIER_ENV: development
+  RELIER_REDIS_URL: redis://redis:6379/0
+  RELIER_OTEL_ENABLED: "true"
+  RELIER_OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+  C_FORCE_ROOT: "true"
+
 services:
   # =====================================================================
   # Infrastructure
@@ -39,32 +47,12 @@ services:
 
 
   # =========================================================================
-  # Application
+  # Application — Celery workers and the resurrector
   # =========================================================================
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: relier-api
-    command: uvicorn relier.api.main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - ./src:/app/src  # Hot-reloading for local dev
-    ports:
-      - "8000:8000"
-    environment:
-      - RELIER_ENV=development
-      - RELIER_REDIS_URL=redis://redis:6379/0
-      - C_FORCE_ROOT=true
-    depends_on:
-      redis:
-        condition: service_healthy
-
   worker-high:
     build:
       context: .
       dockerfile: Dockerfile
-    # Note: concurrency=8 ensures we can test multiplexing,
-    # but we set worker_prefetch_multiplier=1 in the app.py to prevent OOMs
     command: >
       celery -A relier.tasks.app worker
       --loglevel=info
@@ -72,22 +60,20 @@ services:
       -Q high_priority,default
       --hostname=rl-worker-high@%h
     volumes:
-      - ./src:/app/src  # Hot-reloading
+      - ./src:/app/src
+      - ./scripts:/app/scripts
     environment:
-      - RELIER_ENV=development
-      - RELIER_REDIS_URL=redis://redis:6379/0
-      - C_FORCE_ROOT=true
+      <<: *app-env
     depends_on:
       redis:
         condition: service_healthy
-
+      otel-collector:
+        condition: service_started
 
   worker-default:
     build:
       context: .
       dockerfile: Dockerfile
-    # Note: concurrency=8 ensures we can test multiplexing,
-    # but we set worker_prefetch_multiplier=1 in the app.py to prevent OOMs
     command: >
       celery -A relier.tasks.app worker
       --loglevel=info
@@ -95,21 +81,20 @@ services:
       -Q default,low_priority
       --hostname=rl-worker-default@%h
     volumes:
-      - ./src:/app/src  # Hot-reloading
+      - ./src:/app/src
+      - ./scripts:/app/scripts
     environment:
-      - RELIER_ENV=development
-      - RELIER_REDIS_URL=redis://redis:6379/0
-      - C_FORCE_ROOT=true
+      <<: *app-env
     depends_on:
       redis:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
 
   worker-recovery:
     build:
       context: .
       dockerfile: Dockerfile
-    # Note: concurrency=8 ensures we can test multiplexing,
-    # but we set worker_prefetch_multiplier=1 in the app.py to prevent OOMs
     command: >
       celery -A relier.tasks.app worker
       --loglevel=info
@@ -117,16 +102,15 @@ services:
       -Q re-queue
       --hostname=rl-worker-re-queue@%h
     volumes:
-      - ./src:/app/src  # Hot-reloading
+      - ./src:/app/src
+      - ./scripts:/app/scripts
     environment:
-      - RELIER_ENV=development
-      - RELIER_REDIS_URL=redis://redis:6379/0
-      - C_FORCE_ROOT=true
+      <<: *app-env
     depends_on:
       redis:
         condition: service_healthy
-
-
+      otel-collector:
+        condition: service_started
 
   resurrector:
     build:
@@ -136,15 +120,54 @@ services:
     command: rl run-resurrector
     volumes:
       - ./src:/app/src
+      - ./scripts:/app/scripts
     environment:
-      - RELIER_LOG_LEVEL=INFO
-      - RELIER_ENV=development
-      - RELIER_REDIS_URL=redis://redis:6379/0
-      - C_FORCE_ROOT=true
+      <<: *app-env
+      RELIER_LOG_LEVEL: INFO
     depends_on:
       redis:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
+
+  # =====================================================================
+  # Observability — OpenTelemetry → Prometheus → Grafana
+  # =====================================================================
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel-collector-config.yml"]
+    volumes:
+      - ./scripts/otel-collector-config.yml:/etc/otel-collector-config.yml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8889:8889"
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./scripts/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - otel-collector
+
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - ./scripts/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./scripts/grafana-dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
 
 
 volumes:
   redis_data:
+  grafana_data:

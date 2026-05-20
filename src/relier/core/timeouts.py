@@ -24,7 +24,10 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
+from opentelemetry import trace as _otel_trace
+
 from relier.tasks.context import TaskContext
+from relier.telemetry.metrics import timeouts_total
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +95,22 @@ class TimeoutEnforcer:
                     "Soft execution timeout exceeded.",
                     extra={"task_id": task_id, "soft_limit": soft},
                 )
+                timeouts_total.add(
+                    1, {"type": "soft", "rl.task.name": context.task_name}
+                )
+                # Record soft timeout as a span event on the active task span.
+                # asyncio.create_task propagates contextvars so the active span
+                # here is rl.task.execute from the parent coroutine.
+                _span = _otel_trace.get_current_span()
+                if _span.is_recording():
+                    _span.add_event(
+                        "rl.timeout.soft",
+                        {
+                            "rl.task.id": task_id,
+                            "rl.task.name": context.task_name,
+                            "rl.timeout.soft_limit": soft or 0,
+                        },
+                    )
                 # Allow the workload to persist checkpoints or release resources before
                 # forced cancellation occurs.
                 if on_soft:

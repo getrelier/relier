@@ -1,12 +1,16 @@
-.PHONY: setup lint format check test test-integration clean
+.PHONY: setup format lint check test test-integration clean \
+        worker resurrector dev dev-down dev-logs prod prod-down
 
-# Setup local environment
+# =============================================================================
+# Setup & quality
+# =============================================================================
+
+# Install the project and dev tooling into a local virtualenv.
 setup:
 	uv venv
 	uv pip install -e ".[dev]"
 	pre-commit install
 
-# Formatting and Linting
 format:
 	uv run ruff format src/ tests/
 	uv run ruff check --fix src/ tests/
@@ -18,14 +22,12 @@ lint:
 check: lint
 	uv run mypy src/
 
-# Testing
 test:
 	uv run pytest tests/unit/ -v
 
 test-integration:
 	uv run pytest tests/integration/ -v --timeout=120
 
-# Clean cache files
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type d -name ".pytest_cache" -exec rm -rf {} +
@@ -33,42 +35,49 @@ clean:
 	find . -type d -name ".ruff_cache" -exec rm -rf {} +
 	@echo "Local cache cleared."
 
-# ======================================================================
-# Docker & Compose Targets
-# ======================================================================
+# =============================================================================
+# Run bare-metal (no Docker)
+# =============================================================================
+# Relier is a plain Python library — these targets run the processes directly,
+# the same way you would run Celery. They require a reachable Redis: set
+# RELIER_REDIS_URL if it is not redis://localhost:6379/0. Relier preflight-checks
+# Redis and refuses to start if it is unreachable.
+# See docs/running.md.
 
-COMPOSE := docker compose -p relier-cluster
-
-# Build the images and start the local cluster
-dev:
-	$(COMPOSE) build
-	$(COMPOSE) up -d
-	@echo "[SUCCESS] Relier dev cluster running!"
-	@echo "  App:  http://localhost:8000"
-	@echo "  CLI:  rl status"
-
-# Spin down the cluster
-down:
-	$(COMPOSE) down
-	@echo "[SUCCESS] Relier dev cluster stopped."
-
-# Stop and remove volumes (clean slate)
-down-clean:
-	$(COMPOSE) down -v
-	@echo "[SUCCESS] Relier dev cluster stopped and volumes cleared."
-
-# Shell into the API container
-api:
-	$(COMPOSE) exec api bash
-
-# Shell into the Worker container
+# Run a Celery worker consuming every Relier queue (fine for local dev).
 worker:
-	$(COMPOSE) exec worker bash
+	uv run celery -A relier.tasks.app worker -l info \
+		-Q high_priority,default,low_priority,re-queue
 
-# Shell into Redis
-redis:
-	$(COMPOSE) exec redis redis-cli
+# Run the Phoenix resurrector (detects dead workers and replays their tasks).
+resurrector:
+	uv run rl run-resurrector
 
-# Shell into Postgres
-postgres:
-	$(COMPOSE) exec postgres psql -U relier relier
+# =============================================================================
+# Run with Docker — dev
+# =============================================================================
+# Single-node Redis (AOF + RDB) + workers + resurrector. See docker-compose.yml.
+
+dev:
+	docker compose up -d --build
+	@echo "[SUCCESS] Relier dev cluster running. Logs: make dev-logs"
+
+dev-down:
+	docker compose down
+
+dev-logs:
+	docker compose logs -f
+
+# =============================================================================
+# Run with Docker — prod
+# =============================================================================
+# HA topology: Redis master + replicas + Sentinel + backup sidecar.
+# Requires REDIS_PASSWORD and SENTINEL_PASSWORD (via the environment or a
+# .env file). See docker-compose.prod.yml and docs/running.md.
+
+prod:
+	docker compose -f docker-compose.prod.yml up -d --build
+	@echo "[SUCCESS] Relier prod cluster running."
+
+prod-down:
+	docker compose -f docker-compose.prod.yml down

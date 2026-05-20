@@ -251,7 +251,7 @@ class RedisManager:
 redis_manager = RedisManager()
 
 
-# Convenience dependency provider for FastAPI integration.
+# Shared accessor for the loop-local Redis client used across Relier subsystems.
 async def get_relier_redis() -> Redis:
     """
     Return the Redis client associated with the current execution loop.

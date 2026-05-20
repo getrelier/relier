@@ -1,101 +1,92 @@
+"""Unit tests for core admission control.
+
+Admission is enforced at task dispatch (the decorator's push/apush), so it is
+exercised here directly against AdmissionController rather than through any
+HTTP layer.
+"""
+
+from unittest.mock import AsyncMock, patch
+
 import pytest
+from redis.exceptions import NoScriptError
+
+from relier.core.admission import AdmissionController
 
 pytestmark = pytest.mark.asyncio
 
 
-async def test_admission_allows_when_admitted(monkeypatch) -> None:
-    """Middleware should allow requests when admission control admits them."""
-    called = {}
-
-    async def fake_check_capacity(resource_key="global"):
-        called["resource_key"] = resource_key
-        return True, 0
-
-    monkeypatch.setattr(
-        "relier.api.middleware.admission_control.check_capacity", fake_check_capacity
-    )
-
-    from fastapi import FastAPI
-    from httpx import ASGITransport, AsyncClient
-
-    from relier.api.middleware import AdmissionControlMiddleware
-
-    app = FastAPI()
-    app.add_middleware(AdmissionControlMiddleware)
-
-    @app.get("/test")
-    async def handler():
-        return {"ok": True}
-
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
-        r = await client.get("/test", headers={"X-Tenant-ID": "tenant-42"})
-        assert r.status_code == 200
-        assert r.json() == {"ok": True}
-        assert called.get("resource_key") == "tenant-42"
+def _redis(*, evalsha_result=None, evalsha_side_effect=None) -> AsyncMock:
+    """Build a Redis double for the admission Lua-script path."""
+    redis = AsyncMock()
+    redis.script_load = AsyncMock(return_value="sha-123")
+    if evalsha_side_effect is not None:
+        redis.evalsha = AsyncMock(side_effect=evalsha_side_effect)
+    else:
+        redis.evalsha = AsyncMock(return_value=evalsha_result or [1, 1, 0])
+    return redis
 
 
-async def test_admission_rejects_when_full(monkeypatch) -> None:
-    """Middleware should reject requests when admission control denies them."""
+class TestCheckCapacity:
+    async def test_admitted(self) -> None:
+        redis = _redis(evalsha_result=[1, 42, 0])
+        controller = AdmissionController()
+        with patch("relier.core.admission.get_relier_redis", return_value=redis):
+            admitted, retry_after = await controller.check_capacity("global")
+        assert admitted is True
+        assert retry_after == 0
+        redis.script_load.assert_awaited_once()
 
-    async def fake_check_capacity(resource_key="global"):
-        return False, 5
+    async def test_rejected_returns_retry_after(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        redis = _redis(evalsha_result=[0, 5001, 7])
+        controller = AdmissionController()
+        with (
+            patch("relier.core.admission.get_relier_redis", return_value=redis),
+            caplog.at_level("WARNING"),
+        ):
+            admitted, retry_after = await controller.check_capacity("tenant-x")
+        assert admitted is False
+        assert retry_after == 7
+        assert "rejected" in caplog.text
 
-    monkeypatch.setattr(
-        "relier.api.middleware.admission_control.check_capacity", fake_check_capacity
-    )
+    async def test_fails_open_on_redis_error(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        controller = AdmissionController()
+        with (
+            patch(
+                "relier.core.admission.get_relier_redis",
+                side_effect=ConnectionError("redis down"),
+            ),
+            caplog.at_level("ERROR"),
+        ):
+            admitted, retry_after = await controller.check_capacity()
+        # Fail open: admission is protective, not a hard dependency — a Redis
+        # outage must not block all traffic.
+        assert admitted is True
+        assert retry_after == 0
+        assert "failing open" in caplog.text
 
-    from fastapi import FastAPI
-    from httpx import ASGITransport, AsyncClient
-
-    from relier.api.middleware import AdmissionControlMiddleware
-
-    app = FastAPI()
-    app.add_middleware(AdmissionControlMiddleware)
-
-    @app.get("/test")
-    async def handler():
-        return {"ok": True}
-
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
-        r = await client.get("/test")
-        assert r.status_code == 429
-        body = r.json()
-        assert body["detail"] == "System capacity reached."
-        assert body["retry_after_seconds"] == 5
-        assert r.headers.get("Retry-After") == "5"
+    async def test_script_sha_is_cached(self) -> None:
+        redis = _redis(evalsha_result=[1, 1, 0])
+        controller = AdmissionController()
+        with patch("relier.core.admission.get_relier_redis", return_value=redis):
+            await controller.check_capacity()
+            await controller.check_capacity()
+        # The Lua script is loaded once; later calls reuse the cached SHA.
+        redis.script_load.assert_awaited_once()
+        assert redis.evalsha.await_count == 2
 
 
-async def test_exempt_paths_bypass_admission(monkeypatch) -> None:
-    """Health/readiness endpoints should bypass admission control entirely."""
-    called = {"flag": False}
-
-    async def fake_check_capacity(resource_key="global"):
-        called["flag"] = True
-        return False, 1
-
-    monkeypatch.setattr(
-        "relier.api.middleware.admission_control.check_capacity", fake_check_capacity
-    )
-
-    from fastapi import FastAPI
-    from httpx import ASGITransport, AsyncClient
-
-    from relier.api.middleware import AdmissionControlMiddleware
-
-    app = FastAPI()
-    app.add_middleware(AdmissionControlMiddleware)
-
-    @app.get("/health")
-    async def health():
-        return {"status": "ok"}
-
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
-        r = await client.get("/health")
-        assert r.status_code == 200
-        assert called["flag"] is False
+class TestEvalshaFallback:
+    async def test_reloads_script_on_noscript_error(self) -> None:
+        # First evalsha misses the script cache; the controller reloads and retries.
+        redis = _redis(evalsha_side_effect=[NoScriptError("missing"), [1, 1, 0]])
+        controller = AdmissionController()
+        with patch("relier.core.admission.get_relier_redis", return_value=redis):
+            admitted, retry_after = await controller.check_capacity()
+        assert admitted is True
+        assert retry_after == 0
+        assert redis.script_load.await_count == 2
+        assert redis.evalsha.await_count == 2

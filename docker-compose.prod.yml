@@ -64,6 +64,8 @@ x-relier-env: &relier-env
   # the redis_checkpoints volume mounted into every app service.
   RELIER_CHECKPOINT_BACKEND: "filesystem"
   RELIER_CHECKPOINT_DIR: "/var/lib/relier/checkpoints"
+  RELIER_OTEL_ENABLED: "true"
+  RELIER_OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
   C_FORCE_ROOT: "true"
 
 x-app: &app
@@ -87,6 +89,8 @@ x-app: &app
       condition: service_healthy
     sentinel-3:
       condition: service_healthy
+    otel-collector:
+      condition: service_started
 
 services:
   # ===========================================================================
@@ -234,15 +238,8 @@ services:
         condition: service_healthy
 
   # ===========================================================================
-  # Application
+  # Application — Celery workers and the resurrector
   # ===========================================================================
-  api:
-    <<: *app
-    container_name: relier-api
-    command: uvicorn relier.api.main:app --host 0.0.0.0 --port 8000
-    ports:
-      - "8000:8000"
-
   worker-high:
     <<: *app
     command: >
@@ -278,6 +275,63 @@ services:
       <<: *relier-env
       RELIER_LOG_LEVEL: INFO
 
+  # ===========================================================================
+  # Observability — OpenTelemetry → Prometheus → Grafana
+  # ===========================================================================
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector-config.yml"]
+    volumes:
+      - ./scripts/otel-collector-config.yml:/etc/otel-collector-config.yml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "8889:8889"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    volumes:
+      - ./scripts/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+    ports:
+      - "9090:9090"
+    depends_on:
+      - otel-collector
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    volumes:
+      - ./scripts/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./scripts/grafana-dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
 
 volumes:
   redis_master_data:
@@ -288,3 +342,5 @@ volumes:
   # into every app service so a resurrected task can read a checkpoint written
   # by a different worker.
   redis_checkpoints:
+  prometheus_data:
+  grafana_data:

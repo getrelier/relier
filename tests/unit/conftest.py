@@ -58,6 +58,9 @@ class FakeRedis:
     async def exists(self, key):
         return 1 if (key in self.data or key in self.hdata or key in self.zdata) else 0
 
+    async def ping(self):
+        return True
+
     async def hset(self, name, key=None, value=None, mapping=None):
         name = self._s(name)
         if name not in self.hdata:

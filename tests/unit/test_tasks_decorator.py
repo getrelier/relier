@@ -49,7 +49,7 @@ class TestTasksDecorator:
             return x
 
         with (
-            patch("celery.app.task.Task.apply_async") as mock_apply,
+            patch("relier.tasks.app.celery_app.send_task") as mock_send,
             patch("relier.core.schema.SchemaRegistry.wrap") as mock_wrap,
             patch(
                 "relier.core.admission.admission_control.check_capacity",
@@ -65,7 +65,7 @@ class TestTasksDecorator:
 
             my_task.push(x=1)
 
-            assert mock_apply.called
+            assert mock_send.called
 
     @pytest.mark.asyncio
     async def test_apush_dispatch(self) -> None:
@@ -76,7 +76,7 @@ class TestTasksDecorator:
             return x
 
         with (
-            patch("celery.app.task.Task.apply_async") as mock_apply,
+            patch("relier.tasks.app.celery_app.send_task") as mock_send,
             patch("relier.core.schema.SchemaRegistry.wrap") as mock_wrap,
             patch(
                 "relier.core.admission.admission_control.check_capacity",
@@ -92,9 +92,9 @@ class TestTasksDecorator:
 
             await my_task.apush(x=1)
 
-            assert mock_apply.called
+            assert mock_send.called
 
-            _, kwargs = mock_apply.call_args
+            _, kwargs = mock_send.call_args
 
             envelope = kwargs["args"][0]
 
