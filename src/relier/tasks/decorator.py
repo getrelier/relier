@@ -277,7 +277,7 @@ def rl_task(
                                     )
                                 )
                         else:
-                            actual_args, actual_kwargs = args, dict(kwargs)
+                            actual_args, actual_kwargs = args, kwargs
                     except (PayloadIntegrityError, SchemaMigrationError) as exc:
                         logger.error(
                             "Schema migration failed; quarantining task.",
