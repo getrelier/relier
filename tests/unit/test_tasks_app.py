@@ -155,6 +155,10 @@ class TestTasksApp:
             patch("relier.tasks.app.setup_telemetry") as mock_setup_telemetry,
             patch("relier.tasks.app.redis_manager") as mock_rm,
             patch(
+                "relier.core.validation.validate_redis_reachable",
+                new_callable=AsyncMock,
+            ) as mock_val_reachable,
+            patch(
                 "relier.core.validation.validate_redis_config", new_callable=AsyncMock
             ) as mock_val_redis,
             patch(
@@ -175,6 +179,7 @@ class TestTasksApp:
             assert mock_run.call_count == 2
             mock_setup_logging.assert_called_once()
             mock_setup_telemetry.assert_called_once()
+            mock_val_reachable.assert_called_once()
             mock_val_redis.assert_called_once()
             mock_val_pool.assert_called_once()
 
@@ -189,6 +194,10 @@ class TestTasksApp:
             patch("relier.tasks.app.setup_logging"),
             patch("relier.tasks.app.setup_telemetry"),
             patch("relier.tasks.app.redis_manager") as mock_rm,
+            patch(
+                "relier.core.validation.validate_redis_reachable",
+                new_callable=AsyncMock,
+            ),
             patch(
                 "relier.core.validation.validate_redis_config",
                 side_effect=mock_validation_crash,

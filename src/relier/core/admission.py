@@ -28,6 +28,7 @@ from relier.config import Settings, get_settings
 from relier.core.keys import RedisKeys
 from relier.storage.lua.scripts import ADMISSION_LUA
 from relier.storage.redis import get_relier_redis
+from relier.telemetry.metrics import admission_total
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +103,14 @@ class AdmissionController:
             is_admitted = bool(result[0])
             retry_after = max(0, int(result[2]))
 
+            admission_total.add(
+                1,
+                {
+                    "result": "admitted" if is_admitted else "rejected",
+                    "resource": resource_key,
+                },
+            )
+
             if not is_admitted:
                 logger.warning(
                     "Admission control rejected request.",
@@ -148,7 +157,8 @@ class AdmissionController:
             return result
         except redis.exceptions.NoScriptError:
             logger.warning(
-                "Redis Lua script missing from cache; reloading admission script."
+                "Redis Lua script missing from cache; reloading admission script.",
+                extra={"resource_key": window_key},
             )
             self._script_sha = await redis_client.script_load(ADMISSION_LUA)
             result = await cast(

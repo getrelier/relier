@@ -50,6 +50,8 @@ from relier.storage.lua.scripts import (
     VALIDATE_LUA,
 )
 from relier.storage.redis import get_relier_redis
+from relier.telemetry.metrics import resurrection_time_s, resurrections_total
+from relier.telemetry.spans import ATTR_TASK_ID, ATTR_TASK_NAME, tracer
 
 logger = logging.getLogger(__name__)
 
@@ -265,12 +267,16 @@ class PhoenixRegistry:
         - replays recoverable tasks onto healthy workers
         """
         from relier.core.dlq import DeadLetterQueue  # avoid circular import
+        from relier.core.validation import validate_redis_reachable
         from relier.tasks.app import celery_app  # avoid circular import
 
         dead_letter_queue = DeadLetterQueue()
 
         settings = cls._get_settings()
         redis = await get_relier_redis()
+
+        # Fail fast: the resurrector cannot coordinate anything without Redis.
+        await validate_redis_reachable(redis, settings)
 
         logger.info(
             "Phoenix resurrector started",
@@ -646,6 +652,14 @@ class PhoenixRegistry:
             # expiry index for a later retry instead of dropping it.
             if await cls.resurrect_task(task_id, payload, celery_app):
                 resurrected_count += 1
+                raw_registered = state_data.get("registered_at")
+                if raw_registered:
+                    with contextlib.suppress(ValueError, TypeError):
+                        elapsed = now - float(raw_registered)
+                        resurrection_time_s.record(
+                            max(0.0, elapsed),
+                            {"rl.task.name": payload.get("task_name", "unknown")},
+                        )
 
         await asyncio.sleep(settings.resurrection_requeue_delay)
 
@@ -743,6 +757,20 @@ class PhoenixRegistry:
             pipe.incr(RedisKeys.metric_global("resurrected"))
             pipe.zrem(RedisKeys.phoenix_expiry_index(), task_id)
             await pipe.execute()
+
+            resurrections_total.add(
+                1, {"rl.task.name": payload.get("task_name", "unknown")}
+            )
+
+            with tracer.start_as_current_span(
+                "rl.resurrection.queue",
+                attributes={
+                    ATTR_TASK_ID: task_id,
+                    ATTR_TASK_NAME: payload.get("task_name", "unknown"),
+                    "rl.resurrection.queue": _RECOVERY_QUEUE,
+                },
+            ):
+                pass
         except TimeoutError:
             logger.error(
                 "Timed out while re-queueing resurrected task.",

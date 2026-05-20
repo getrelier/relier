@@ -42,6 +42,7 @@ from relier.core.keys import RedisKeys
 from relier.core.shutdown import GracefulShutdownHandler
 from relier.storage.redis import redis_manager
 from relier.telemetry.logging import setup_logging
+from relier.telemetry.metrics import shutdown_duration_s, shutdowns_total
 from relier.telemetry.setup import setup_telemetry
 
 logger = logging.getLogger(__name__)
@@ -306,9 +307,13 @@ def init_worker_process(**kwargs: Any) -> None:
         from relier.core.validation import (
             validate_connection_pool,
             validate_redis_config,
+            validate_redis_reachable,
         )
 
         redis = await redis_manager.get_client()
+
+        # fails fast with a clear error if Redis is unreachable
+        await validate_redis_reachable(redis, settings)
 
         # fails hard if noeviction not set
         await validate_redis_config(redis, settings)
@@ -401,6 +406,9 @@ def shutdown_worker(**kwargs: object) -> None:
 
     logger.info("Worker shutdown initiated. Entering coordinated drain sequence.")
 
+    _start = time.perf_counter()
+    _clean = True
+
     try:
         if _presence_future:
             # Stop long-lived coordination services before shutting down the runtime.
@@ -415,10 +423,17 @@ def shutdown_worker(**kwargs: object) -> None:
             )
             fut.result(timeout=_get_settings().graceful_shutdown_timeout)
     except Exception as exc:
+        _clean = False
         logger.error(
             "Worker drain sequence failed.", extra={"error_type": type(exc).__name__}
         )
     finally:
+        try:
+            _duration = time.perf_counter() - _start
+            shutdown_duration_s.record(_duration)
+            shutdowns_total.add(1, {"type": "clean" if _clean else "forced"})
+        except Exception:
+            pass
         try:
             # Gracefully release loop-affined Redis resources.
             fut = asyncio.run_coroutine_threadsafe(redis_manager.close(), worker_loop)

@@ -11,7 +11,7 @@ from redis.asyncio.client import Redis
 from redis.exceptions import ResponseError
 
 from relier.config import Settings
-from relier.core.validation import validate_redis_config
+from relier.core.validation import validate_redis_config, validate_redis_reachable
 from relier.storage.redis import RedisManager
 from relier.tasks.app import _broker_connection_config
 
@@ -187,3 +187,33 @@ class TestAofValidation:
         with caplog.at_level("WARNING"):
             await validate_redis_config(redis, settings)
         assert "Skipped Redis AOF verification" in caplog.text
+
+
+# =============================================================================
+# validate_redis_reachable — fail-fast startup check
+# =============================================================================
+class TestRedisReachable:
+    async def test_reachable_redis_passes(self) -> None:
+        redis = AsyncMock()
+        redis.ping = AsyncMock(return_value=True)
+        await validate_redis_reachable(redis, Settings())
+
+    async def test_unreachable_direct_redis_raises(self) -> None:
+        redis = AsyncMock()
+        redis.ping = AsyncMock(side_effect=ConnectionError("no route to host"))
+        settings = Settings(redis_url="redis://db.internal:6390/0")
+        with pytest.raises(RuntimeError, match="cannot reach Redis") as excinfo:
+            await validate_redis_reachable(redis, settings)
+        # The error names the unreachable endpoint so the operator can act.
+        assert "db.internal:6390" in str(excinfo.value)
+
+    async def test_unreachable_sentinel_raises(self) -> None:
+        redis = AsyncMock()
+        redis.ping = AsyncMock(side_effect=ConnectionError("down"))
+        settings = Settings(
+            redis_use_sentinel=True,
+            redis_sentinel_nodes="s1:26379,s2:26379",
+        )
+        with pytest.raises(RuntimeError, match="Sentinel") as excinfo:
+            await validate_redis_reachable(redis, settings)
+        assert "s1:26379" in str(excinfo.value)

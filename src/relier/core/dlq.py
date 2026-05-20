@@ -22,6 +22,8 @@ from typing import Any, cast
 from relier.core.checkpoint import CheckpointStore
 from relier.core.keys import RedisKeys
 from relier.storage.redis import get_relier_redis
+from relier.telemetry.metrics import dlq_quarantined_total
+from relier.telemetry.spans import ATTR_TASK_ID, ATTR_TASK_NAME, tracer
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +138,24 @@ class DeadLetterQueue:
         )
         await cast(Awaitable[Any], pipe.execute())
 
+        dlq_quarantined_total.add(
+            1,
+            {
+                "reason": reason,
+                "rl.task.name": dlq_entry.get("task_name", "unknown"),
+            },
+        )
+
+        with tracer.start_as_current_span(
+            "rl.dlq.quarantine",
+            attributes={
+                ATTR_TASK_ID: task_id,
+                ATTR_TASK_NAME: dlq_entry.get("task_name", "unknown"),
+                "rl.dlq.reason": reason,
+            },
+        ):
+            pass
+
         logger.warning(
             "Task moved to DLQ.",
             extra={
@@ -175,7 +195,10 @@ class DeadLetterQueue:
                     try:
                         results.append(json.loads(raw_json))
                     except json.JSONDecodeError:
-                        logger.warning("Skipping malformed DLQ payload during scan.")
+                        logger.warning(
+                            "Skipping malformed DLQ payload during scan.",
+                            extra={"dlq_key": cls.DLQ_HASH_KEY},
+                        )
             if cursor == 0:
                 break
 

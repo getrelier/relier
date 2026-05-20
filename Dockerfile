@@ -28,5 +28,5 @@ RUN uv venv && uv pip install -e .
 # 7. Use the virtualenv by default
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Default command is overridden by docker-compose.yml
-CMD ["uvicorn", "relier.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Default command is overridden by docker-compose; defaults to a worker.
+CMD ["celery", "-A", "relier.tasks.app", "worker", "--loglevel=info"]

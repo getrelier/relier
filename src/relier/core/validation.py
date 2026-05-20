@@ -21,6 +21,40 @@ from relier.config import Settings
 logger = logging.getLogger(__name__)
 
 
+async def validate_redis_reachable(redis: Redis, settings: Settings) -> None:
+    """Fail fast at startup if Redis cannot be reached.
+
+    Relier coordinates entirely through Redis — the same way Celery depends on
+    its broker — and has no local fallback. Rather than letting a missing or
+    misconfigured Redis surface later as a confusing mid-operation connection
+    error, this check runs during process bootstrap so a worker or the
+    resurrector refuses to start at all when Redis is unreachable.
+
+    Args:
+        redis: An active, loop-affined ``redis.asyncio.Redis`` client.
+        settings: The consolidated runtime configuration.
+
+    Raises:
+        RuntimeError: If Redis does not respond to a ``PING``.
+    """
+    try:
+        await redis.ping()
+    except Exception as exc:
+        if settings.redis_use_sentinel:
+            target = f"Sentinel [{settings.redis_sentinel_nodes}]"
+        else:
+            url = settings.redis_url
+            target = f"{url.host}:{url.port}"
+        raise RuntimeError(
+            f"Relier cannot reach Redis ({target}). Relier requires a running "
+            f"Redis instance to coordinate tasks — there is no local fallback. "
+            f"Start Redis, or point Relier at one via RELIER_REDIS_URL. "
+            f"Refusing to start."
+        ) from exc
+
+    logger.info("Redis connectivity verified.")
+
+
 async def validate_redis_config(redis: Redis, settings: Settings) -> None:
     """Enforces Redis configuration invariants required for transactional durability.
 
