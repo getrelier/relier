@@ -400,7 +400,7 @@ class PhoenixRegistry:
             elif state == 1 and not hb_exists and payload_exists:
                 # The replacement worker also disappeared before completion.
                 # It re-registered on pickup, so it is already back in the
-                # expiry index — just release it from the monitor.
+                # expiry index, just release it from the monitor.
                 writes.hdel(monitor_key, t_id)
                 transitions["dead_again"] += 1
                 logger.warning(
@@ -470,7 +470,7 @@ class PhoenixRegistry:
 
         The cheap liveness/monitor checks and the payload loads are pipelined
         across all candidates, so a scan costs a small constant number of
-        round-trips instead of O(N) sequential calls — which matters during
+        round-trips instead of O(N) sequential calls, which matters during
         mass worker failure, when the expiry index is largest.
         """
         settings = cls._get_settings()
@@ -482,7 +482,7 @@ class PhoenixRegistry:
 
         # Backpressure: if the recovery queue is already deep, defer this scan
         # so the resurrector cannot replay tasks faster than the recovery
-        # workers drain them — otherwise a mass failure would balloon the
+        # workers drain them, otherwise a mass failure would balloon the
         # broker. Expired tasks remain in the expiry index for a later pass.
         queue_depth: int = await redis.llen(_RECOVERY_QUEUE)  # type: ignore[misc]
         if queue_depth >= settings.resurrection_max_queue_depth:
@@ -542,7 +542,7 @@ class PhoenixRegistry:
 
         for task_id, raw_state in zip(candidates, raw_states, strict=True):
             if not raw_state:
-                # Orphaned index entry — Phoenix state already gone.
+                # Orphaned index entry, Phoenix state already gone.
                 await redis.zrem(expiry_index_key, task_id)
                 continue
 
@@ -920,14 +920,14 @@ class PhoenixRegistry:
 
         if result == 0:
             logger.info(
-                "Duplicate execution rejected — lease mismatch.",
+                "Duplicate execution rejected, lease mismatch.",
                 extra={"task_id": task_id, "lease_key": lease_key},
             )
             return False
 
         if result == 2:
             logger.info(
-                "Zombie execution rejected — stale fence.",
+                "Zombie execution rejected, stale fence.",
                 extra={"task_id": task_id, "lease_key": lease_key},
             )
 
@@ -985,7 +985,7 @@ class PhoenixRegistry:
             return False
 
         logger.info(
-            "Fence validation passed — committing results.",
+            "Fence validation passed, committing results.",
             extra={"task_id": task_id, "lease_key": lease_key},
         )
 

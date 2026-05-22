@@ -1,13 +1,19 @@
 import asyncio
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from redis.exceptions import ResponseError
 
+from relier.config import Settings
+from relier.core.dlq import DeadLetterQueue
 from relier.core.idempotency import IdempotencyResult, idempotency_manager
+from relier.core.keys import RedisKeys
 from relier.core.phoenix import PhoenixRegistry
 from relier.core.schema import SchemaRegistry
 from relier.core.slo import SLOMetrics
 from relier.core.timeouts import TimeoutEnforcer
+from relier.core.validation import validate_connection_pool, validate_redis_config
 from relier.storage.redis import RedisManager, get_relier_redis, redis_manager
 
 pytestmark = pytest.mark.asyncio
@@ -117,3 +123,152 @@ async def test_redis_ping_failure() -> None:
     ):
         res = await manager.ping()
         assert res is False
+
+
+# =============================================================================
+# validate_redis_config missing branches
+# =============================================================================
+class TestValidationExtra:
+    async def test_response_error_on_policy_check(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        redis = AsyncMock()
+        redis.config_get.side_effect = ResponseError("CONFIG disabled")
+        with caplog.at_level("WARNING"):
+            await validate_redis_config(redis, Settings())
+        assert "Unable to verify Redis 'maxmemory-policy'" in caplog.text
+
+    async def test_generic_exception_on_policy_check_raises(self) -> None:
+        redis = AsyncMock()
+        redis.config_get.side_effect = ConnectionError("dropped")
+        with pytest.raises(RuntimeError, match="Validation blocked"):
+            await validate_redis_config(redis, Settings())
+
+    async def test_wrong_policy_raises(self) -> None:
+        redis = AsyncMock()
+        redis.config_get.return_value = {"maxmemory-policy": "allkeys-lru"}
+        with pytest.raises(RuntimeError, match="FATAL CONFIGURATION MISMATCH"):
+            await validate_redis_config(redis, Settings())
+
+    async def test_connection_pool_within_limits(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        settings = Settings(
+            celery_worker_count=1,
+            celery_worker_concurrency=4,
+            redis_max_connections=10,
+        )
+        with caplog.at_level("INFO"):
+            await validate_connection_pool(settings)
+        assert "within safe" in caplog.text
+
+    async def test_connection_pool_exceeds_limits(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        settings = Settings(
+            celery_worker_count=10,
+            celery_worker_concurrency=10,
+            redis_max_connections=100,
+        )
+        with caplog.at_level("WARNING"):
+            await validate_connection_pool(settings)
+        assert "HIGH POTENTIAL" in caplog.text
+
+
+# =============================================================================
+# TaskContextProxy RuntimeError branches
+# =============================================================================
+class TestTaskContextProxy:
+    async def test_getattr_raises_outside_task(self) -> None:
+        from relier.tasks.context import TaskContextProxy
+
+        proxy = TaskContextProxy()
+        with pytest.raises(RuntimeError, match="outside of a running task"):
+            _ = proxy.task_id
+
+    async def test_setattr_raises_outside_task(self) -> None:
+        from relier.tasks.context import TaskContextProxy
+
+        proxy = TaskContextProxy()
+        with pytest.raises(RuntimeError, match="outside of a running task"):
+            proxy.task_id = "new_id"
+
+
+# =============================================================================
+# Celery signal handlers — on_task_prerun and on_task_retry
+# =============================================================================
+class TestSignalsExtra:
+    async def test_on_task_prerun_fires(self) -> None:
+        import relier.tasks.signals as task_signals
+
+        with patch("relier.tasks.signals.logger") as mock_logger:
+            task_signals.on_task_prerun(task_id="abc", task=MagicMock(name="my_task"))
+        assert mock_logger.info.called
+
+    async def test_on_task_retry_fires(self) -> None:
+        import relier.tasks.signals as task_signals
+
+        with patch("relier.tasks.signals.logger") as mock_logger:
+            task_signals.on_task_retry(
+                task_id="xyz", sender=MagicMock(name="my_task"), reason="backoff"
+            )
+        assert mock_logger.warning.called
+
+
+# =============================================================================
+# DLQ missing branches — json error, checkpoint injection, resurrection count
+# =============================================================================
+class TestDLQExtra:
+    async def test_quarantine_json_error_in_partial(self, mock_redis) -> None:
+        task_id = "bad_partial"
+        await mock_redis.hset(
+            RedisKeys.phoenix(task_id), "partial_result", "not-valid-json{{{"
+        )
+        await DeadLetterQueue.quarantine(
+            task_id, reason="test", payload={"task_name": "t"}
+        )
+        raw = await mock_redis.hget(DeadLetterQueue.DLQ_HASH_KEY, task_id)
+        entry = json.loads(raw)
+        assert entry["partial_result"] is None
+
+    async def test_release_injects_checkpoint(self, mock_redis) -> None:
+        from relier.tasks.app import celery_app
+
+        task_id = "release_cp"
+        entry = {
+            "task_name": "my_task",
+            "args": [],
+            "kwargs": {},
+            "queue": "default",
+            "partial_result": {"step": 5},
+            "resurrections": 0,
+        }
+        await mock_redis.hset(DeadLetterQueue.DLQ_HASH_KEY, task_id, json.dumps(entry))
+        with patch.object(celery_app, "send_task") as mock_send:
+            result = await DeadLetterQueue.release(task_id)
+        assert result is True
+        called_kwargs = mock_send.call_args[1]["kwargs"]
+        assert called_kwargs["checkpoint"] == {"step": 5}
+
+    async def test_release_preserves_resurrection_count(self, mock_redis) -> None:
+        from relier.tasks.app import celery_app
+
+        task_id = "release_count"
+        entry = {
+            "task_name": "my_task",
+            "args": [],
+            "kwargs": {},
+            "queue": "default",
+            "partial_result": None,
+            "resurrections": 3,
+        }
+        await mock_redis.hset(DeadLetterQueue.DLQ_HASH_KEY, task_id, json.dumps(entry))
+        with patch.object(celery_app, "send_task"):
+            await DeadLetterQueue.release(task_id)
+        val = await mock_redis.get(RedisKeys.resurrection(task_id))
+        assert val.decode() == "3"
+
+    async def test_purge_skips_invalid_json(self, mock_redis) -> None:
+        await mock_redis.hset(DeadLetterQueue.DLQ_HASH_KEY, "bad_entry", "{{invalid}")
+        count = await DeadLetterQueue.purge()
+        assert count >= 0

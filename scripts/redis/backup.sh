@@ -1,11 +1,11 @@
 #!/bin/sh
 # =============================================================================
-# Relier Redis — periodic snapshot backup with rotation.
+# Relier Redis, periodic snapshot backup with rotation.
 #
 # Runs as a sidecar container. Triggers BGSAVE against a *replica* (never the
 # master, to keep the write path unloaded), archives the resulting RDB file to
-# a dedicated backup volume, rotates old archives, and — if BACKUP_S3_BUCKET is
-# set and the `aws` CLI is present — uploads a copy to S3-compatible storage.
+# a dedicated backup volume, rotates old archives, and if BACKUP_S3_BUCKET is
+# set and the `aws` CLI is present uploads a copy to S3-compatible storage.
 #
 # Environment:
 #   BACKUP_REDIS_HOST        replica to snapshot        (default: relier-redis-replica-1)
@@ -32,7 +32,7 @@ run_backup() {
   log "Triggering BGSAVE on ${REDIS_HOST}:${REDIS_PORT}"
 
   # LASTSAVE returns the unix time of the last successful save. We snapshot it,
-  # ask for a BGSAVE, then wait for the value to advance — that is the only
+  # ask for a BGSAVE, then wait for the value to advance, that is the only
   # reliable signal that the fork-and-write completed.
   before="$(redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" LASTSAVE)"
   redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" BGSAVE >/dev/null
@@ -47,13 +47,13 @@ run_backup() {
     sleep 1
   done
   if [ -z "$saved" ]; then
-    log "ERROR: BGSAVE did not complete within 120s — skipping this pass"
+    log "ERROR: BGSAVE did not complete within 120s, skipping this pass"
     return 1
   fi
 
   archive="${BACKUP_DIR}/relier-redis-${ts}.rdb.gz"
   if [ ! -f "${SRC_DIR}/dump.rdb" ]; then
-    log "ERROR: ${SRC_DIR}/dump.rdb not found — is the replica data volume mounted?"
+    log "ERROR: ${SRC_DIR}/dump.rdb not found, is the replica data volume mounted?"
     return 1
   fi
   gzip -c "${SRC_DIR}/dump.rdb" > "$archive"
@@ -79,8 +79,8 @@ run_backup() {
 }
 
 mkdir -p "$BACKUP_DIR"
-log "Backup loop started — host=${REDIS_HOST} interval=${INTERVAL}s retention=${RETENTION}"
+log "Backup loop started - host=${REDIS_HOST} interval=${INTERVAL}s retention=${RETENTION}"
 while true; do
-  run_backup || log "backup pass failed — will retry next interval"
+  run_backup || log "backup pass failed, will retry next interval"
   sleep "$INTERVAL"
 done

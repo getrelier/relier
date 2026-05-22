@@ -44,7 +44,7 @@ def on_task_postrun(
     retval: Any = None,
     **extra: Any,
 ) -> None:
-    """Log when a task finishes — success or failure."""
+    """Log when a task finishes, success or failure."""
     logger.info(
         "Task finished.",
         task_id=task_id,

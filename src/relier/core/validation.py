@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 async def validate_redis_reachable(redis: Redis, settings: Settings) -> None:
     """Fail fast at startup if Redis cannot be reached.
 
-    Relier coordinates entirely through Redis — the same way Celery depends on
-    its broker — and has no local fallback. Rather than letting a missing or
+    Relier coordinates entirely through Redis, the same way Celery depends on
+    its broker and has no local fallback. Rather than letting a missing or
     misconfigured Redis surface later as a confusing mid-operation connection
     error, this check runs during process bootstrap so a worker or the
     resurrector refuses to start at all when Redis is unreachable.
@@ -47,7 +47,7 @@ async def validate_redis_reachable(redis: Redis, settings: Settings) -> None:
             target = f"{url.host}:{url.port}"
         raise RuntimeError(
             f"Relier cannot reach Redis ({target}). Relier requires a running "
-            f"Redis instance to coordinate tasks — there is no local fallback. "
+            f"Redis instance to coordinate tasks, there is no local fallback. "
             f"Start Redis, or point Relier at one via RELIER_REDIS_URL. "
             f"Refusing to start."
         ) from exc
@@ -82,12 +82,12 @@ async def validate_redis_config(redis: Redis, settings: Settings) -> None:
     except ResponseError as exc:
         # The CONFIG command is commonly disabled, renamed, or ACL-restricted
         # on managed Redis offerings (AWS ElastiCache, etc.). That is a
-        # verification gap, not a fault — degrade to a warning instead of
+        # verification gap, not a fault degrade to a warning instead of
         # blocking worker startup, which would make Relier unrunnable there.
         logger.warning(
             "Unable to verify Redis 'maxmemory-policy' because the CONFIG command "
             "is disabled or restricted (common on managed Redis). Relier cannot "
-            "confirm the eviction policy automatically — ensure it is set to "
+            "confirm the eviction policy automatically, ensure it is set to "
             "'noeviction' so 'rl:phoenix:*' job payloads are never evicted.",
             extra={"error": str(exc)},
         )
@@ -149,7 +149,7 @@ async def validate_redis_config(redis: Redis, settings: Settings) -> None:
     if appendonly != "yes":
         logger.warning(
             "Redis AOF persistence is DISABLED (appendonly='%s'). Relier is running "
-            "without durable append-only journalling — acknowledged coordination "
+            "without durable append-only journalling acknowledged coordination "
             "state will be lost if Redis crashes between RDB snapshots. Enable it "
             "with 'appendonly yes' (see scripts/redis/redis.conf).",
             appendonly,

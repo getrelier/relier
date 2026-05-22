@@ -60,7 +60,7 @@ logger = logging.getLogger(__name__)
 # In-flight sentinels are stored as the raw lock id, which always begins with
 # this prefix. A finalized result is JSON-encoded and can never begin with it,
 # so a prefix check unambiguously distinguishes an active execution from a
-# cached result — unlike a substring match, which a result value could spoof.
+# cached result, unlike a substring match, which a result value could spoof.
 _IN_FLIGHT_SENTINEL_PREFIX = "rl:inflight:"
 
 

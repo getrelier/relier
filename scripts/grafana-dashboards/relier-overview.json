@@ -1,6 +1,6 @@
 {
   "annotations": { "list": [] },
-  "description": "Relier task engine — throughput, latency, errors, and infrastructure health",
+  "description": "Relier task engine, throughput, latency, errors, and infrastructure health",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,

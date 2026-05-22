@@ -1,7 +1,7 @@
 name: relier-prod
 
 # =============================================================================
-# Production manifest — Redis HA topology.
+# Production manifest, Redis HA topology.
 #
 #   docker compose -f docker-compose.prod.yml up -d
 #
@@ -94,7 +94,7 @@ x-app: &app
 
 services:
   # ===========================================================================
-  # Redis data plane — master + replicas (authenticated)
+  # Redis data plane, master + replicas (authenticated)
   # ===========================================================================
   redis-master:
     <<: *redis-node
@@ -222,7 +222,7 @@ services:
       BACKUP_RETENTION: "168"
       # redis-cli authenticates to the replica via REDISCLI_AUTH.
       REDISCLI_AUTH: ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
-      # Optional offsite copies — set BACKUP_S3_BUCKET to enable (image must
+      # Optional offsite copies, set BACKUP_S3_BUCKET to enable (image must
       # provide the `aws` CLI).
       BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
     volumes:
@@ -238,7 +238,7 @@ services:
         condition: service_healthy
 
   # ===========================================================================
-  # Application — Celery workers and the resurrector
+  # Application,  Celery workers and the resurrector
   # ===========================================================================
   worker-high:
     <<: *app
@@ -276,7 +276,7 @@ services:
       RELIER_LOG_LEVEL: INFO
 
   # ===========================================================================
-  # Observability — OpenTelemetry → Prometheus → Grafana
+  # Observability,  OpenTelemetry → Prometheus → Grafana
   # ===========================================================================
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest

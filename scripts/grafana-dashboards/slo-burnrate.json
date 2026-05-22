@@ -37,7 +37,7 @@
           "refId": "A"
         }
       ],
-      "title": "Burn Rate — 1h",
+      "title": "Burn Rate - 1h",
       "type": "stat"
     },
     {
@@ -70,7 +70,7 @@
           "refId": "A"
         }
       ],
-      "title": "Burn Rate — 6h",
+      "title": "Burn Rate - 6h",
       "type": "stat"
     },
     {
@@ -103,7 +103,7 @@
           "refId": "A"
         }
       ],
-      "title": "Burn Rate — 3d",
+      "title": "Burn Rate - 3d",
       "type": "stat"
     },
     {
@@ -246,7 +246,7 @@
   "tags": ["relier", "slo"],
   "time": { "from": "now-6h", "to": "now" },
   "timepicker": {},
-  "title": "Relier SLO — Error Budget",
+  "title": "Relier SLO - Error Budget",
   "uid": "relier-slo",
   "version": 1
 }

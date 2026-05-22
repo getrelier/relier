@@ -63,6 +63,9 @@ _presence_future: concurrent.futures.Future | None = None
 # Background stale-worker cleanup coroutine future.
 _cleanup_future: concurrent.futures.Future | None = None
 
+# Background Phoenix resurrection scanner future.
+_resurrection_future: concurrent.futures.Future | None = None
+
 
 def _get_settings() -> Settings:
     """
@@ -230,9 +233,7 @@ def create_celery_app() -> Celery:
     Construct and configure the Relier Celery runtime instance.
     """
 
-    # Development-only task modules excluded from production deployments.
-    includes = ["relier.tasks.debug"] if _get_settings().env != "production" else []
-    app = Celery("relier", include=includes)
+    app = Celery("relier")
 
     # Runtime reliability defaults optimized for task durability and
     # crash recovery semantics.
@@ -373,7 +374,7 @@ def start_relier_identity(sender: Any, **kwargs: Any) -> None:
     """
     Start background coordination services once the worker becomes ready.
     """
-    global _presence_future, _cleanup_future
+    global _presence_future, _cleanup_future, _resurrection_future
     hostname = str(sender.hostname)
 
     _ensure_bridge()  # Supervisor processes may reach readiness before bridge initialization.
@@ -387,6 +388,14 @@ def start_relier_identity(sender: Any, **kwargs: Any) -> None:
         _cleanup_future = asyncio.run_coroutine_threadsafe(
             _cleanup_dead_workers(), worker_loop
         )
+        # Every worker runs the Phoenix resurrection scanner. Distributed locks
+        # inside the loop prevent double-resurrection when multiple workers scan
+        # simultaneously, this gives us resilience with no single point of failure.
+        from relier.core.phoenix import PhoenixRegistry
+
+        _resurrection_future = asyncio.run_coroutine_threadsafe(
+            PhoenixRegistry.resurrection_loop(), worker_loop
+        )
 
     logger.info(
         "Worker coordination services started successfully.",
@@ -399,7 +408,12 @@ def shutdown_worker(**kwargs: object) -> None:
     """
     Drain workloads and gracefully tear down worker runtime infrastructure.
     """
-    global worker_loop, shutdown_handler, _presence_future, _cleanup_future
+    global \
+        worker_loop, \
+        shutdown_handler, \
+        _presence_future, \
+        _cleanup_future, \
+        _resurrection_future
 
     if not worker_loop or not worker_loop.is_running():
         return  # The bridge may already be stopped during forced interpreter teardown.
@@ -414,8 +428,9 @@ def shutdown_worker(**kwargs: object) -> None:
             # Stop long-lived coordination services before shutting down the runtime.
             _presence_future.cancel()
         if _cleanup_future:
-            # Block until workload draining completes or the timeout budget expires.
             _cleanup_future.cancel()
+        if _resurrection_future:
+            _resurrection_future.cancel()
 
         if shutdown_handler:
             fut = asyncio.run_coroutine_threadsafe(

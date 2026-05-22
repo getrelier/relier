@@ -1,7 +1,7 @@
 name: relier-cluster
 
 # =============================================================================
-# Local development stack — lightweight single-node Redis.
+# Local development stack,  lightweight single-node Redis.
 #
 # Dev runs ONE Redis node (Sentinel disabled) to stay fast. Persistence is
 # still on: redis.conf enables AOF + RDB, so dev data survives restarts.
@@ -47,7 +47,7 @@ services:
 
 
   # =========================================================================
-  # Application — Celery workers and the resurrector
+  # Application,  Celery workers and the resurrector
   # =========================================================================
   worker-high:
     build:
@@ -131,7 +131,7 @@ services:
         condition: service_started
 
   # =====================================================================
-  # Observability — OpenTelemetry → Prometheus → Grafana
+  # Observability,  OpenTelemetry → Prometheus → Grafana
   # =====================================================================
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest

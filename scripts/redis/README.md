@@ -1,4 +1,4 @@
-# Relier Redis — High Availability
+# Relier Redis, High Availability
 
 Relier's coordination state (Phoenix resurrection, idempotency, admission
 control, locks, SLO telemetry) lives entirely in Redis. This directory makes
@@ -11,7 +11,7 @@ that backbone survive the loss of any single node.
 | `docker-compose.yml` (dev)| Single node, AOF + RDB persistence    | Off      |
 | `docker-compose.prod.yml` | Master + 2 replicas + 3 Sentinels     | On       |
 
-Dev stays single-node to keep local startup fast — it still has full
+Dev stays single-node to keep local startup fast, it still has full
 persistence, just no failover. To exercise the HA / failover path locally,
 run the production manifest (it works fine on a laptop):
 
@@ -30,7 +30,7 @@ Then `docker kill relier-redis-master` and watch a Sentinel promote a replica.
 | Sentinel | `relier-sentinel-1/2/3`                           | Monitor master, elect new master |
 | Backup   | `relier-redis-backup`                             | Periodic RDB snapshot + rotation |
 
-Sentinel quorum is **2 of 3** — a failover proceeds only when two Sentinels
+Sentinel quorum is **2 of 3** - a failover proceeds only when two Sentinels
 agree the master is unreachable, which prevents a single partitioned Sentinel
 from causing split-brain.
 
@@ -38,9 +38,9 @@ from causing split-brain.
 
 Both AOF and RDB are enabled (`redis.conf`):
 
-- **AOF** (`appendfsync everysec`) — the durability mechanism. At most one
+- **AOF** (`appendfsync everysec`): the durability mechanism. At most one
   second of acknowledged writes is at risk on a hard crash.
-- **RDB** (`save` rules) — a compact point-in-time snapshot used for fast
+- **RDB** (`save` rules): a compact point-in-time snapshot used for fast
   restarts and as the artifact the backup sidecar archives.
 
 ## Backups
@@ -64,7 +64,7 @@ Both AOF and RDB are enabled (`redis.conf`):
    ```
 3. Remove the stale AOF so Redis loads the restored RDB:
    `appendonly.aof*` (or `appendonlydir/`) in the same volume.
-4. Start the stack — replicas resync from the master automatically.
+4. Start the stack, replicas resync from the master automatically.
 
 ## Enabling Sentinel in the application
 

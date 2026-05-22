@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 def setup_telemetry(service_name: str = "relier") -> None:
     """Initialize OTEL SDK providers for tracing and metrics.
 
-    This is idempotent — safe to call multiple times (subsequent calls are
+    This is idempotent, safe to call multiple times (subsequent calls are
     ignored if OTEL is disabled or already initialized).
 
     Args:

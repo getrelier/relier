@@ -16,7 +16,7 @@ processors:
     spike_limit_mib: 128
 
 exporters:
-  # Prometheus scrape endpoint — consumed by the prometheus service on :8889
+  # Prometheus scrape endpoint, consumed by the prometheus service on :8889
   # No namespace prefix; metrics keep their rl_* names as defined in Python.
   prometheus:
     endpoint: "0.0.0.0:8889"

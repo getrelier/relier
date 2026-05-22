@@ -5,8 +5,7 @@ Configures structlog to produce machine-readable JSON in production and
 human-readable output in development, with automatic injection of the
 current OpenTelemetry trace and span IDs into every log record.
 
-Call ``setup_logging()`` once at process start (from the FastAPI lifespan
-or the Celery ``worker_process_init`` signal) before any other Relier code
+Call ``setup_logging()`` once at process start (from the Celery ``worker_process_init`` signal) before any other Relier code
 runs.
 """
 
@@ -51,7 +50,7 @@ def setup_logging(level: str = "INFO", cache_loggers: bool = True) -> None:
     numeric_level = getattr(logging, level.upper(), logging.INFO)
 
     # Configure the stdlib root logger so third-party libraries
-    # (SQLAlchemy, httpx, celery, etc.) also flow through structlog.
+    # (celery, etc.) also flow through structlog.
 
     shared_processors: list = [
         structlog.contextvars.merge_contextvars,

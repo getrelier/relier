@@ -25,8 +25,16 @@ def redis_url():
     from testcontainers.redis import RedisContainer  # type: ignore[import-untyped]
 
     if ci_url := os.environ.get("RELIER_REDIS_URL"):
-        print(f"Using CI-provided Redis URL: {ci_url}")
-        yield ci_url
+        # Use database 15 so tests are isolated from any other Celery workers
+        # that may be running on the same Redis instance (e.g. local dev
+        # Docker workers on db 0). CI's dedicated Redis is otherwise empty,
+        # so this is safe there too.
+        from urllib.parse import urlparse, urlunparse
+
+        parsed = urlparse(ci_url)
+        test_url = urlunparse(parsed._replace(path="/15"))
+        print(f"Using CI-provided Redis URL (isolated to db=15): {test_url}")
+        yield test_url
         return
 
     print("Starting Redis container...")

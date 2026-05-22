@@ -36,7 +36,7 @@ class TestSentinelNodeList:
 
     async def test_empty_when_enabled_raises(self) -> None:
         settings = Settings(redis_use_sentinel=True, redis_sentinel_nodes="")
-        with pytest.raises(ValueError, match="redis_sentinel_nodes is empty"):
+        with pytest.raises(ValueError, match="REDIS_SENTINEL_NODES is empty"):
             _ = settings.sentinel_node_list
 
     async def test_malformed_node_raises(self) -> None:
@@ -217,3 +217,59 @@ class TestRedisReachable:
         with pytest.raises(RuntimeError, match="Sentinel") as excinfo:
             await validate_redis_reachable(redis, settings)
         assert "s1:26379" in str(excinfo.value)
+
+
+# =============================================================================
+# RedisManager lifecycle — get_client, close, ping
+# =============================================================================
+class TestRedisManagerLifecycle:
+    async def test_safe_log_url_direct(self) -> None:
+        settings = Settings(
+            redis_use_sentinel=False, redis_url="redis://localhost:6379/0"
+        )
+        manager = RedisManager()
+        with patch("relier.storage.redis.get_settings", return_value=settings):
+            url = manager._get_safe_log_url()
+        assert url.startswith("redis://***@")
+        assert "localhost:6379" in url
+
+    async def test_get_client_initializes_and_caches(self) -> None:
+        manager = RedisManager()
+        settings = Settings(redis_use_sentinel=False)
+        with patch("relier.storage.redis.get_settings", return_value=settings):
+            client1 = await manager.get_client()
+            client2 = await manager.get_client()
+        assert client1 is client2
+        await manager._test_reset()
+
+    async def test_get_client_clears_foreign_loop_clients(self) -> None:
+        manager = RedisManager()
+        settings = Settings(redis_use_sentinel=False)
+        foreign_loop_id = 9999999
+        manager._clients[foreign_loop_id] = AsyncMock()
+        manager._locks[foreign_loop_id] = AsyncMock()
+        with patch("relier.storage.redis.get_settings", return_value=settings):
+            client = await manager.get_client()
+        assert client is not None
+        assert foreign_loop_id not in manager._clients
+        await manager._test_reset()
+
+    async def test_close_removes_client_and_lock(self) -> None:
+        import asyncio as _asyncio
+
+        manager = RedisManager()
+        settings = Settings(redis_use_sentinel=False)
+        with patch("relier.storage.redis.get_settings", return_value=settings):
+            await manager.get_client()
+        await manager.close()
+        loop_id = id(_asyncio.get_running_loop())
+        assert loop_id not in manager._clients
+        assert loop_id not in manager._locks
+
+    async def test_ping_success(self) -> None:
+        manager = RedisManager()
+        mock_client = AsyncMock()
+        mock_client.ping.return_value = True
+        with patch.object(manager, "get_client", AsyncMock(return_value=mock_client)):
+            result = await manager.ping()
+        assert result is True

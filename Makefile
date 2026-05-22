@@ -38,7 +38,7 @@ clean:
 # =============================================================================
 # Run bare-metal (no Docker)
 # =============================================================================
-# Relier is a plain Python library — these targets run the processes directly,
+# Relier is a plain Python library,  these targets run the processes directly,
 # the same way you would run Celery. They require a reachable Redis: set
 # RELIER_REDIS_URL if it is not redis://localhost:6379/0. Relier preflight-checks
 # Redis and refuses to start if it is unreachable.
@@ -54,7 +54,7 @@ resurrector:
 	uv run rl run-resurrector
 
 # =============================================================================
-# Run with Docker — dev
+# Run with Docker - dev
 # =============================================================================
 # Single-node Redis (AOF + RDB) + workers + resurrector. See docker-compose.yml.
 
@@ -69,7 +69,7 @@ dev-logs:
 	docker compose logs -f
 
 # =============================================================================
-# Run with Docker — prod
+# Run with Docker - prod
 # =============================================================================
 # HA topology: Redis master + replicas + Sentinel + backup sidecar.
 # Requires REDIS_PASSWORD and SENTINEL_PASSWORD (via the environment or a
