@@ -70,3 +70,12 @@ jobs:
             --cov-report=term-missing \
             --cov-report=xml \
             --cov-fail-under=90
+
+  build-check:
+    name: Validate Build Artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Build Package Wheels
+        run: uv build
