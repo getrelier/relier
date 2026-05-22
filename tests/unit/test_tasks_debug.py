@@ -5,15 +5,15 @@ import pytest
 
 
 @pytest.mark.asyncio
-async def test_debug_tasks() -> None:
-    """Exercise debug tasks for coverage without nested loop errors."""
+async def test_chaos_tasks() -> None:
+    """Exercise chaos tasks for coverage without nested loop errors."""
     import concurrent.futures
 
-    from relier.tasks.debug import (
-        failing_task,
-        increment_task,
-        resurrection_task,
-        slow_task,
+    from relier.chaos.tasks import (
+        chaos_counter,
+        chaos_fail,
+        chaos_long_running,
+        chaos_slow,
     )
 
     def mock_run_coroutine(coro, loop=None):
@@ -31,7 +31,6 @@ async def test_debug_tasks() -> None:
                     f.set_exception(e)
                     return f
         else:
-            # Fallback for mock objects or non-coroutines
             f = concurrent.futures.Future()
             f.set_result(None)
             return f
@@ -44,40 +43,37 @@ async def test_debug_tasks() -> None:
         ),
         patch("asyncio.run_coroutine_threadsafe", side_effect=mock_run_coroutine),
         patch(
-            "relier.tasks.debug.get_relier_redis", new_callable=AsyncMock
+            "relier.chaos.tasks.get_relier_redis", new_callable=AsyncMock
         ) as mock_get_redis,
     ):
-        # mock_get_redis is the mocked async function; its return_value is the Redis client
         mock_get_redis.return_value.incr.return_value = 1
 
-        # Double-unwrap to bypass both Celery's and Relier's decorators
-        res = await increment_task.__wrapped__.__wrapped__("key")
+        res = await chaos_counter.__wrapped__.__wrapped__("key")
         assert res == 1
 
         with patch("asyncio.sleep", new_callable=AsyncMock):
-            res = await slow_task.__wrapped__.__wrapped__(1, "key")
+            res = await chaos_slow.__wrapped__.__wrapped__(1, "key")
             assert res == "done"
 
-            res = await resurrection_task.__wrapped__.__wrapped__(1, "key")
+            res = await chaos_long_running.__wrapped__.__wrapped__(1, "key")
             assert res == "done"
 
         with pytest.raises(ValueError, match="Intentional failure"):
-            await failing_task.__wrapped__.__wrapped__()
+            await chaos_fail.__wrapped__.__wrapped__()
 
-    # Allow background cleanup coroutines to finish
     await asyncio.sleep(0)
 
 
 @pytest.mark.asyncio
-async def test_checkpoint_task() -> None:
-    """Exercise checkpoint_task covering partial_result resume and set_partial paths."""
+async def test_chaos_checkpoint_task() -> None:
+    """Exercise chaos_checkpoint covering partial_result resume and set_partial paths."""
+    from relier.chaos.tasks import chaos_checkpoint
     from relier.core.phoenix import PhoenixRegistry
     from relier.tasks.context import TaskContext, _task_context_var
-    from relier.tasks.debug import checkpoint_task
 
     ctx = TaskContext(
         task_id="cp_test",
-        task_name="checkpoint_task",
+        task_name="chaos_checkpoint",
         args=(2, "marker"),
         kwargs={},
     )
@@ -89,12 +85,14 @@ async def test_checkpoint_task() -> None:
             patch.object(
                 PhoenixRegistry, "update_partial_state", new_callable=AsyncMock
             ),
-            patch("relier.tasks.debug.get_relier_redis") as mock_get_redis,
+            patch("relier.chaos.tasks.get_relier_redis") as mock_get_redis,
         ):
             mock_client = AsyncMock()
             mock_get_redis.return_value = mock_client
-            result = await checkpoint_task.__wrapped__.__wrapped__(2, "marker")
+            result = await chaos_checkpoint.__wrapped__.__wrapped__(2, "marker")
     finally:
         _task_context_var.reset(token)
     assert result == "done"
-    mock_client.set.assert_called_once_with("test_marker:marker:finished", "1")
+    mock_client.set.assert_called_once_with(
+        "rl:chaos:marker:checkpoint:marker:finished", "1", ex=300
+    )

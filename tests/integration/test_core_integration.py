@@ -194,7 +194,7 @@ class TestDLQIntegration:
 
         task_id = "integ-release-1"
         payload = {
-            "task_name": "relier.tasks.debug.increment_task",
+            "task_name": "tests.integration.tasks.counter_task",
             "args": [],
             "kwargs": {"key": "integ-release-key"},
             "queue": "default",

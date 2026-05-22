@@ -32,7 +32,7 @@ class CeleryWorkerManager:
         self.env = env
         self.processes = []
 
-    async def start_worker(self, redis_client, timeout=15):
+    async def start_worker(self, redis_client, timeout=45):
         """Start a Celery worker and wait for it to be ready."""
         cmd = [
             sys.executable,
@@ -47,7 +47,17 @@ class CeleryWorkerManager:
             "solo",
             "--without-mingle",
             "--without-gossip",
+            "--include",
+            "tests.integration.tasks",
         ]
+
+        # Wipe stale worker registrations before launching the new process.
+        # Killed workers leave their hostname entry in rl:workers with an
+        # outdated score; without this delete, the readiness loop below would
+        # see the stale entry and return immediately, before the new worker
+        # has actually started consuming tasks.
+        with contextlib.suppress(Exception):
+            await redis_client.delete(RedisKeys.workers())
 
         log_filename = f"worker_{uuid.uuid4().hex[:8]}.log"
         with open(log_filename, "w") as log_file:
@@ -123,11 +133,16 @@ async def celery_worker_manager(setup_env, redis_client):
     """
     env = os.environ.copy()
 
-    # Ensure the src directory is in the PYTHONPATH of the worker subprocess
+    # Ensure both src/ and the project root are in the worker subprocess PYTHONPATH.
+    # src/ makes relier.* importable; the project root makes tests.integration.tasks
+    # importable so the --include flag can load the test task definitions.
+    project_root = os.path.abspath(".")
+    src_path = os.path.abspath("src")
+    extra = src_path + os.pathsep + project_root
     if "PYTHONPATH" not in env:
-        env["PYTHONPATH"] = os.path.abspath("src")
+        env["PYTHONPATH"] = extra
     else:
-        env["PYTHONPATH"] = os.path.abspath("src") + os.pathsep + env["PYTHONPATH"]
+        env["PYTHONPATH"] = extra + os.pathsep + env["PYTHONPATH"]
 
     # Enable subprocess coverage so Celery worker processes report coverage
     # for tasks/decorator.py, tasks/app.py, and the full worker lifecycle.

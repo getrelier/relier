@@ -15,7 +15,7 @@ async def test_worker_kill_resurrects_task(celery_worker_manager, redis_client) 
     Kill a worker mid-task. Verify the task completes by simulating the resurrector loop.
     """
     from relier.core.dlq import DeadLetterQueue
-    from relier.tasks.debug import resurrection_task
+    from tests.integration.tasks import long_running_task
 
     dead_letter_queue = DeadLetterQueue()
 
@@ -24,12 +24,12 @@ async def test_worker_kill_resurrects_task(celery_worker_manager, redis_client) 
 
     # Submit the task
     marker_key = "resurrect_me_123"
-    task = resurrection_task.delay(duration=10, marker_key=marker_key)
+    task = long_running_task.delay(duration=10, marker_key=marker_key)
 
     # Wait for Worker A to start processing it
     started = False
     for _ in range(40):
-        if await redis_client.exists(f"test_marker:{marker_key}:started"):
+        if await redis_client.exists(f"test:longrun:{marker_key}:started"):
             started = True
             break
         await asyncio.sleep(0.5)
@@ -69,7 +69,7 @@ async def test_worker_kill_resurrects_task(celery_worker_manager, redis_client) 
     # Wait for task to finish on Worker B
     finished = False
     for _ in range(40):
-        if await redis_client.exists(f"test_marker:{marker_key}:finished"):
+        if await redis_client.exists(f"test:longrun:{marker_key}:finished"):
             finished = True
             break
         await asyncio.sleep(0.5)
@@ -82,21 +82,27 @@ async def test_worker_kill_resurrects_task(celery_worker_manager, redis_client) 
 
 
 async def test_checkpoint_resume_real_flow(celery_worker_manager, redis_client) -> None:
-    from relier.tasks.debug import checkpoint_task
+    from tests.integration.tasks import checkpoint_task
 
     worker_a = await celery_worker_manager.start_worker(redis_client)
 
     marker = "checkpoint_real"
-    task = checkpoint_task.delay(steps=5, marker=marker)
+    # 30 steps × 0.1 s = ~3 s total; gives a reliable window to kill mid-flight
+    task = checkpoint_task.delay(steps=30, marker=marker)
 
     # wait until checkpoint step 2 is reached
-    for _ in range(40):
+    checkpoint = {}
+    for _ in range(100):
         data = await redis_client.hgetall(RedisKeys.phoenix(task.id))
         if data and "partial_result" in data:
             checkpoint = json.loads(data["partial_result"])
-            if checkpoint.get("last_step") >= 2:
+            if checkpoint.get("last_step", 0) >= 2:
                 break
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.1)
+
+    assert checkpoint.get("last_step", 0) >= 2, (
+        "Timed out waiting for checkpoint step 2 — task may not have started"
+    )
 
     # kill worker mid-execution
     celery_worker_manager.kill_worker(worker_a)

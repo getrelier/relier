@@ -233,13 +233,7 @@ def create_celery_app() -> Celery:
     Construct and configure the Relier Celery runtime instance.
     """
 
-    # Always-loaded modules: chaos targets must exist in every environment
-    # because chaos commands are an operator tool, not a dev-only convenience.
-    includes = ["relier.chaos.tasks"]
-    # Development-only task modules excluded from production deployments.
-    if _get_settings().env != "production":
-        includes.append("relier.tasks.debug")
-    app = Celery("relier", include=includes)
+    app = Celery("relier")
 
     # Runtime reliability defaults optimized for task durability and
     # crash recovery semantics.

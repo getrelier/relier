@@ -12,20 +12,17 @@ async def test_idempotency_concurrent_executions(
     Test that an idempotent task executing concurrently only processes once
     but returns the cached result for all invocations.
     """
-    from relier.tasks.debug import increment_task
+    from tests.integration.tasks import counter_task
 
     # Start a worker
     await celery_worker_manager.start_worker(redis_client)
 
     key = "idempotency_test"
 
-    # Ensure starting from zero
-    await redis_client.set(f"test_counter:{key}", "0")
-
     # Dispatch two tasks concurrently with the SAME kwargs
     # The @rl_task decorator creates an idempotency key based on task name + kwargs
-    task1 = increment_task.delay(key=key)
-    task2 = increment_task.delay(key=key)
+    task1 = counter_task.delay(key=key)
+    task2 = counter_task.delay(key=key)
 
     # Wait for both to finish
     res1 = None
@@ -42,7 +39,7 @@ async def test_idempotency_concurrent_executions(
     assert res2 is not None, "Task 2 did not complete"
 
     # Verify the underlying counter only incremented ONCE
-    final_counter = await redis_client.get(f"test_counter:{key}")
+    final_counter = await redis_client.get(f"test:counter:{key}")
     assert int(final_counter) == 1, (
         f"Task executed more than once! Counter: {final_counter}"
     )

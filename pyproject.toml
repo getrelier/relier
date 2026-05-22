@@ -49,6 +49,7 @@ packages = ["src/relier"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "--cov=src/relier --cov-report=term-missing --cov-fail-under=95"
 filterwarnings = [
     "ignore::DeprecationWarning:testcontainers.*:"

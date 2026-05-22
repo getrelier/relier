@@ -29,45 +29,42 @@ pytestmark = pytest.mark.asyncio
 class TestDecoratorViaApply:
     async def test_increment_task_happy_path(self, redis_client) -> None:
         """Full rl_task orchestration path against real Redis (no envelope)."""
-        from relier.tasks.debug import increment_task
+        from tests.integration.tasks import counter_task
 
         key = f"integ-dec-{uuid.uuid4().hex[:8]}"
-        await redis_client.set(f"test_counter:{key}", "0")
 
         def call():
-            return increment_task.apply(kwargs={"key": key}).result
+            return counter_task.apply(kwargs={"key": key}).result
 
         result = await asyncio.to_thread(call)
         assert result == 1
 
-        val = await redis_client.get(f"test_counter:{key}")
+        val = await redis_client.get(f"test:counter:{key}")
         assert int(val) == 1
 
     async def test_increment_task_idempotency_hit(self, redis_client) -> None:
         """Second call with the same args returns cached result without re-executing."""
-        from relier.tasks.debug import increment_task
+        from tests.integration.tasks import counter_task
 
         key = f"integ-idem-{uuid.uuid4().hex[:8]}"
-        await redis_client.set(f"test_counter:{key}", "0")
 
         def call():
-            return increment_task.apply(kwargs={"key": key}).result
+            return counter_task.apply(kwargs={"key": key}).result
 
         r1 = await asyncio.to_thread(call)
         r2 = await asyncio.to_thread(call)
 
         assert r1 == 1
         assert r2 == 1  # idempotency: task didn't run again
-        val = await redis_client.get(f"test_counter:{key}")
+        val = await redis_client.get(f"test:counter:{key}")
         assert int(val) == 1  # counter was only incremented once
 
     async def test_task_apply_with_schema_envelope(self, redis_client) -> None:
         """Passing a schema envelope as args[0] exercises the unwrap_and_migrate path."""
         from relier.core.schema import SchemaRegistry
-        from relier.tasks.debug import increment_task
+        from tests.integration.tasks import counter_task
 
         key = f"integ-env-{uuid.uuid4().hex[:8]}"
-        await redis_client.set(f"test_counter:{key}", "0")
 
         task_id = str(uuid.uuid4()).replace("-", "")[:32]
         envelope = SchemaRegistry.wrap(task_id, (), {"key": key})
@@ -75,14 +72,14 @@ class TestDecoratorViaApply:
         def call():
             # Pass the envelope as the first positional arg, this is exactly
             # what push()/apush() sends to the Celery broker.
-            return increment_task.apply(args=(envelope,)).result
+            return counter_task.apply(args=(envelope,)).result
 
         result = await asyncio.to_thread(call)
         assert result == 1
 
     async def test_slow_task_with_timeout_config(self, redis_client) -> None:
         """Timeout watcher tasks are created/cancelled even when no timeout fires."""
-        from relier.tasks.debug import slow_task
+        from tests.integration.tasks import slow_task
 
         key = f"integ-slow-{uuid.uuid4().hex[:8]}"
 
@@ -96,7 +93,7 @@ class TestDecoratorViaApply:
 
     async def test_failing_task_routes_to_dlq(self, redis_client) -> None:
         """failing_task always raises; the decorator routes it to DLQ."""
-        from relier.tasks.debug import failing_task
+        from tests.integration.tasks import failing_task
 
         def call():
             return failing_task.apply().state
@@ -105,13 +102,13 @@ class TestDecoratorViaApply:
         assert state == "FAILURE"
 
     async def test_resurrection_task_via_apply(self, redis_client) -> None:
-        """resurrection_task completes normally when duration=0."""
-        from relier.tasks.debug import resurrection_task
+        """long_running_task completes normally when duration=0."""
+        from tests.integration.tasks import long_running_task
 
         key = f"integ-res-{uuid.uuid4().hex[:8]}"
 
         def call():
-            return resurrection_task.apply(
+            return long_running_task.apply(
                 kwargs={"duration": 0, "marker_key": key}
             ).result
 
@@ -120,7 +117,7 @@ class TestDecoratorViaApply:
 
     async def test_checkpoint_task_via_apply(self, redis_client) -> None:
         """checkpoint_task saves partial state and completes when steps=1."""
-        from relier.tasks.debug import checkpoint_task
+        from tests.integration.tasks import checkpoint_task
 
         key = f"integ-ckpt-task-{uuid.uuid4().hex[:8]}"
 
@@ -132,7 +129,7 @@ class TestDecoratorViaApply:
 
     async def test_slow_task_hard_timeout_triggers_failure(self, redis_client) -> None:
         """slow_task with duration > hard_timeout=2 hits the hard timeout path."""
-        from relier.tasks.debug import slow_task
+        from tests.integration.tasks import slow_task
 
         key = f"integ-tmo-{uuid.uuid4().hex[:8]}"
 
@@ -306,7 +303,7 @@ class TestPhoenixScanIntegration:
 
         task_id = f"integ-scan-{uuid.uuid4().hex[:8]}"
         payload = {
-            "task_name": "relier.tasks.debug.increment_task",
+            "task_name": "tests.integration.tasks.counter_task",
             "args": [],
             "kwargs": {"key": "scan-test"},
             "queue": "default",
@@ -415,14 +412,14 @@ class TestSignalHandlersIntegration:
         """on_task_postrun logs a warning when worker_loop is unavailable."""
         import relier.tasks.app as app_module
         import relier.tasks.signals as task_signals
-        from relier.tasks.debug import increment_task
+        from tests.integration.tasks import counter_task
 
         old_loop = app_module.worker_loop
         app_module.worker_loop = None
         try:
             task_signals.on_task_postrun(
                 task_id="integ-sig-1",
-                task=increment_task,
+                task=counter_task,
                 state="SUCCESS",
                 retval=1,
             )
@@ -433,7 +430,7 @@ class TestSignalHandlersIntegration:
         """on_task_postrun schedules SLO recording when worker_loop is active."""
         import relier.tasks.app as app_module
         import relier.tasks.signals as task_signals
-        from relier.tasks.debug import increment_task
+        from tests.integration.tasks import counter_task
 
         old_loop = app_module.worker_loop
         try:
@@ -443,7 +440,7 @@ class TestSignalHandlersIntegration:
 
             task_signals.on_task_postrun(
                 task_id="integ-sig-2",
-                task=increment_task,
+                task=counter_task,
                 state="SUCCESS",
                 retval=1,
             )
@@ -458,11 +455,11 @@ class TestSignalHandlersIntegration:
     async def test_on_task_failure_logs_error(self, redis_client) -> None:
         """on_task_failure runs without raising for any exception type."""
         import relier.tasks.signals as task_signals
-        from relier.tasks.debug import increment_task
+        from tests.integration.tasks import counter_task
 
         task_signals.on_task_failure(
             task_id="integ-fail-1",
-            task=increment_task,
+            task=counter_task,
             exception=RuntimeError("simulated failure"),
         )
 
