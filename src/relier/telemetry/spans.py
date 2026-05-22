@@ -100,7 +100,7 @@ def trace_sync(
 def record_exception(span: Span, exc: Exception) -> None:
     """Record an exception on a span and set error status.
 
-    Safe to call with a no-op span — checks ``is_recording()`` first.
+    Safe to call with a no-op span, checks ``is_recording()`` first.
     """
     if span and span.is_recording():
         span.record_exception(exc)

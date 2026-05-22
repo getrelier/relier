@@ -4,8 +4,8 @@ Relier Task Decorator — ``@rl_task``.
 The single user-facing primitive that wraps any Celery task with the full
 Relier reliability stack:
 
-* **Schema versioning** — payloads dispatched via ``push() or apush()`` are
-  wrapped in a signed, versioned envelope and migrated on the worker side.
+* **Schema versioning** — payloads dispatched via ``push()`` or ``apush()``
+  are wrapped in a signed, versioned envelope and migrated on the worker side.
 * **Idempotency** — optional duplicate-execution prevention backed by Redis.
 * **Phoenix heartbeat** — heartbeat emitted every N seconds so the resurrector
   can detect worker crashes in < 35 s.
@@ -14,22 +14,39 @@ Relier reliability stack:
 * **Graceful shutdown integration** — task is tracked so the drain loop knows
   when it is safe to exit.
 
-Usage::
+The decorator preserves your function's exact type signature so IDE tools
+(VS Code, PyCharm) provide full autocomplete, hover documentation, and type
+linting for all arguments — exactly as they would for the unwrapped function.
 
-    @rl_task(
-        queue="high_priority",
-        max_resurrections=5,
-        idempotent=True,
-        idempotency_ttl=3600,
-        soft_timeout=25,
-        hard_timeout=30,
-    )
-    async def process_document(doc_id: str) -> dict:
-        result = await embed_and_store(doc_id)
-        return result
+Example:
+    >>> from relier.tasks.decorator import rl_task
+    >>> from relier.tasks.context import TaskContext
+    >>>
+    >>> @rl_task(
+    ...     queue="high_priority",
+    ...     idempotent=True,
+    ...     idempotency_ttl=3600,
+    ...     soft_timeout=25,
+    ...     hard_timeout=30,
+    ... )
+    ... async def process_document(doc_id: str, ctx: TaskContext) -> dict:
+    ...     if ctx.partial_result:
+    ...         resume_from = ctx.partial_result["step"]
+    ...     result = await embed_and_store(doc_id)
+    ...     return result
+    >>>
+    >>> # Async dispatch (FastAPI / async Django):
+    >>> async def api_handler(doc_id: str):
+    ...     receipt = await process_document.apush(doc_id=doc_id)
+    ...     return {"task_id": receipt.id}
+    >>>
+    >>> # Sync dispatch (Django views, Flask routes, scripts):
+    >>> def sync_handler(doc_id: str):
+    ...     receipt = process_document.push(doc_id=doc_id)
+    ...     return receipt.id
 
-    Timeout features are only supported for async functions.
-    Sync tasks will raise an error if timeout parameters are passed.
+Timeout features are only supported for ``async def`` functions.  Sync tasks
+will raise a ``ValueError`` at decoration time if timeout parameters are given.
 """
 
 import asyncio
@@ -41,9 +58,7 @@ import logging
 import time
 import uuid
 from collections.abc import Awaitable, Callable
-
-# Module-level imports are intentionally eager to fail fast at worker startup.
-from typing import Any, cast
+from typing import Any, Generic, ParamSpec, TypeVar, cast
 
 from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
@@ -93,18 +108,165 @@ tracer = get_tracer("relier.tasks")
 logger = logging.getLogger(__name__)
 
 # =============================================================================
-# Queue Topology
+# Queue topology
 # =============================================================================
 
 INTERNAL_QUEUES = {"re-queue"}
+"""Queues reserved exclusively for Relier's internal recovery machinery."""
 
 PUBLIC_QUEUES = {
     "high_priority",
     "default",
     "low_priority",
 }
+"""Queues available for user task routing via ``@rl_task(queue=...)``.
+
+Allowed values:
+
+- ``"high_priority"`` — for latency-sensitive, user-facing work.
+- ``"default"`` — for standard background processing.
+- ``"low_priority"`` — for bulk or best-effort jobs.
+"""
 
 ALL_QUEUES = PUBLIC_QUEUES | INTERNAL_QUEUES
+
+# =============================================================================
+# Type parameters for the typed decorator return value
+# =============================================================================
+
+P = ParamSpec("P")
+"""Captures the parameter specification of the decorated task function."""
+
+R = TypeVar("R")
+"""Captures the return type of the decorated task function."""
+
+
+# =============================================================================
+# RelierTask — typed task handle returned by @rl_task()
+# =============================================================================
+
+
+class RelierTask(Generic[P, R]):
+    """A Relier-managed Celery task with type-safe dispatch helpers.
+
+    You never instantiate this class directly.  It is the return type of
+    :func:`rl_task` and exists so that IDE tools see the exact parameter
+    signature of your underlying function on every dispatch call.
+
+    Attributes:
+        __name__:  The unqualified function name (e.g. ``"process_document"``).
+        __doc__:   The docstring from the original decorated function.
+
+    Example:
+        >>> @rl_task(queue="default")
+        ... async def send_invoice(invoice_id: str, retry: bool = False) -> dict:
+        ...     ...
+        >>>
+        >>> # IDE shows:  send_invoice.push(invoice_id: str, retry: bool = False)
+        >>> receipt = send_invoice.push(invoice_id="inv-001")
+        >>> # IDE shows:  await send_invoice.apush(invoice_id: str, retry: bool = False)
+        >>> receipt = await send_invoice.apush(invoice_id="inv-001", retry=True)
+    """
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
+        """Invoke the task synchronously via the Celery worker (internal path).
+
+        This path is used by Celery internally when a worker executes the
+        task body.  Application code should use :meth:`push` or
+        :meth:`apush` to dispatch work through the broker with full
+        Relier reliability guarantees.
+
+        Args:
+            *args:   Positional arguments forwarded to the task function.
+            **kwargs: Keyword arguments forwarded to the task function.
+
+        Returns:
+            The return value of the decorated task function.
+        """
+        raise NotImplementedError  # Replaced by Celery task machinery at runtime.
+
+    def push(self, *args: P.args, **kwargs: P.kwargs) -> Any:
+        """Dispatch the task synchronously from sync code.
+
+        Performs an admission check, wraps the payload in a versioned
+        envelope, and enqueues it via the Celery broker.  Returns
+        immediately, does **not** block on task completion.
+
+        Use this in Django views, Flask routes, CLI scripts, or anywhere
+        an ``async`` call would be inconvenient.  Internally bridges to
+        :meth:`apush` via the worker's persistent asyncio event loop.
+
+        Args:
+            *args:   Positional arguments forwarded to the task function.
+            **kwargs: Keyword arguments forwarded to the task function.
+
+        Returns:
+            A Celery ``AsyncResult`` representing the enqueued task.  Call
+            ``result.id`` for the task ID or ``result.get()`` to block on
+            the outcome.
+
+        Raises:
+            AdmissionRejectedError: If the cluster is at capacity.
+
+        Example:
+            >>> receipt = process_document.push(doc_id="doc-123")
+            >>> print(receipt.id)  # Celery task ID
+        """
+        raise NotImplementedError  # Replaced by the dynamic _RelierTaskBase at runtime.
+
+    async def apush(self, *args: P.args, **kwargs: P.kwargs) -> Any:
+        """Dispatch the task asynchronously from async code.
+
+        Performs an admission check, wraps the payload in a versioned
+        envelope, and enqueues it via the Celery broker.  Returns
+        immediately, does **not** block on task completion.
+
+        Use this in FastAPI endpoints, async Django views, or anywhere
+        you already have an ``async`` context.
+
+        Args:
+            *args:   Positional arguments forwarded to the task function.
+            **kwargs: Keyword arguments forwarded to the task function.
+
+        Returns:
+            A Celery ``AsyncResult`` representing the enqueued task.
+
+        Raises:
+            AdmissionRejectedError: If the cluster is at capacity.  The
+                exception carries a ``retry_after`` attribute with the
+                suggested back-off duration in seconds.
+
+        Example:
+            >>> receipt = await process_document.apush(doc_id="doc-123")
+            >>> return {"task_id": receipt.id}
+        """
+        raise NotImplementedError  # Replaced by the dynamic _RelierTaskBase at runtime.
+
+    def delay(self, *args: P.args, **kwargs: P.kwargs) -> Any:
+        """Celery-native dispatch, bypasses Relier's reliability envelope.
+
+        Equivalent to Celery's built-in ``task.delay()``.  Routes directly
+        through the broker **without** admission control, schema wrapping,
+        idempotency, or OpenTelemetry injection.
+
+        .. warning::
+            Tasks dispatched via ``delay()`` will **not** be tracked by the
+            Phoenix resurrector and will be lost if the worker crashes
+            mid-execution.  Use :meth:`push` or :meth:`apush` for all
+            production dispatches.
+
+        This method is exposed for benchmarking and migration convenience
+        only.
+
+        Args:
+            *args:   Positional arguments forwarded to the task function.
+            **kwargs: Keyword arguments forwarded to the task function.
+
+        Returns:
+            A Celery ``AsyncResult``.
+        """
+        raise NotImplementedError  # Delegated to the Celery task object at runtime.
+
 
 # =============================================================================
 # Decorator
@@ -118,22 +280,62 @@ def rl_task(
     soft_timeout: int | None = None,
     hard_timeout: int | None = None,
     on_soft_timeout: Callable[[TaskContext], Awaitable[None]] | None = None,
-) -> Callable:
-    """Decorate a function with the full Relier reliability stack.
+) -> Callable[[Callable[P, R]], RelierTask[P, R]]:
+    """Wrap a function with the full Relier reliability stack.
+
+    Returns a :class:`RelierTask` that preserves your function's exact type
+    signature so IDE tools provide full autocomplete and type-checking on
+    every ``push()`` and ``apush()`` call.
 
     Args:
-        queue:            Celery queue name for routing.
-        idempotent:       Enable automatic deduplication via Redis.
-        idempotency_ttl:  TTL in seconds for the cached result.
-        soft_timeout:     Seconds before the cleanup hook fires.
+        queue:            Celery routing queue.  Must be one of
+                          ``"high_priority"``, ``"default"``, or
+                          ``"low_priority"``.
+        idempotent:       Enable automatic deduplication.  When ``True``,
+                          tasks with the same arguments will only execute
+                          once within ``idempotency_ttl`` seconds.
+        idempotency_ttl:  Seconds to cache idempotency results.  Calls with
+                          the same arguments within this window return the
+                          cached result without re-executing.  Default: 3600.
+        soft_timeout:     Seconds before ``on_soft_timeout`` fires.  The task
+                          continues running; use the hook to flush partial
+                          state.  Async tasks only.
         hard_timeout:     Seconds before the task is unconditionally cancelled.
-        on_soft_timeout:  Async callable receiving a ``TaskContext`` at soft timeout.
-    Raises:
-        ValueError:
-            If timeout parameters are used on a synchronous function.
+                          Must be strictly greater than ``soft_timeout``.
+                          Async tasks only.
+        on_soft_timeout:  Async callable invoked at the soft-timeout boundary.
+                          Receives the current :class:`~relier.tasks.context.TaskContext`
+                          as its only argument.  Use it to call
+                          ``ctx.set_partial(...)`` before the hard deadline.
 
-        AdmissionRejectedError:
-            If cluster admission control rejects task dispatch.
+    Returns:
+        A decorator that transforms your function into a
+        :class:`RelierTask` with type-safe ``push`` and ``apush`` methods.
+
+    Raises:
+        ValueError: If ``queue`` is not in :data:`PUBLIC_QUEUES`.
+        ValueError: If timeout parameters are passed to a sync function.
+        ValueError: If ``soft_timeout >= hard_timeout``.
+        ValueError: If ``hard_timeout >= RELIER_IDEMPOTENCY_INFLIGHT_TTL``
+                    when ``idempotent=True`` (double-execution risk).
+
+    Example:
+        >>> @rl_task(
+        ...     queue="high_priority",
+        ...     idempotent=True,
+        ...     idempotency_ttl=3600,
+        ...     soft_timeout=25,
+        ...     hard_timeout=30,
+        ... )
+        ... async def process_document(doc_id: str) -> dict:
+        ...     result = await embed_and_store(doc_id)
+        ...     return result
+        >>>
+        >>> # Async dispatch (FastAPI):
+        >>> receipt = await process_document.apush(doc_id="abc-123")
+        >>>
+        >>> # Sync dispatch (Django view):
+        >>> receipt = process_document.push(doc_id="abc-123")
     """
     from relier.config import get_settings
 
@@ -141,7 +343,9 @@ def rl_task(
 
     if queue not in PUBLIC_QUEUES:
         raise ValueError(
-            f"Unknown public queue '{queue}'. Allowed queues: {sorted(PUBLIC_QUEUES)}"
+            f"Unknown queue '{queue}'.  Allowed public queues: "
+            f"{sorted(PUBLIC_QUEUES)}.  "
+            f"Fix: change @rl_task(queue=...) to one of the allowed values."
         )
 
     if (
@@ -151,14 +355,15 @@ def rl_task(
     ):
         raise ValueError(
             f"CONFIGURATION ERROR: hard_timeout ({hard_timeout}s) must be "
-            f"< IDEMPOTENCY_INFLIGHT_TTL ({settings.idempotency_inflight_ttl}s).\n"
-            f"\n"
-            f"Why: If a task runs longer than IN_FLIGHT_TTL, the idempotency key "
-            f"expires while the task is still executing, allowing a duplicate "
-            f"worker to start the same task (double execution).\n"
-            f"\n"
-            f"Fix: Either increase RELIER_IDEMPOTENCY_INFLIGHT_TTL or reduce hard_timeout.\n"
-            f"Safe formula: hard_timeout < IN_FLIGHT_TTL - 10s (safety buffer)"
+            f"< RELIER_IDEMPOTENCY_INFLIGHT_TTL "
+            f"({settings.idempotency_inflight_ttl}s).\n"
+            "\n"
+            "Why: If a task runs longer than INFLIGHT_TTL the idempotency key "
+            "expires while the task is still executing, allowing a duplicate "
+            "worker to start the same task (double execution).\n"
+            "\n"
+            "Fix: either increase RELIER_IDEMPOTENCY_INFLIGHT_TTL or reduce "
+            "hard_timeout.  Safe formula: hard_timeout < INFLIGHT_TTL - 10s."
         )
 
     if (
@@ -167,20 +372,21 @@ def rl_task(
         and soft_timeout >= hard_timeout
     ):
         raise ValueError(
-            f"soft_timeout ({soft_timeout}s) must be < hard_timeout ({hard_timeout}s)"
+            f"soft_timeout ({soft_timeout}s) must be strictly less than "
+            f"hard_timeout ({hard_timeout}s).  "
+            "Fix: lower soft_timeout or raise hard_timeout."
         )
 
-    def decorator(func: Callable) -> Callable:
-        """The actual decorator applied to the user function."""
+    def decorator(func: Callable[P, R]) -> RelierTask[P, R]:
+        """Apply Relier's reliability stack to a single task function."""
         is_async = inspect.iscoroutinefunction(func)
 
         if not is_async and (soft_timeout or hard_timeout or on_soft_timeout):
-            logger.warning(
-                "Sync function decorated with timeout params; timeouts will be ignored.",
-                extra={"task_name": func.__name__},
-            )
             raise ValueError(
-                "Timeout parameters are only supported for async functions."
+                f"@rl_task on '{func.__name__}': timeout parameters "
+                "(soft_timeout, hard_timeout, on_soft_timeout) are only "
+                "supported for async functions.  Either convert the function "
+                "to 'async def' or remove the timeout arguments."
             )
 
         task_name = f"{func.__module__}.{func.__name__}"
@@ -193,7 +399,7 @@ def rl_task(
             loop = _get_worker_loop()
 
             # ------------------------------------------------------------------
-            # Phoenix payload — stored in Redis for resurrection.
+            # Phoenix payload stored in Redis for resurrection.
             # The envelope (args[0]) is kept intact so resurrection re-dispatches
             # the original wrapped payload, which goes through schema migration
             # again on the next worker pickup.
@@ -220,7 +426,7 @@ def rl_task(
                 # distributed trace from the producer into the worker.
                 #
                 # If args[0] looks like an envelope (has schema_version), treat it
-                # as one. Otherwise fall back to using args/kwargs directly — this
+                # as one. Otherwise fall back to using args/kwargs directly, this
                 # path is used for tests that call .run() without envelope wrapping.
                 # ------------------------------------------------------------------
                 envelope: dict = (
@@ -256,7 +462,7 @@ def rl_task(
                     )
 
                     # ----------------------------------------------------------
-                    # rl.schema.migrate — unwrap and migrate the task envelope.
+                    # rl.schema.migrate unwrap and migrate the task envelope.
                     # Skipped when called without an envelope (e.g., direct .run()
                     # in tests); in that case use args/kwargs as-is.
                     # ----------------------------------------------------------
@@ -413,7 +619,7 @@ def rl_task(
                             actual_kwargs["ctx"] = ctx
 
                         # --------------------------------------------------
-                        # rl.task.execute — the user function runs here.
+                        # rl.task.execute, the user function runs here.
                         # --------------------------------------------------
                         with tracer.start_as_current_span(
                             "rl.task.execute",
@@ -445,7 +651,7 @@ def rl_task(
                                             task_id=task_id,
                                         )
                                     else:
-                                        result = await func(
+                                        result = await func(  # type: ignore[misc]
                                             *actual_args, **actual_kwargs
                                         )
                                 else:
@@ -453,7 +659,7 @@ def rl_task(
                                         func, *actual_args, **actual_kwargs
                                     )
 
-                                # FENCING CHECK (END) — before committing results.
+                                # FENCING CHECK (END), before committing results.
                                 can_commit = await PhoenixRegistry.validate_commit(
                                     task_id, redis, fence_token, lease_key, fence_key
                                 )
@@ -636,19 +842,28 @@ def rl_task(
                 )
                 raise
 
-        # Create the Celery task explicitly so we can attach our helper.
-        task = shared_task(
-            name=task_name,
-            queue=queue,
-            bind=True,
-            acks_late=True,
-            max_retries=15,
-            reject_on_worker_lost=True,
-        )(wrapper)
+        # Per-task Celery base class. Holding apush/push as METHODS on the
+        # class (rather than as monkey-patched instance attributes) survives
+        # Celery re-resolving the underlying Task instance from the app
+        # registry which `shared_task`'s PromiseProxy does on the first
+        # touch of `celery_app`, silently swapping the underlying object.
+        # A class-bound method is part of the type lookup, so the helpers
+        # stay attached no matter how many times Celery re-registers.
+        from celery import Task
 
-        async def apush(*d_args: Any, **d_kwargs: Any) -> Any:
-            """Async dispatch — use in FastAPI or async Django."""
+        async def _apush(self: Any, *d_args: Any, **d_kwargs: Any) -> Any:
+            """Async dispatch, use in FastAPI or async Django.
 
+            Args:
+                *d_args:   Positional arguments forwarded to the task function.
+                **d_kwargs: Keyword arguments forwarded to the task function.
+
+            Returns:
+                A Celery ``AsyncResult`` for the enqueued task.
+
+            Raises:
+                AdmissionRejectedError: If the cluster is at capacity.
+            """
             _validate_public_dispatch(queue)
 
             with tracer.start_as_current_span(
@@ -670,7 +885,10 @@ def rl_task(
                         trace.Status(trace.StatusCode.ERROR, "Admission rejected")
                     )
                     raise AdmissionRejectedError(
-                        f"Relier cluster at capacity. Retry after {retry_after}s",
+                        f"Relier cluster at capacity.  Retry after {retry_after}s.  "
+                        "Consider increasing RELIER_ADMISSION_LIMIT or "
+                        "RELIER_ADMISSION_WINDOW, or add back-pressure handling "
+                        "in your caller.",
                         retry_after,
                     )
 
@@ -691,58 +909,90 @@ def rl_task(
                 envelope["_otel_context"] = otel_carrier
 
                 return await _dispatch_internal(
-                    task=task,
+                    task=self,
                     queue=queue,
                     envelope=envelope,
                     task_id=task_id,
                 )
 
-        def push(*d_args: Any, **d_kwargs: Any) -> Any:
-            """Sync dispatch — use in Django views, Flask routes, or sync scripts.
+        def _push(self: Any, *d_args: Any, **d_kwargs: Any) -> Any:
+            """Sync dispatch, use in Django views, Flask routes, or scripts.
 
-            Blocks the calling thread for ~1ms (admission check) then dispatches.
-            Does NOT block on task completion — fire-and-forget like .delay().
+            Blocks the calling thread for ~1 ms (admission check) then
+            dispatches.  Does **not** block on task completion, fire-and-forget.
+
+            Args:
+                *d_args:   Positional arguments forwarded to the task function.
+                **d_kwargs: Keyword arguments forwarded to the task function.
+
+            Returns:
+                A Celery ``AsyncResult`` for the enqueued task.
+
+            Raises:
+                AdmissionRejectedError: If the cluster is at capacity.
             """
             try:
-                # Inside a Celery worker — reuse the persistent loop
+                # Inside a Celery worker, reuse the persistent loop.
                 import relier.tasks.app
 
                 loop = relier.tasks.app.worker_loop
                 if loop and loop.is_running():
                     future = asyncio.run_coroutine_threadsafe(
-                        apush(*d_args, **d_kwargs), loop
+                        self.apush(*d_args, **d_kwargs), loop
                     )
                     return future.result(timeout=5.0)
             except (ImportError, AttributeError):
                 pass
 
-            # Outside Celery (Django view, Flask route, script)
-            return asyncio.run(apush(*d_args, **d_kwargs))
+            # Outside Celery (Django view, Flask route, script).
+            return asyncio.run(self.apush(*d_args, **d_kwargs))
 
-        task.apush = apush
-        task.push = push
-        return cast(Callable[..., Any], task)
+        _RelierTaskBase = type(
+            f"RelierTask_{task_name.replace('.', '_')}",
+            (Task,),
+            {"apush": _apush, "push": _push},
+        )
 
-    return decorator
+        task = shared_task(
+            name=task_name,
+            queue=queue,
+            bind=True,
+            base=_RelierTaskBase,
+            acks_late=True,
+            max_retries=15,
+            reject_on_worker_lost=True,
+        )(wrapper)
+
+        return cast(RelierTask[P, R], task)
+
+    return cast(Callable[[Callable[P, R]], RelierTask[P, R]], decorator)
 
 
-# ======================================================================================
+# =============================================================================
 # Helpers
-# ======================================================================================
+# =============================================================================
+
+
 def _validate_public_dispatch(queue: str) -> None:
-    """
-    Prevent user-facing APIs from publishing into internal queues.
+    """Prevent user-facing APIs from publishing into internal queues.
+
+    Args:
+        queue: The queue name to validate.
+
+    Raises:
+        ValueError: If ``queue`` is in :data:`INTERNAL_QUEUES`.
+        RuntimeError: If ``queue`` is not in :data:`ALL_QUEUES`.
     """
     if queue in INTERNAL_QUEUES:
         raise ValueError(
-            f"Queue '{queue}' is reserved for Relier internal recovery and "
-            "cannot be used for task routing. "
-            f"Allowed queues: {sorted(PUBLIC_QUEUES)}"
+            f"Queue '{queue}' is reserved for Relier's internal recovery "
+            "machinery and cannot be used for task routing.  "
+            f"Fix: use one of {sorted(PUBLIC_QUEUES)} in @rl_task(queue=...)."
         )
 
     if queue not in PUBLIC_QUEUES:
         raise RuntimeError(
-            f"Unknown queue '{queue}'. Allowed queues: {sorted(PUBLIC_QUEUES)}"
+            f"Unknown queue '{queue}'.  Allowed queues: {sorted(PUBLIC_QUEUES)}."
         )
 
 
@@ -753,17 +1003,28 @@ async def _dispatch_internal(
     envelope: dict[str, Any],
     task_id: str,
 ) -> Any:
-    """
-    Internal privileged dispatch path.
+    """Internal privileged dispatch path for Relier recovery subsystems.
 
-    Used exclusively by Relier recovery/runtime subsystems.
-    Uses celery_app.send_task() rather than task.apply_async() so the
-    broker connection is drawn from the app-level pool, which is thread-safe
-    and works correctly when called via run_in_executor.
-    """
+    Routes via ``celery_app.send_task()`` rather than ``task.apply_async()``
+    so the broker connection is drawn from the app-level pool, thread-safe
+    and correct when called via ``run_in_executor``.
 
+    Args:
+        task:     The Celery task object whose ``name`` identifies the target.
+        queue:    Target queue (must be in :data:`ALL_QUEUES`).
+        envelope: Versioned Relier payload envelope.
+        task_id:  Pre-generated UUID string for the task.
+
+    Returns:
+        The Celery ``AsyncResult`` from ``send_task``.
+
+    Raises:
+        RuntimeError: If ``queue`` is not in :data:`ALL_QUEUES`.
+    """
     if queue not in ALL_QUEUES:
-        raise RuntimeError(f"Unknown queue '{queue}'.")
+        raise RuntimeError(
+            f"Unknown queue '{queue}'.  Allowed queues: {sorted(ALL_QUEUES)}."
+        )
 
     from relier.tasks.app import celery_app
 
@@ -781,11 +1042,17 @@ async def _dispatch_internal(
 
 
 def _get_worker_loop() -> asyncio.AbstractEventLoop:
-    """
-    Return the worker-scoped asyncio event loop.
+    """Return the worker-scoped asyncio event loop.
 
-    Falls back to lazy initialization inside Celery workers and creates
-    a standalone loop when running outside worker execution contexts.
+    Resolution order:
+    1. The persistent ``relier.tasks.app.worker_loop`` set by the Celery
+       worker-process-init hook.
+    2. Lazy initialisation inside Celery workers (if the signal fired late).
+    3. The running loop in the current thread (for test contexts).
+    4. A freshly created loop as a last resort (CLI / script usage).
+
+    Returns:
+        An active :class:`asyncio.AbstractEventLoop`.
     """
     try:
         import relier.tasks.app
@@ -798,7 +1065,7 @@ def _get_worker_loop() -> asyncio.AbstractEventLoop:
         if "CELERY_LOADER" in os.environ:
             from relier.tasks.app import init_worker_process
 
-            logger.warning("init_worker didn't fire; performing lazy initialization.")
+            logger.warning("init_worker didn't fire; performing lazy initialisation.")
             init_worker_process()
             if relier.tasks.app.worker_loop is not None:
                 return relier.tasks.app.worker_loop

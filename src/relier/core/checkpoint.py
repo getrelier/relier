@@ -7,12 +7,12 @@ resume from its last safe state instead of restarting from scratch.
 Storing those checkpoints naively is dangerous. Redis is Relier's coordination
 backbone and runs with ``maxmemory-policy noeviction``; every write also
 replicates to all replicas and lands in the AOF. A task that checkpoints a
-large object — embeddings, an image, a document, a model checkpoint — would
+large object e.g. embeddings, an image, a document, a model checkpoint would
 bloat Redis memory, flood replication, and can take the whole cluster down.
 
 This module routes every checkpoint through a size-aware store:
 
-* **Small checkpoints** stay inline in the Phoenix Redis hash — fast, no
+* **Small checkpoints** stay inline in the Phoenix Redis hash, fast, no
   external dependency. This is the default.
 * **Large checkpoints** spill to a pluggable blob backend; only a tiny
   reference envelope is kept in Redis.
@@ -54,7 +54,7 @@ from relier.storage.redis import get_relier_redis
 
 logger = logging.getLogger(__name__)
 
-# Marker key identifying a checkpoint *reference envelope* — i.e. a checkpoint
+# Marker key identifying a checkpoint *reference envelope* i.e. a checkpoint
 # whose real payload lives in a blob backend. Distinctive enough that it
 # cannot realistically collide with a user's own checkpoint dict keys.
 _REF_MARKER = "__relier_checkpoint_ref__"
@@ -92,7 +92,7 @@ class BlobBackend(ABC):
     """Storage for checkpoints too large to keep inline in Redis.
 
     Implementations MUST be backed by storage shared across every worker and
-    the resurrector process — a resurrected task is replayed on a different
+    the resurrector process, a resurrected task is replayed on a different
     process than the one that wrote the checkpoint.
     """
 
@@ -193,7 +193,7 @@ class CheckpointStore:
         if cls._backend is None or cls._backend_kind != kind:
             if kind == "filesystem":
                 cls._backend = FilesystemBackend(settings.checkpoint_dir)
-            else:  # defensive — the Literal type already constrains this
+            else:  # defensive the Literal type already constrains this
                 raise ValueError(f"Unknown checkpoint backend: {kind}")
             cls._backend_kind = kind
         return cls._backend
@@ -294,7 +294,7 @@ class CheckpointStore:
         """Return the actual checkpoint data for a stored value.
 
         A blob-reference envelope is dereferenced; an inline value (or legacy
-        raw state) is returned unchanged. Never raises — on a missing or
+        raw state) is returned unchanged. Never raises on a missing or
         corrupt blob it logs and returns ``None`` so task execution can still
         proceed (just without a checkpoint to resume from).
         """

@@ -1,10 +1,10 @@
 [project]
 name = "relier"
 version = "0.1.0"
-description = "Production reliability layer for FastAPI + Celery. Zero job loss."
+description = "Production reliability layer for Celery. Zero job loss."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Apache-2.0" }
+license = { text = "MIT" }
 authors = [{ name = "Kolade Faj", email = "your@email.com" }]
 keywords = ["celery", "fastapi", "reliability", "production", "resilience"]
 dependencies = [
@@ -22,6 +22,7 @@ dependencies = [
     "rich>=13.7.0",
     "pydantic-settings>=2.2.0",
     "prometheus-client>=0.20.0",
+    "watchdog>=6.0.0",
 ]
 
 [dependency-groups]
@@ -48,12 +49,14 @@ packages = ["src/relier"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-addopts = "--cov=src/relier --cov-report=term-missing --cov-fail-under=90"
+addopts = "--cov=src/relier --cov-report=term-missing --cov-fail-under=95"
 filterwarnings = [
     "ignore::DeprecationWarning:testcontainers.*:"
 ]
 
 [tool.coverage.run]
+parallel = true
+source_pkgs = ["relier"]
 concurrency = ["multiprocessing", "thread"]
 sigterm = true
 # Already measuring only src/relier because of --cov=src/relier
@@ -106,13 +109,6 @@ warn_redundant_casts = true
 strict_optional = true
 check_untyped_defs = true
 disallow_untyped_defs = true
-# Unfinished, intentionally untracked WIP directories (also omitted from
-# coverage). Excluded so the type checker does not gate commits on code that
-# is not part of the tracked codebase yet.
-exclude = [
-    "src/relier/cli/",
-    "src/relier/chaos/",
-]
 
 [[tool.mypy.overrides]]
 module = [

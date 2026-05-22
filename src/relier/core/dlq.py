@@ -61,8 +61,8 @@ class DeadLetterQueue:
         - operational debugging
 
         The task's checkpoint is carried over by reading whatever is stored on
-        the Phoenix hash. That value is always small — an inline checkpoint or
-        a blob-reference envelope — so the DLQ record never absorbs a large
+        the Phoenix hash. That value is always small, an inline checkpoint or
+        a blob-reference envelope so the DLQ record never absorbs a large
         payload itself.
         """
         redis = await get_relier_redis()
@@ -99,8 +99,8 @@ class DeadLetterQueue:
 
         # Recover the task's checkpoint so a released task can resume from the
         # last known safe state. The stored value is either a small inline
-        # checkpoint or a blob-reference envelope — never dereferenced blob
-        # data — so the DLQ record stays small regardless of checkpoint size.
+        # checkpoint or a blob-reference envelope, never dereferenced blob
+        # data so the DLQ record stays small regardless of checkpoint size.
         raw_partial = await cast(
             Awaitable[Any], redis.hget(RedisKeys.phoenix(task_id), "partial_result")
         )

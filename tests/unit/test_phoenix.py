@@ -179,7 +179,7 @@ class TestPhoenixRegistry:
             # Wait for the loop to start and perform its first sleep
             await asyncio.sleep(0.1)
 
-            # Delete the key — the NEXT loop iteration should see this and exit
+            # Delete the key, the NEXT loop iteration should see this and exit
             await mock_redis.delete(RedisKeys.heartbeat(task_id))
 
             # Wait long enough for the loop to wake up and check Redis
@@ -247,13 +247,41 @@ class TestPhoenixGaps:
             )
             assert mock_celery.send_task.called is False
 
+    async def test_monitor_lost_transition(self, mock_redis) -> None:
+        """state=0 + no heartbeat + payload exists re-adds task to expiry index."""
+        task_id = "lost_task"
+        # State 0: dispatched for resurrection, waiting for worker to claim
+        await mock_redis.hset(RedisKeys.monitor(), task_id, "0")
+        # Payload exists but NO heartbeat (worker crashed before registering)
+        await mock_redis.hset(RedisKeys.phoenix(task_id), "payload", "{}")
+
+        await PhoenixRegistry._monitor_resurrected_tasks(mock_redis)
+
+        # Monitor entry removed so the scanner can retry
+        assert await mock_redis.hexists(RedisKeys.monitor(), task_id) == 0
+        # Task re-added to expiry index
+        members = await mock_redis.zrange(RedisKeys.phoenix_expiry_index(), 0, -1)
+        assert task_id in members
+
 
 class TestPhoenixResurrectionEdgeCases:
     async def test_refresh_loop_handles_unexpected_error(self, mock_redis) -> None:
         """Test that the loop logs error but doesn't crash global registry."""
         task_id = "error_task"
+        # Use a very short heartbeat_ttl so asyncio.sleep(interval) is ~0.05s
+        # instead of the default 5-15s, keeping the test fast.
+        mock_pipe = AsyncMock()
+        mock_pipe.expire = MagicMock(return_value=mock_pipe)
+        mock_pipe.zadd = MagicMock(return_value=mock_pipe)
+        mock_pipe.execute = AsyncMock(side_effect=Exception("Redis Down"))
 
-        with patch.object(mock_redis, "expire", side_effect=Exception("Redis Down")):
+        with (
+            patch.object(PhoenixRegistry, "_get_settings") as mock_settings,
+            patch.object(mock_redis, "pipeline", return_value=mock_pipe),
+        ):
+            mock_settings.return_value = MagicMock(
+                heartbeat_ttl=0.1, resurrection_check_interval=1
+            )
             await PhoenixRegistry._refresh_loop(task_id, "worker-1")
 
     async def test_monitor_cleanup_on_task_completion(self, mock_redis) -> None:
@@ -281,6 +309,29 @@ class TestPhoenixResurrectionEdgeCases:
         # Monitor should DEL from monitoring so _scan_and_resurrect can find it again
         exists = await mock_redis.hexists(RedisKeys.monitor(), task_id)
         assert exists == 0
+
+    async def test_resurrection_loop_logs_pass_complete(self, mock_redis) -> None:
+        """Pass-complete log fires when monitored/resurrected counts are non-zero."""
+        import contextlib
+
+        async def one_shot_sleep(_delay: float) -> None:
+            raise asyncio.CancelledError()
+
+        with (
+            patch.object(
+                PhoenixRegistry,
+                "_monitor_resurrected_tasks",
+                new=AsyncMock(return_value=1),
+            ),
+            patch.object(
+                PhoenixRegistry,
+                "_scan_and_resurrect",
+                new=AsyncMock(return_value=1),
+            ),
+            patch("asyncio.sleep", side_effect=one_shot_sleep),
+            contextlib.suppress(asyncio.CancelledError),
+        ):
+            await PhoenixRegistry.resurrection_loop()
 
     async def test_resurrection_loop_handles_iteration_error(self, mock_redis) -> None:
         """Test that the main loop survives a single pass failure."""
@@ -429,3 +480,26 @@ class TestPhoenixValidation:
         # Only the batch-size's worth of tasks are replayed this pass.
         assert count == 2
         await asyncio.sleep(0.05)  # let fire-and-forget dispatch tasks settle
+
+    async def test_wait_for_resurrection_with_active_tasks(self, mock_redis) -> None:
+        """wait_for_resurrection drains pending dispatches before returning."""
+        completed = asyncio.Event()
+
+        async def _short() -> None:
+            completed.set()
+
+        bg = asyncio.create_task(_short())
+        PhoenixRegistry._active_resurrections["wait_test"] = bg
+        try:
+            await PhoenixRegistry.wait_for_resurrection(timeout=1.0)
+            assert completed.is_set()
+        finally:
+            PhoenixRegistry._active_resurrections.pop("wait_test", None)
+
+    async def test_validate_execution_all_none_returns_true(self, mock_redis) -> None:
+        """No fence/lease args → validate_execution returns True without Redis call."""
+        mock_redis.eval = AsyncMock(side_effect=AssertionError("should not be called"))
+        result = await PhoenixRegistry.validate_execution(
+            "t", mock_redis, None, None, None
+        )
+        assert result is True

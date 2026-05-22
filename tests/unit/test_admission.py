@@ -62,7 +62,7 @@ class TestCheckCapacity:
             caplog.at_level("ERROR"),
         ):
             admitted, retry_after = await controller.check_capacity()
-        # Fail open: admission is protective, not a hard dependency — a Redis
+        # Fail open: admission is protective, not a hard dependency, a Redis
         # outage must not block all traffic.
         assert admitted is True
         assert retry_after == 0

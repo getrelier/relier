@@ -5,7 +5,7 @@ All counters, histograms, and gauge callbacks defined here match the metric
 surface specified in the RELIER_MASTERPLAN.md §6.  Import individual
 instruments wherever they need to be incremented; the meter is shared.
 
-Instruments are initialized at module import time — safe because the
+Instruments are initialized at module import time, safe because the
 ``opentelemetry-api`` ships no-op implementations that are replaced by the
 real SDK providers after ``setup_telemetry()`` is called.
 """

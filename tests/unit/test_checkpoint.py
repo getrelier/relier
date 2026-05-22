@@ -40,7 +40,7 @@ def _settings(tmp_path, **overrides):
 
 @pytest.fixture(autouse=True)
 def _reset_backend_cache():
-    """CheckpointStore caches its backend at class level — reset around tests."""
+    """CheckpointStore caches its backend at class level, reset around tests."""
     CheckpointStore._backend = None
     CheckpointStore._backend_kind = None
     yield

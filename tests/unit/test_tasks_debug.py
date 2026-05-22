@@ -66,3 +66,35 @@ async def test_debug_tasks() -> None:
 
     # Allow background cleanup coroutines to finish
     await asyncio.sleep(0)
+
+
+@pytest.mark.asyncio
+async def test_checkpoint_task() -> None:
+    """Exercise checkpoint_task covering partial_result resume and set_partial paths."""
+    from relier.core.phoenix import PhoenixRegistry
+    from relier.tasks.context import TaskContext, _task_context_var
+    from relier.tasks.debug import checkpoint_task
+
+    ctx = TaskContext(
+        task_id="cp_test",
+        task_name="checkpoint_task",
+        args=(2, "marker"),
+        kwargs={},
+    )
+    ctx.partial_result = {"last_step": 1}  # Exercises the resume-from-checkpoint branch
+    token = _task_context_var.set(ctx)
+    try:
+        with (
+            patch("asyncio.sleep", new_callable=AsyncMock),
+            patch.object(
+                PhoenixRegistry, "update_partial_state", new_callable=AsyncMock
+            ),
+            patch("relier.tasks.debug.get_relier_redis") as mock_get_redis,
+        ):
+            mock_client = AsyncMock()
+            mock_get_redis.return_value = mock_client
+            result = await checkpoint_task.__wrapped__.__wrapped__(2, "marker")
+    finally:
+        _task_context_var.reset(token)
+    assert result == "done"
+    mock_client.set.assert_called_once_with("test_marker:marker:finished", "1")

@@ -30,7 +30,7 @@ class SLOMetrics:
 
     Outcomes are aggregated into fixed-size time buckets (plain Redis integer
     counters with a TTL). This keeps SLO storage and per-event cost O(1)
-    regardless of throughput — unlike a per-event sorted set, whose member
+    regardless of throughput, unlike a per-event sorted set, whose member
     count grows linearly with traffic and can reach hundreds of millions of
     entries over a multi-day window.
     """

@@ -1,4 +1,5 @@
 import asyncio
+import signal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -102,3 +103,43 @@ class TestShutdown:
             mock_celery.control.cancel_consumer.side_effect = Exception("Celery down")
             # Should not raise
             await handler.drain()
+
+    def test_install_not_implemented_error(self, handler) -> None:
+        """signal.signal raises NotImplementedError → warning logged, no crash."""
+        with patch("signal.signal", side_effect=NotImplementedError):
+            handler.install()  # Should not raise
+
+    def test_install_runtime_error(self, handler) -> None:
+        """signal.signal raises RuntimeError → error logged, no crash."""
+        with patch("signal.signal", side_effect=RuntimeError):
+            handler.install()  # Should not raise
+
+    def test_install_signal_handler_fires(self, handler) -> None:
+        """Inner handler body (lines 74-75) fires run_coroutine_threadsafe."""
+        captured_handlers: list = []
+
+        def capture_signal(sig, fn):
+            captured_handlers.append(fn)
+
+        mock_loop = MagicMock()
+        with patch("signal.signal", side_effect=capture_signal):
+            handler.install(loop=mock_loop)
+
+        assert captured_handlers, "signal.signal must have been called"
+
+        with (
+            patch.object(handler, "drain", return_value=object()),
+            patch("asyncio.run_coroutine_threadsafe") as mock_rcts,
+        ):
+            captured_handlers[0](signal.SIGTERM, None)
+            assert mock_rcts.called
+
+    @pytest.mark.asyncio
+    async def test_drain_cancel_consumer_error_with_queues(self, handler) -> None:
+        """Exception during cancel_consumer logs error but drain continues."""
+        with patch("relier.tasks.app.celery_app") as mock_celery:
+            mock_q = MagicMock()
+            mock_q.name = "default"
+            mock_celery.conf.task_queues = [mock_q]
+            mock_celery.control.cancel_consumer.side_effect = Exception("broker down")
+            await handler.drain()  # Should not raise
