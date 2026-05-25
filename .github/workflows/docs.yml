@@ -1,0 +1,42 @@
+name: Relier Docs CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+
+jobs:
+  validate-and-deploy:
+    name: Build and Verify Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Install MkDocs and Material Theme Dependencies
+        run: |
+          uv pip install \
+            mkdocs-material \
+            pymdown-extensions
+
+      - name: Strict Build Validation Test
+        run: uv run mkdocs build --strict
+
+      - name: Deploy to GitHub Pages (Main Branch Only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: uv run mkdocs gh-deploy --force
