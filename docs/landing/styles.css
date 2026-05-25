@@ -4,9 +4,7 @@
    Type: Geist (display/body) + JetBrains Mono (code/labels)
    Accent: indigo #6366f1, used sparingly
    ============================================================ */
-
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
 :root {
   /* —— Surfaces (dark) —— */
   --ink:         #08080b;
@@ -16,19 +14,16 @@
   --line:       rgba(255, 255, 255, 0.06);
   --line-2:     rgba(255, 255, 255, 0.10);
   --line-3:     rgba(255, 255, 255, 0.18);
-
   /* —— Text (dark) —— */
   --text:       #ededee;
   --text-dim:   #9a9aa3;
   --text-mute:  #5a5a64;
-
   /* —— Accent —— */
   --accent:     #6366f1;
   --accent-2:   #818cf8;
   --accent-dim: rgba(99, 102, 241, 0.50);
   --accent-bg:  rgba(99, 102, 241, 0.08);
   --accent-line:rgba(99, 102, 241, 0.22);
-
   /* —— Semantic —— */
   --ok:         #4ade80;
   --warn:       #fbbf24;
@@ -36,17 +31,14 @@
   --ok-bg:      rgba(74, 222, 128, 0.10);
   --bad-bg:     rgba(248, 113, 113, 0.10);
   --warn-bg:    rgba(251, 191, 36, 0.10);
-
   /* —— Paper (inverted section) —— */
   --paper:      #f1efe8;
   --paper-ink:  #14141a;
   --paper-dim:  #6f6e68;
   --paper-line: rgba(20, 20, 26, 0.10);
-
   /* —— Type —— */
   --sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-
   /* —— Layout —— */
   --gutter:     24px;
   --max:        1240px;
@@ -55,7 +47,6 @@
   --radius-sm:  8px;
   --radius-lg:  20px;
 }
-
 /* —— Light mode tweak —— */
 :root[data-theme="light"] {
   --ink:        #faf9f5;
@@ -73,19 +64,16 @@
   --paper-dim:  #8a8a92;
   --paper-line: rgba(255, 255, 255, 0.12);
 }
-
 /* ============================================================
    RESET
    ============================================================ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
 html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-size: 16px;
 }
-
 body {
   font-family: var(--sans);
   font-weight: 400;
@@ -96,20 +84,16 @@ body {
   font-feature-settings: "ss01", "cv11";
   transition: background 200ms ease, color 200ms ease;
 }
-
 img, svg { display: block; max-width: 100%; }
 a { color: inherit; text-decoration: none; }
 button { font: inherit; background: none; border: none; cursor: pointer; color: inherit; }
 code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss03"; }
-
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
   border-radius: 3px;
 }
-
 ::selection { background: var(--accent); color: #fff; }
-
 /* ============================================================
    LAYOUT PRIMITIVES
    ============================================================ */
@@ -118,13 +102,11 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   margin: 0 auto;
   padding: 0 var(--gutter);
 }
-
 .section {
   position: relative;
   padding: 120px 0;
   border-top: 1px solid var(--line);
 }
-
 .section.paper {
   background: var(--paper);
   color: var(--paper-ink);
@@ -134,11 +116,9 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
 .section.paper .eyebrow,
 .section.paper .section__lede { color: var(--paper-dim); }
 .section.paper .rule { background: var(--paper-line); }
-
 @media (max-width: 720px) {
   .section { padding: 80px 0; }
 }
-
 .eyebrow {
   font-family: var(--mono);
   font-size: 11px;
@@ -158,13 +138,11 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   display: inline-block;
 }
 .eyebrow.no-dot::before { display: none; }
-
 .rule {
   height: 1px;
   background: var(--line);
   width: 100%;
 }
-
 .section__head {
   display: grid;
   grid-template-columns: 220px 1fr;
@@ -175,7 +153,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
 @media (max-width: 880px) {
   .section__head { grid-template-columns: 1fr; gap: 24px; margin-bottom: 48px; }
 }
-
 .section__title {
   font-family: var(--sans);
   font-weight: 500;
@@ -185,7 +162,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   max-width: 16ch;
   text-wrap: balance;
 }
-
 .section__lede {
   margin-top: 20px;
   font-size: 17px;
@@ -194,7 +170,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   line-height: 1.55;
   text-wrap: pretty;
 }
-
 /* ============================================================
    NAV
    ============================================================ */
@@ -218,7 +193,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   -webkit-backdrop-filter: blur(12px) saturate(140%);
   border-bottom-color: var(--line);
 }
-
 .nav__brand {
   display: flex;
   align-items: center;
@@ -245,7 +219,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
 }
 .nav__brand .mark::before { transform: translateX(-4px); }
 .nav__brand .mark::after  { transform: translateX(4px); background: var(--accent); opacity: 0.18; }
-
 .nav__links {
   display: flex;
   gap: 28px;
@@ -256,7 +229,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   transition: color 150ms;
 }
 .nav__links a:hover { color: var(--text); }
-
 .nav__cta {
   font-family: var(--mono);
   font-size: 11px;
@@ -272,11 +244,9 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   border-color: var(--text);
   background: var(--surface-2);
 }
-
 @media (max-width: 720px) {
   .nav__links a:not(.nav__cta) { display: none; }
 }
-
 /* ============================================================
    HERO
    ============================================================ */
@@ -288,7 +258,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   align-items: center;
   overflow: hidden;
 }
-
 .hero__grid {
   position: absolute;
   inset: 0;
@@ -313,14 +282,12 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   filter: blur(40px);
   pointer-events: none;
 }
-
 .hero__inner {
   position: relative;
   max-width: var(--max);
   margin: 0 auto;
   width: 100%;
 }
-
 .hero__meta {
   display: flex;
   align-items: center;
@@ -344,7 +311,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   50% { box-shadow: 0 0 0 6px transparent; }
 }
 .hero__meta .sep { color: var(--text-mute); }
-
 .hero__headline {
   font-weight: 400;
   font-size: clamp(40px, 7vw, 88px);
@@ -363,7 +329,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   color: var(--accent);
   font-weight: 500;
 }
-
 .hero__sub {
   font-size: 18px;
   color: var(--text-dim);
@@ -371,7 +336,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   margin-bottom: 40px;
   line-height: 1.55;
 }
-
 .hero__ctas {
   display: flex;
   gap: 12px;
@@ -379,7 +343,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   flex-wrap: wrap;
   margin-bottom: 64px;
 }
-
 /* —— Buttons —— */
 .btn {
   display: inline-flex;
@@ -396,7 +359,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   white-space: nowrap;
 }
 .btn:active { transform: translateY(1px); }
-
 .btn--primary {
   background: var(--text);
   color: var(--ink);
@@ -407,7 +369,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   color: #fff;
   border-color: var(--accent);
 }
-
 .btn--ghost {
   border-color: var(--line-3);
   color: var(--text);
@@ -416,7 +377,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   border-color: var(--text);
   background: var(--surface-2);
 }
-
 .btn--mono {
   font-family: var(--mono);
   font-size: 13px;
@@ -442,7 +402,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
 .btn--mono:hover .icon { opacity: 1; }
 .btn--mono.copied { border-color: var(--ok); }
 .btn--mono.copied::before { content: '✓'; color: var(--ok); }
-
 /* —— Hero trust strip —— */
 .hero__strip {
   display: grid;
@@ -484,7 +443,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   .hero__strip .cell:nth-child(odd) { border-right: 1px solid var(--line); }
   .hero__strip .cell:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
 }
-
 /* ============================================================
    WORKER MONITOR (hero centerpiece)
    ============================================================ */
@@ -499,7 +457,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
     0 30px 60px -30px rgba(0,0,0,0.5),
     0 0 80px -20px var(--accent-bg);
 }
-
 .monitor__head {
   display: flex;
   align-items: center;
@@ -534,7 +491,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   color: var(--text);
   font-weight: 500;
 }
-
 .monitor__cols {
   display: grid;
   grid-template-columns: 1.4fr 1.2fr 80px 0.8fr 120px;
@@ -547,7 +503,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   text-transform: uppercase;
   color: var(--text-mute);
 }
-
 .monitor__rows {
   font-family: var(--mono);
   font-size: 13px;
@@ -593,21 +548,18 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
 .monitor__row .status.requeue { color: var(--warn); }
 .monitor__row .status.resurrected .indicator { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
 .monitor__row .status.resurrected { color: var(--accent-2); }
-
 .monitor__row.flash-die {
   background: var(--bad-bg);
 }
 .monitor__row.flash-resurrect {
   background: var(--accent-bg);
 }
-
 .monitor__row .queue {
   font-size: 11px;
   color: var(--text-mute);
   text-align: right;
   letter-spacing: 0.04em;
 }
-
 .monitor__foot {
   padding: 12px 18px;
   border-top: 1px solid var(--line);
@@ -627,7 +579,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
 .monitor__foot .event.success { color: var(--ok); }
 .monitor__foot .event.warn { color: var(--warn); }
 .monitor__foot .event.accent { color: var(--accent-2); }
-
 @media (max-width: 720px) {
   .monitor__cols { display: none; }
   .monitor__row {
@@ -644,7 +595,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   .monitor__row .status { grid-area: status; justify-self: end; }
   .monitor__row .queue { grid-area: queue; text-align: left; }
 }
-
 /* ============================================================
    PAIN POINTS (F01–F08)
    ============================================================ */
@@ -656,7 +606,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
 }
 @media (max-width: 1040px) { .pain-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px)  { .pain-grid { grid-template-columns: 1fr; } }
-
 .pain {
   padding: 36px 32px 40px;
   border-right: 1px solid var(--line);
@@ -665,7 +614,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   transition: background 250ms;
 }
 .pain:hover { background: var(--surface-2); }
-
 .pain__num {
   font-family: var(--mono);
   font-size: 11px;
@@ -684,7 +632,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   transition: width 250ms;
 }
 .pain:hover .pain__num .crash { width: 38px; }
-
 .pain__title {
   font-size: 17px;
   font-weight: 500;
@@ -692,14 +639,12 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   margin-bottom: 12px;
   color: var(--text);
 }
-
 .pain__desc {
   font-size: 14px;
   color: var(--text-dim);
   line-height: 1.55;
   text-wrap: pretty;
 }
-
 /* ============================================================
    FEATURES TABS
    ============================================================ */
@@ -728,7 +673,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   background: var(--text);
   color: var(--ink);
 }
-
 .feature {
   display: none;
   grid-template-columns: 1fr 1.2fr;
@@ -743,7 +687,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
 @media (max-width: 880px) {
   .feature.active { grid-template-columns: 1fr; gap: 32px; }
 }
-
 .feature__title {
   font-size: clamp(24px, 3vw, 32px);
   font-weight: 500;
@@ -782,7 +725,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   letter-spacing: 0.06em;
   color: var(--text-mute);
 }
-
 /* —— Code block —— */
 .code {
   background: var(--surface);
@@ -817,7 +759,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
-
 .code pre {
   padding: 22px 24px;
   font-size: 13px;
@@ -834,7 +775,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
 .code .v { color: var(--text); }            /* variable */
 .code .n { color: #f0abfc; }                /* number */
 .code .p { color: var(--text-mute); }       /* punctuation */
-
 /* ============================================================
    TERMINAL
    ============================================================ */
@@ -873,7 +813,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   color: var(--text-mute);
   letter-spacing: 0.04em;
 }
-
 .terminal__body {
   padding: 24px;
   font-family: var(--mono);
@@ -887,7 +826,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
 }
 .terminal__body::-webkit-scrollbar { width: 8px; }
 .terminal__body::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 4px; }
-
 .t-prompt { color: var(--accent-2); }
 .t-cmd { color: var(--text); }
 .t-out { color: var(--text-dim); }
@@ -903,7 +841,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   animation: blink 1s step-end infinite;
 }
 @keyframes blink { 50% { opacity: 0; } }
-
 /* ============================================================
    BENCHMARKS (paper section)
    ============================================================ */
@@ -971,7 +908,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   .bench__val.win::after { content: ' · relier'; color: var(--accent); font-size: 11px; }
   .bench__val.lose::after { content: ' · celery'; color: var(--paper-dim); font-size: 11px; }
 }
-
 /* ============================================================
    QUICKSTART
    ============================================================ */
@@ -983,7 +919,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   border-left: 1px solid var(--line);
 }
 @media (max-width: 880px) { .steps { grid-template-columns: 1fr; } }
-
 .step {
   padding: 40px 32px;
   border-right: 1px solid var(--line);
@@ -1019,7 +954,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   line-height: 1.7;
   overflow-x: auto;
 }
-
 /* ============================================================
    BENTO (monoline glyphs, no emoji)
    ============================================================ */
@@ -1044,7 +978,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
 .bento__cell:hover { background: var(--surface-2); }
 .bento__cell.wide { grid-column: span 3; }
 .bento__cell.tall { grid-row: span 2; }
-
 @media (max-width: 1040px) {
   .bento { grid-template-columns: repeat(4, 1fr); }
   .bento__cell, .bento__cell.wide { grid-column: span 2; }
@@ -1053,7 +986,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   .bento { grid-template-columns: repeat(2, 1fr); }
   .bento__cell, .bento__cell.wide { grid-column: span 2; }
 }
-
 .bento__glyph {
   width: 36px; height: 36px;
   margin-bottom: 20px;
@@ -1061,7 +993,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   opacity: 0.9;
 }
 .bento__glyph svg { width: 100%; height: 100%; }
-
 .bento__cell .pre {
   font-family: var(--mono);
   font-size: 10px;
@@ -1083,7 +1014,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   line-height: 1.55;
   margin-top: auto;
 }
-
 /* ============================================================
    FOOTER CTA
    ============================================================ */
@@ -1177,7 +1107,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   text-transform: none;
   font-family: var(--sans);
 }
-
 /* ============================================================
    FOOTER
    ============================================================ */
@@ -1196,7 +1125,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
 }
 .footer a { color: var(--text-dim); margin-left: 18px; transition: color 150ms; }
 .footer a:hover { color: var(--text); }
-
 /* ============================================================
    REVEAL ANIMATION
    ============================================================ */
@@ -1212,7 +1140,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
 @media (prefers-reduced-motion: reduce) {
   .reveal { transform: none; transition: opacity 200ms ease; }
 }
-
 /* ============================================================
    TWEAKS PANEL
    ============================================================ */
@@ -1223,7 +1150,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   z-index: 60;
   display: none;
 }
-
 .tweaks {
   position: fixed;
   bottom: 24px;
@@ -1239,7 +1165,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   display: none;
 }
 .tweaks.open { display: block; }
-
 .tweaks__head {
   display: flex;
   justify-content: space-between;
@@ -1257,7 +1182,6 @@ code, pre, .mono { font-family: var(--mono); font-feature-settings: "ss02", "ss0
   line-height: 1;
 }
 .tweaks__close:hover { color: var(--text); }
-
 .tweaks__group { margin-bottom: 16px; }
 .tweaks__group:last-child { margin-bottom: 0; }
 .tweaks__label {
