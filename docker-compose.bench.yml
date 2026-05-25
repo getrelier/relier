@@ -1,0 +1,145 @@
+name: relier-bench
+
+# =============================================================================
+# Isolated benchmark environment — runs entirely inside Docker so results
+# are not distorted by Windows-only solo pool or by competing dev workers.
+#
+# Default run (500 tasks, synthetic 0.5 s tasks):
+#   docker compose -f docker-compose.bench.yml up --build
+#
+# Scale to 10k tasks:
+#   BENCH_BATCH_SIZE=10000 docker compose -f docker-compose.bench.yml up --build
+#
+# Scale to 100k tasks (add more worker replicas first):
+#   BENCH_BATCH_SIZE=100000 BENCH_WORKER_CONCURRENCY=8 \
+#     docker compose -f docker-compose.bench.yml up --build --scale bench-runner=1
+#
+# Grafana: http://localhost:3001  (user: admin / bench)
+# Prometheus: http://localhost:9091
+# Redis (isolated): localhost:6380
+# =============================================================================
+
+x-bench-env: &bench-env
+  RELIER_REDIS_URL: redis://bench-redis:6379/0
+  BENCH_SYNTHETIC: "1"
+  BENCH_SYNTHETIC_SLEEP: "${BENCH_SYNTHETIC_SLEEP:-0.5}"
+  BENCH_BATCH_SIZE: "${BENCH_BATCH_SIZE:-500}"
+  C_FORCE_ROOT: "true"
+  # Disable OTel in bench — the bench measures wall-clock time, not OTEL traces.
+  RELIER_OTEL_ENABLED: "false"
+
+services:
+  # ===========================================================================
+  # Infrastructure — isolated Redis, never shared with the dev stack
+  # ===========================================================================
+  bench-redis:
+    image: redis:7.2-alpine
+    container_name: bench-redis
+    # Minimal inline config: noeviction + AOF, no external redis.conf needed.
+    command: >
+      redis-server
+      --maxmemory-policy noeviction
+      --appendonly yes
+      --save 60 1
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 2s
+      retries: 15
+    networks:
+      - bench-net
+
+  # ===========================================================================
+  # Observability
+  # ===========================================================================
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: bench-redis-exporter
+    command:
+      - "--redis.addr=redis://bench-redis:6379"
+      - "--check-keys=default,high_priority,low_priority,re-queue,vanilla,rl:m:global:success,rl:m:global:failed,rl:m:global:resurrected,bench:relier:embed_exec,bench:relier:noop_exec,bench:relier:summary_exec,bench:relier:delivery_done,bench:relier:oom_done,bench:relier:oom_exec,bench:vanilla:embed_exec,bench:vanilla:noop_exec,bench:vanilla:delivery_done,bench:vanilla:oom_done"
+    ports:
+      - "9121:9121"
+    depends_on:
+      bench-redis:
+        condition: service_healthy
+    networks:
+      - bench-net
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: bench-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=2h"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./bench/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - bench-prometheus-data:/prometheus
+    ports:
+      - "9091:9090"
+    depends_on:
+      - redis-exporter
+    networks:
+      - bench-net
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    container_name: bench-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: bench
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_DEFAULT_THEME: dark
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/bench-overview.json
+    volumes:
+      - ./bench/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./bench/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - bench-grafana-data:/var/lib/grafana
+    ports:
+      # Port 3001 avoids conflicting with dev Grafana on 3000.
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - bench-net
+
+  # ===========================================================================
+  # Bench runner — manages all worker subprocesses internally.
+  #
+  # The bench spawns, kills, and replaces workers as part of its test protocol
+  # (OOM simulation, delivery-rate crash testing). All subprocesses run inside
+  # this container.
+  # ===========================================================================
+  bench-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.bench
+    container_name: bench-runner
+    command: python -m bench.bench --synthetic
+    environment:
+      <<: *bench-env
+    volumes:
+      # Mount bench source live so you can edit bench tasks without rebuilding.
+      - ./bench:/app/bench:ro
+      - ./src:/app/src:ro
+      # Results land here — inspect on the host after the run.
+      - ./bench-results:/app/bench-results
+    depends_on:
+      bench-redis:
+        condition: service_healthy
+    networks:
+      - bench-net
+    # bench-runner exits when the bench finishes; don't restart it.
+    restart: "no"
+
+networks:
+  bench-net:
+    driver: bridge
+
+volumes:
+  bench-prometheus-data:
+  bench-grafana-data:
