@@ -168,6 +168,18 @@ class RelierTask(Generic[P, R]):
         >>> receipt = await send_invoice.apush(invoice_id="inv-001", retry=True)
     """
 
+    # Celery Task attributes present at runtime via shared_task/cast machinery
+    request: Any
+    name: str
+    retry: Any
+    apply: Any
+    apply_async: Any
+    __wrapped__: Any
+
+    def run(self, *args: Any, **kwargs: Any) -> Any:
+        """Execute the task body synchronously (Celery internal path)."""
+        raise NotImplementedError
+
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
         """Invoke the task synchronously via the Celery worker (internal path).
 

@@ -8,6 +8,7 @@ import json
 import os
 import time
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -29,7 +30,7 @@ _MARKER = "__relier_checkpoint_ref__"
 
 def _settings(tmp_path, **overrides):
     """Build a Settings object with a small inline limit for fast testing."""
-    base = {
+    base: dict[str, Any] = {
         "checkpoint_backend": "inline",
         "checkpoint_dir": str(tmp_path),
         "checkpoint_max_inline_bytes": 100,

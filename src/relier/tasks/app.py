@@ -36,7 +36,7 @@ from celery.signals import (
 )
 from kombu import Exchange, Queue
 
-import relier.tasks.signals  # noqa: F401 — registers signal handlers
+import relier.tasks.signals  # noqa: F401  # registers signal handlers
 from relier.config import Settings, get_settings
 from relier.core.keys import RedisKeys
 from relier.core.shutdown import GracefulShutdownHandler

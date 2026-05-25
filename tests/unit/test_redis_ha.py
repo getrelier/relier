@@ -4,9 +4,11 @@ Covers Sentinel-aware configuration parsing, Sentinel/direct client
 construction, the Celery broker config builder, and the AOF validation check.
 """
 
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from pydantic import SecretStr
 from redis.asyncio.client import Redis
 from redis.exceptions import ResponseError
 
@@ -59,7 +61,9 @@ class TestCreateClient:
         await client.aclose()
 
     async def test_direct_client_with_password(self) -> None:
-        settings = Settings(redis_use_sentinel=False, redis_password="hunter2")
+        settings = Settings(
+            redis_use_sentinel=False, redis_password=SecretStr("hunter2")
+        )
         manager = RedisManager()
         with patch("relier.storage.redis.get_settings", return_value=settings):
             client = manager._create_client(1)
@@ -71,8 +75,8 @@ class TestCreateClient:
             redis_use_sentinel=True,
             redis_sentinel_nodes="s1:26379,s2:26379,s3:26379",
             redis_sentinel_master_name="relier-master",
-            redis_password="hunter2",
-            redis_sentinel_password="watcher",
+            redis_password=SecretStr("hunter2"),
+            redis_sentinel_password=SecretStr("watcher"),
         )
         manager = RedisManager()
         with patch("relier.storage.redis.get_settings", return_value=settings):
@@ -113,8 +117,8 @@ class TestBrokerConnectionConfig:
             redis_use_sentinel=True,
             redis_sentinel_nodes="s1:26379,s2:26379,s3:26379",
             redis_sentinel_master_name="relier-master",
-            redis_password="hunter2",
-            redis_sentinel_password="watcher",
+            redis_password=SecretStr("hunter2"),
+            redis_sentinel_password=SecretStr("watcher"),
         )
         with patch("relier.tasks.app.get_settings", return_value=settings):
             conf = _broker_connection_config()
@@ -149,7 +153,7 @@ class TestAofValidation:
     @staticmethod
     def _redis(*, policy: str = "noeviction", appendonly: object = "yes") -> AsyncMock:
         redis = AsyncMock()
-        responses = [{"maxmemory-policy": policy}]
+        responses: list[dict[str, Any]] = [{"maxmemory-policy": policy}]
         if isinstance(appendonly, Exception):
             redis.config_get.side_effect = [responses[0], appendonly]
         else:
@@ -201,7 +205,7 @@ class TestRedisReachable:
     async def test_unreachable_direct_redis_raises(self) -> None:
         redis = AsyncMock()
         redis.ping = AsyncMock(side_effect=ConnectionError("no route to host"))
-        settings = Settings(redis_url="redis://db.internal:6390/0")
+        settings = Settings(redis_url="redis://db.internal:6390/0")  # type: ignore[arg-type]
         with pytest.raises(RuntimeError, match="cannot reach Redis") as excinfo:
             await validate_redis_reachable(redis, settings)
         # The error names the unreachable endpoint so the operator can act.
@@ -225,7 +229,8 @@ class TestRedisReachable:
 class TestRedisManagerLifecycle:
     async def test_safe_log_url_direct(self) -> None:
         settings = Settings(
-            redis_use_sentinel=False, redis_url="redis://localhost:6379/0"
+            redis_use_sentinel=False,
+            redis_url="redis://localhost:6379/0",  # type: ignore[arg-type]
         )
         manager = RedisManager()
         with patch("relier.storage.redis.get_settings", return_value=settings):
