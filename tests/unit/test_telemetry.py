@@ -98,12 +98,30 @@ class TestLogging:
 
 class TestMetrics:
     def test_inflight_tasks_callback(self) -> None:
-        """Verify the metrics callback yields a valid Observation."""
-        observations = list(_inflight_tasks_callback(None))  # type: ignore[arg-type]
-        assert len(observations) == 1
-        obs = observations[0]
-        assert obs.value == 0
-        assert obs.attributes == {"rl.worker.id": "unknown"}
+        """Verify the metrics callback reflects the worker-local counter."""
+        from relier.telemetry import metrics as metrics_mod
+
+        # Snapshot+reset so the test is independent of prior state.
+        with metrics_mod._inflight_lock:
+            saved = metrics_mod._inflight_count
+            metrics_mod._inflight_count = 0
+        try:
+            metrics_mod._inflight_inc()
+            metrics_mod._inflight_inc()
+            observations = list(_inflight_tasks_callback(None))  # type: ignore[arg-type]
+            assert len(observations) == 1
+            obs = observations[0]
+            assert obs.value == 2
+            assert obs.attributes == {"rl.worker.id": metrics_mod._worker_hostname}
+            metrics_mod._inflight_dec()
+            assert next(_inflight_tasks_callback(None)).value == 1  # type: ignore[arg-type]
+            # Clamps at zero, never goes negative.
+            metrics_mod._inflight_dec()
+            metrics_mod._inflight_dec()
+            assert next(_inflight_tasks_callback(None)).value == 0  # type: ignore[arg-type]
+        finally:
+            with metrics_mod._inflight_lock:
+                metrics_mod._inflight_count = saved
 
     def test_metrics_instruments_initialized(self) -> None:
         """Verify that core metrics instruments are created at import time."""

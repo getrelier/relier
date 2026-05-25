@@ -83,6 +83,8 @@ from relier.core.timeouts import TimeoutEnforcer
 from relier.storage.redis import get_relier_redis
 from relier.tasks.context import TaskContext, _task_context_var
 from relier.telemetry.metrics import (
+    _inflight_dec,
+    _inflight_inc,
     idempotency_hits_total,
     task_duration_ms,
     task_overhead_ms,
@@ -606,6 +608,7 @@ def rl_task(
                     pipe.zadd(RedisKeys.workers(), {worker_id: time.time()})
                     pipe.zadd(inflight_key, {task_id: time.time()})
                     await pipe.execute()
+                    _inflight_inc()
 
                     start_time = time.perf_counter()
 
@@ -830,6 +833,7 @@ def rl_task(
                                     _sh.untrack_task(task_id)
 
                                 await redis.zrem(inflight_key, task_id)
+                                _inflight_dec()
                                 await PhoenixRegistry.complete(task_id)
                     finally:
                         _task_context_var.reset(token)
@@ -841,7 +845,32 @@ def rl_task(
                         timeout=hard_timeout + 10 if hard_timeout else 300
                     )
                 else:
-                    return loop.run_until_complete(_orchestrate())
+                    try:
+                        return loop.run_until_complete(_orchestrate())
+                    finally:
+                        # Close disposable loops created by _get_worker_loop()'s
+                        # last-resort fallback so that Redis connections and the
+                        # loop itself don't trigger ResourceWarning in test and
+                        # script contexts. The persistent worker_loop must not
+                        # be closed here.
+                        _is_persistent = False
+                        try:
+                            import relier.tasks.app as _app_mod
+
+                            _is_persistent = loop is getattr(
+                                _app_mod, "worker_loop", None
+                            )
+                        except (ImportError, AttributeError):
+                            pass
+                        if not _is_persistent:
+                            from contextlib import suppress
+
+                            from relier.storage.redis import redis_manager
+
+                            with suppress(Exception):
+                                loop.run_until_complete(redis_manager.close())
+                            loop.close()
+                            asyncio.set_event_loop(None)
             except IdempotencyInFlightError as exc:
                 raise self.retry(exc=exc, countdown=5) from exc
             except Exception as exc:

@@ -14,6 +14,7 @@ import sys
 
 import structlog
 from opentelemetry import trace
+from structlog.types import Processor
 
 
 def inject_otel_context(
@@ -52,7 +53,7 @@ def setup_logging(level: str = "INFO", cache_loggers: bool = True) -> None:
     # Configure the stdlib root logger so third-party libraries
     # (celery, etc.) also flow through structlog.
 
-    shared_processors: list = [
+    shared_processors: list[Processor] = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
