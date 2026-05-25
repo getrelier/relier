@@ -25,18 +25,9 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Set up Python 3.11
-        run: uv python install 3.11
-
-      - name: Install MkDocs and Material Theme Dependencies
-        run: |
-          uv pip install --system \
-            mkdocs-material \
-            pymdown-extensions
-
       - name: Strict Build Validation Test
-        run: mkdocs build --strict
+        run: uv run --with mkdocs-material --with pymdown-extensions mkdocs build --strict
 
       - name: Deploy to GitHub Pages (Main Branch Only)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: mkdocs gh-deploy --force
+        run: uv run --with mkdocs-material --with pymdown-extensions mkdocs gh-deploy --force
