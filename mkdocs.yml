@@ -1,0 +1,109 @@
+site_name: Relier
+site_description: Zero job loss. Every task completes, hands off, or lands in the DLQ with a traceable reason.
+site_url: https://getrelier.github.io/relier
+repo_url: https://github.com/getrelier/relier
+repo_name: getrelier/relier
+edit_uri: ""
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.code.annotate
+    - toc.follow
+  logo: assets/images/logo.png
+  favicon: assets/images/logo.ico
+  icon:
+    repo: fontawesome/brands/github
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js
+  - assets/js/mermaid-init.js
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Quickstart: quickstart.md
+    - A Quick Celery Primer: celery-primer.md
+    - Core Concepts: concepts.md
+    - Deployment: deployment.md
+  - Guides:
+    - Integration Recipes (FastAPI, Flask, Django): integrations.md
+    - Patterns Cookbook: patterns.md
+    - Rolling Deploys & Schema Migrations: rolling-deploys.md
+    - Troubleshooting & FAQ: troubleshooting.md
+  - Reference:
+    - API Reference: api-reference.md
+    - Configuration: configuration.md
+    - CLI Reference: cli-reference.md
+    - Metrics Reference: metrics.md
+  - Deep Dive:
+    - Architecture: architecture.md
+    - Durability, HA, & Failure Boundaries: durability.md
+    - Chaos Guide: chaos-guide.md
+    - Benchmarks: benchmarks.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - tables
+  - toc:
+      permalink: true
+  - attr_list
+
+plugins:
+  - search
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/getrelier/relier
+      name: Relier on GitHub
+    - icon: fontawesome/brands/x-twitter
+      link: https://x.com/relierdev
+      name: Relier on X
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/relier/
+      name: Relier on PyPI
