@@ -30,13 +30,13 @@ jobs:
 
       - name: Install MkDocs and Material Theme Dependencies
         run: |
-          uv pip install \
+          uv pip install --system \
             mkdocs-material \
             pymdown-extensions
 
       - name: Strict Build Validation Test
-        run: uv run mkdocs build --strict
+        run: mkdocs build --strict
 
       - name: Deploy to GitHub Pages (Main Branch Only)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: uv run mkdocs gh-deploy --force
+        run: mkdocs gh-deploy --force
