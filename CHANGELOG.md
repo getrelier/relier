@@ -15,6 +15,14 @@ intended for adopters who need a single place to read migration impact.
 
 
 
+## [0.1.1] — 2026-05-25
+
+Patch release to fix CI/CD pipeline. No changes to library code or public API.
+
+- **fix(ci):** `uv run --with` replaces broken `uv pip install --system` in docs workflow (externally-managed Python on Debian runners)
+- **fix(ci):** Wire `GITHUB_TOKEN` into git remote for `mkdocs gh-deploy` (ghp-import does not inherit checkout credentials)
+- **fix(ci):** Switch GitHub Release step to `RELEASE_TOKEN` PAT — org policy disables `GITHUB_TOKEN` write permissions for workflows
+
 ## [0.1.0] — 2026-05-25
 
 Initial public release. Establishes the core reliability engine — pre-1.0:
@@ -53,5 +61,6 @@ stable, the public API surface may still shift in `0.y.0` bumps.
   `admission`, `chaos`, `config`, `admin` command groups, plus
   `doctor`, `run-resurrector`, `bench`, `man`.
 
-[Unreleased]: https://github.com/getrelier/relier/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/getrelier/relier/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/getrelier/relier/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/getrelier/relier/releases/tag/v0.1.0
