@@ -95,7 +95,6 @@ All settings are environment variables with the `RELIER_` prefix (full list in
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `RELIER_REDIS_URL` | `redis://localhost:6379/0` | Redis endpoint (bare-metal / dev) |
-| `RELIER_ENV` | `development` | `development` \| `staging` \| `production` |
 | `RELIER_REDIS_USE_SENTINEL` | `false` | Route through Sentinel for HA |
 | `RELIER_REDIS_SENTINEL_NODES` | — | `host:port,host:port,...` when Sentinel is on |
 | `RELIER_REDIS_SENTINEL_MASTER_NAME` | `relier-master` | Monitored master group name |

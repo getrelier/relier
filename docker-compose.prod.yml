@@ -9,7 +9,7 @@ name: relier-prod
 #   - No source bind-mounts and no --reload (code ships baked into the image).
 #   - Redis data nodes and Sentinels require authentication.
 #   - Memory limits are declared per service.
-#   - RELIER_ENV=production (disables debug task modules).
+#   - Redis HA with Sentinel, authentication required.
 #
 # Required environment (provide via a .env file or the shell):
 #   REDIS_PASSWORD      password for the Redis data nodes
@@ -53,7 +53,6 @@ x-sentinel-env: &sentinel-env
   REDISCLI_AUTH: ${SENTINEL_PASSWORD:?SENTINEL_PASSWORD must be set}
 
 x-relier-env: &relier-env
-  RELIER_ENV: production
   RELIER_REDIS_USE_SENTINEL: "true"
   RELIER_REDIS_SENTINEL_NODES: "relier-sentinel-1:26379,relier-sentinel-2:26379,relier-sentinel-3:26379"
   RELIER_REDIS_SENTINEL_MASTER_NAME: "relier-master"
