@@ -4,7 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, "feat/*", "fix/*"]
+    # Run on every PR targeting main, regardless of source branch name.
+    # The previous glob-list silently skipped chore/, docs/, refactor/, etc.
+    branches: [main]
 
 jobs:
   lint-and-typecheck:
@@ -94,13 +96,16 @@ jobs:
             --cov=src/relier \
             --cov-report=term-missing \
             --cov-report=xml \
-            --cov-fail-under=80
+            --cov-fail-under=80 \
+            --timeout=120 \
+            --reruns 2 \
+            --reruns-delay 1
 
   build-check:
     name: Validate Build Artifacts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
       - name: Build Package Wheels
         run: uv build

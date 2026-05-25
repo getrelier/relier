@@ -118,6 +118,29 @@ async def clean_redis_state(setup_env):
     await redis_manager._test_reset()
 
 
+async def _flushdb_with_retry(client, attempts: int = 3, timeout: float = 5.0) -> None:
+    """FLUSHDB with retries.
+
+    Windows + testcontainers Redis occasionally drops the connection under
+    sustained load. A single transient TimeoutError on teardown leaks state
+    into the next test and produces non-deterministic failures; retrying with
+    a fresh client recovers cleanly.
+    """
+    last_exc: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            await asyncio.wait_for(client.flushdb(), timeout=timeout)
+            return
+        except (TimeoutError, Exception) as e:
+            last_exc = e
+            if attempt < attempts - 1:
+                await asyncio.sleep(0.5 * (attempt + 1))
+                # Re-acquire the client; the pool may have evicted the
+                # connection we were holding.
+                client = await redis_manager.get_client()
+    print(f"Warning: flushdb failed after {attempts} attempts: {last_exc}")
+
+
 @pytest_asyncio.fixture
 async def redis_client(setup_env):
     """
@@ -126,13 +149,7 @@ async def redis_client(setup_env):
     """
     # This uses the actual library code to connect to the testcontainer
     client = await redis_manager.get_client()
-    # Clean up keys after every test so they don't leak into the next one
-    # Use a timeout and handle gracefully in case Redis is unavailable
-    try:
-        await asyncio.wait_for(client.flushdb(), timeout=5.0)
-    except (TimeoutError, Exception) as e:
-        print(f"Warning: Could not flush Redis during teardown: {e}")
-        pass
+    await _flushdb_with_retry(client)
 
     yield client
     await redis_manager.close()
