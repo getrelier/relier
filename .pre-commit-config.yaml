@@ -20,7 +20,11 @@ repos:
     hooks:
       - id: mypy
         name: mypy
-        entry: uv run mypy src
+        # `uv run` without --frozen re-syncs the lockfile when pyproject.toml
+        # has staged changes, which pre-commit then flags as "files were
+        # modified by this hook" and aborts the commit. --frozen forbids the
+        # implicit sync; --no-sync skips even the readonly env check.
+        entry: uv run --frozen --no-sync mypy src
         language: system
         types: [python]
         pass_filenames: false
