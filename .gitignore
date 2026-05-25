@@ -51,6 +51,11 @@ htmlcov/
 .ruff_cache/
 .coverage.*
 bench/
+bench-results/
+bench_synthetic.log
+
+# Docs build output
+site/
 
 # Databases
 *.sqlite3

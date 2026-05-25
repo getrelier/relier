@@ -1,0 +1,139 @@
+name: Nightly Chaos
+
+on:
+  schedule:
+    - cron: "0 2 * * *"  # 2am UTC every night
+  workflow_dispatch:
+    inputs:
+      scale:
+        description: "Batch size override (default: 500)"
+        required: false
+        default: "500"
+
+jobs:
+  chaos-full:
+    name: Full Chaos Suite (Synthetic)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Start bench stack (Redis + Prometheus + Grafana)
+        run: |
+          docker compose -f docker-compose.bench.yml up -d bench-redis redis-exporter prometheus grafana
+          # Wait for Redis to be healthy
+          for i in $(seq 1 30); do
+            docker compose -f docker-compose.bench.yml exec -T bench-redis redis-cli ping && break
+            sleep 2
+          done
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Full chaos suite (synthetic)
+        env:
+          RELIER_REDIS_URL: redis://localhost:6380/0
+          BENCH_SYNTHETIC: "1"
+          BENCH_BATCH_SIZE: ${{ github.event.inputs.scale || '500' }}
+          BENCH_SYNTHETIC_SLEEP: "0.5"
+          RELIER_OTEL_ENABLED: "false"
+        run: |
+          uv run python -m bench.bench --synthetic
+
+      - name: Upload bench results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaos-results-${{ github.run_id }}
+          path: bench-results/
+          retention-days: 30
+
+      - name: Tear down bench stack
+        if: always()
+        run: docker compose -f docker-compose.bench.yml down -v
+
+      - name: Notify Slack on failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          curl -X POST "$SLACK_WEBHOOK" \
+            -H 'Content-type: application/json' \
+            -d "{
+              \"text\": \" *Relier nightly chaos FAILED*\nBranch: ${{ github.ref }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+            }"
+
+  chaos-high-scale:
+    name: High-Scale Chaos (Mondays)
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 2 * * 1'  # Mondays only
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Start bench stack
+        run: |
+          docker compose -f docker-compose.bench.yml up -d bench-redis
+          for i in $(seq 1 30); do
+            docker compose -f docker-compose.bench.yml exec -T bench-redis redis-cli ping && break
+            sleep 2
+          done
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: High-scale bench (10k tasks × 8 workers)
+        env:
+          RELIER_REDIS_URL: redis://localhost:6380/0
+          BENCH_SYNTHETIC: "1"
+          BENCH_BATCH_SIZE: "10000"
+          BENCH_SYNTHETIC_SLEEP: "0.05"
+          BENCH_WORKER_CONCURRENCY: "8"
+          RELIER_OTEL_ENABLED: "false"
+        run: |
+          uv run python -m bench.bench --synthetic
+
+      - name: Upload high-scale results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaos-high-scale-${{ github.run_id }}
+          path: bench-results/
+          retention-days: 90
+
+      - name: Tear down bench stack
+        if: always()
+        run: docker compose -f docker-compose.bench.yml down -v
+
+      - name: Notify Slack on failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          curl -X POST "$SLACK_WEBHOOK" \
+            -H 'Content-type: application/json' \
+            -d "{
+              \"text\": \" *Relier Monday high-scale chaos FAILED*\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+            }"
