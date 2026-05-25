@@ -2,12 +2,12 @@
 
 Relier is a plain Python library, not a service you have to containerize. The
 engine — the `@rl_task` decorator, the Phoenix resurrector, idempotency, the
-DLQ — is pure Python. Like Celery, it runs as ordinary processes; Docker is a
+DLQ is pure Python. Like Celery, it runs as ordinary processes; Docker is a
 convenience for dev and prod, not a requirement.
 
 There is exactly one hard dependency: **a reachable Redis**, the same way
 Celery needs a broker. Relier preflight-checks Redis at startup and refuses to
-start with a clear error if it is unreachable — nothing comes up half-working.
+start with a clear error if it is unreachable, nothing comes up half-working.
 
 ## The three ways to run it
 
@@ -49,7 +49,7 @@ If Redis is not running, both processes exit immediately with:
 RuntimeError: Relier cannot reach Redis (localhost:6379). ... Refusing to start.
 ```
 
-Start Redis (or fix `RELIER_REDIS_URL`) and re-run — nothing starts in a broken
+Start Redis (or fix `RELIER_REDIS_URL`) and re-run, nothing starts in a broken
 state.
 
 ---
@@ -71,7 +71,7 @@ Defined in `docker-compose.yml`.
 
 ## Tier 3 — Production (Docker)
 
-The HA topology — Redis master + 2 replicas + 3 Sentinels + a backup sidecar —
+The HA topology — Redis master + 2 replicas + 3 Sentinels + a backup sidecar,
 defined in `docker-compose.prod.yml`. Sentinel-aware client wiring turns on via
 environment variables (see below).
 
@@ -95,7 +95,6 @@ All settings are environment variables with the `RELIER_` prefix (full list in
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `RELIER_REDIS_URL` | `redis://localhost:6379/0` | Redis endpoint (bare-metal / dev) |
-| `RELIER_ENV` | `development` | `development` \| `staging` \| `production` |
 | `RELIER_REDIS_USE_SENTINEL` | `false` | Route through Sentinel for HA |
 | `RELIER_REDIS_SENTINEL_NODES` | — | `host:port,host:port,...` when Sentinel is on |
 | `RELIER_REDIS_SENTINEL_MASTER_NAME` | `relier-master` | Monitored master group name |

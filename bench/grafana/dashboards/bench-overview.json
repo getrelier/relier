@@ -1,0 +1,260 @@
+{
+  "title": "Relier Bench Overview",
+  "uid": "relier-bench-overview",
+  "description": "Live metrics for the Relier synthetic benchmark: queue depths, delivery rate, OOM recovery, and Redis memory.",
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "tags": ["relier", "bench"],
+  "time": { "from": "now-30m", "to": "now" },
+  "timepicker": {},
+  "panels": [
+    {
+      "id": 1,
+      "title": "Relier (Completed Tasks)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+        "expr": "redis_key_value{key=\"rl:m:global:success\"}",
+        "legendFormat": "Success",
+        "refId": "A"
+      }]
+    },
+    {
+      "id": 2,
+      "title": "Relier (Failed Tasks)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+        "expr": "redis_key_value{key=\"rl:m:global:failed\"}",
+        "legendFormat": "Failed",
+        "refId": "A"
+      }]
+    },
+    {
+      "id": 3,
+      "title": "Resurrections",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 1 }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+        "expr": "redis_key_value{key=\"rl:m:global:resurrected\"}",
+        "legendFormat": "Resurrected",
+        "refId": "A"
+      }]
+    },
+    {
+      "id": 4,
+      "title": "Redis Memory",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 104857600 }, { "color": "red", "value": 536870912 }] },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+        "expr": "redis_memory_used_bytes",
+        "legendFormat": "Used",
+        "refId": "A"
+      }]
+    },
+    {
+      "id": 5,
+      "title": "Redis Clients",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+        "expr": "redis_connected_clients",
+        "legendFormat": "Connections",
+        "refId": "A"
+      }]
+    },
+    {
+      "id": 6,
+      "title": "Queue Depth (active Celery queues)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+          "expr": "redis_key_size{key=\"default\"}",
+          "legendFormat": "default",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+          "expr": "redis_key_size{key=\"high_priority\"}",
+          "legendFormat": "high_priority",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+          "expr": "redis_key_size{key=\"re-queue\"}",
+          "legendFormat": "re-queue",
+          "refId": "C"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+          "expr": "redis_key_size{key=\"vanilla\"}",
+          "legendFormat": "vanilla",
+          "refId": "D"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Redis Memory Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" },
+          "unit": "bytes",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+          "expr": "redis_memory_used_bytes",
+          "legendFormat": "Used",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Task Completion Rate (Relier vs Vanilla)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 5, "showPoints": "never" },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+          "expr": "redis_key_value{key=\"rl:m:global:success\"}",
+          "legendFormat": "Relier success",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+          "expr": "redis_key_size{key=\"bench:vanilla:delivery_done\"}",
+          "legendFormat": "Vanilla completions",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+          "expr": "redis_key_value{key=\"rl:m:global:failed\"}",
+          "legendFormat": "Relier failed",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Relier Phoenix (Resurrections Over Time)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10, "showPoints": "auto" },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+          "expr": "redis_key_value{key=\"rl:m:global:resurrected\"}",
+          "legendFormat": "Total resurrections",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+          "expr": "redis_key_value{key=\"bench:relier:oom_done\"}",
+          "legendFormat": "OOM tasks completed",
+          "refId": "B"
+        }
+      ]
+    }
+  ]
+}

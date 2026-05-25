@@ -17,11 +17,9 @@ name: relier-cluster
 
 # Shared environment injected into every app container.
 x-app-env: &app-env
-  RELIER_ENV: development
   RELIER_REDIS_URL: redis://redis:6379/0
   RELIER_OTEL_ENABLED: "true"
   RELIER_OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
-  C_FORCE_ROOT: "true"
 
 services:
   # =====================================================================

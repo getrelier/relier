@@ -25,8 +25,8 @@ class TestTimeoutEnforcer:
                 func=slow_func,
                 args=(),
                 kwargs={},
-                soft=0.1,  # type: ignore[arg-type]
-                hard=0.5,  # type: ignore[arg-type]
+                soft=0.1,
+                hard=0.5,
                 on_soft=mock_cleanup,
                 task_id="test_soft_hook",
             )
@@ -44,7 +44,7 @@ class TestTimeoutEnforcer:
                 args=(),
                 kwargs={},
                 soft=None,
-                hard=0.1,  # type: ignore[arg-type]
+                hard=0.1,
                 on_soft=None,
                 task_id="test_hard_kill",
             )

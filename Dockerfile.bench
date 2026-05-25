@@ -1,0 +1,33 @@
+FROM python:3.11-slim-bookworm
+
+COPY --from=ghcr.io/astral-sh/uv:0.6.14 /uv /bin/uv
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/src:/app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Non-root user — bench spawns Celery worker subprocesses which refuse to
+# run as uid 0 without C_FORCE_ROOT. WORKDIR /app was created as root, so
+# hand it to the relier user before any USER-scoped writes happen.
+RUN groupadd --system --gid 1000 relier \
+    && useradd --system --uid 1000 --gid relier \
+        --home-dir /app --shell /usr/sbin/nologin relier \
+    && chown relier:relier /app
+
+COPY --chown=relier:relier pyproject.toml README.md ./
+COPY --chown=relier:relier src ./src
+COPY --chown=relier:relier bench ./bench
+
+ENV UV_CACHE_DIR=/app/.uv-cache
+USER relier
+RUN uv venv && uv pip install -e . && rm -rf "$UV_CACHE_DIR"
+
+ENV PATH="/app/.venv/bin:$PATH"
+
+CMD ["python", "-m", "bench.bench", "--synthetic"]

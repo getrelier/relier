@@ -1,5 +1,6 @@
 import asyncio
 import json
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -62,7 +63,7 @@ class TestCoverageGap:
             await asyncio.sleep(0.2)
             return "done"
 
-        await TimeoutEnforcer.run(slow_func, (), {}, 0.1, 1.0, mock_on_soft, "t1")  # type: ignore[arg-type]
+        await TimeoutEnforcer.run(slow_func, (), {}, 0.1, 1.0, mock_on_soft, "t1")
 
         with (
             patch("asyncio.wait", side_effect=asyncio.CancelledError),
@@ -235,7 +236,7 @@ class TestDLQExtra:
         from relier.tasks.app import celery_app
 
         task_id = "release_cp"
-        entry = {
+        entry: dict[str, Any] = {
             "task_name": "my_task",
             "args": [],
             "kwargs": {},
@@ -254,7 +255,7 @@ class TestDLQExtra:
         from relier.tasks.app import celery_app
 
         task_id = "release_count"
-        entry = {
+        entry: dict[str, Any] = {
             "task_name": "my_task",
             "args": [],
             "kwargs": {},

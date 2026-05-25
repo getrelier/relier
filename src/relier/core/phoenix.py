@@ -496,13 +496,17 @@ class PhoenixRegistry:
             return 0
 
         # Get the next batch of tasks whose heartbeat should have expired. The
-        # batch size bounds how fast a mass failure is replayed.
+        # fetch is capped to the number of available queue slots so a single
+        # scan never dispatches more tasks than the re-queue broker can absorb
+        # without exceeding resurrection_max_queue_depth.
+        slots_available = settings.resurrection_max_queue_depth - queue_depth
+        fetch_limit = min(settings.resurrection_batch_size, slots_available)
         expired_task_ids = await redis.zrangebyscore(
             expiry_index_key,
             min=0,
             max=now,
             start=0,
-            num=settings.resurrection_batch_size,
+            num=fetch_limit,
         )
 
         if not expired_task_ids:

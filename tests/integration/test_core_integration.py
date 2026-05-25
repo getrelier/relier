@@ -9,6 +9,7 @@ No internal mocking: if a function needs Redis, it gets the real one.
 import asyncio
 import json
 import os
+from typing import Any
 
 import pytest
 
@@ -358,7 +359,7 @@ class TestSchemaIntegration:
             return args, kwargs
 
         # Build a v1 envelope manually with correct checksum
-        payload = {"args": [], "kwargs": {}}
+        payload: dict[str, Any] = {"args": [], "kwargs": {}}
         envelope = {
             "task_id": "mig-test-1",
             "schema_version": 1,
@@ -369,11 +370,11 @@ class TestSchemaIntegration:
 
         # Temporarily bump CURRENT_VERSION so migration is triggered
         original = SchemaRegistry.CURRENT_VERSION
-        SchemaRegistry.CURRENT_VERSION = 2  # type: ignore[misc]
+        SchemaRegistry.CURRENT_VERSION = 2
         try:
             _, kwargs = SchemaRegistry.unwrap_and_migrate(task_name, envelope)
         finally:
-            SchemaRegistry.CURRENT_VERSION = original  # type: ignore[misc]
+            SchemaRegistry.CURRENT_VERSION = original
 
         assert kwargs.get("migrated") is True
 

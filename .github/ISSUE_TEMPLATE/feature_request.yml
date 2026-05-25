@@ -1,0 +1,76 @@
+name: Feature Request
+description: Suggest a new feature or improvement to an existing one
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening, check [the docs](https://getrelier.github.io/relier/) and existing issues the feature may already exist or be planned. The most useful requests include a concrete use-case from a real system.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the specific situation where this feature would help. Concrete workload beats abstract ask every time.
+      placeholder: |
+        We dispatch ~10k tasks/minute from multiple FastAPI pods. When one pod is
+        doing a rolling deploy, admission control triggers across the cluster, we
+        need per-producer quotas, not a single global counter.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed solution
+      description: What would the API / behaviour look like? A code sketch is worth a thousand words.
+      render: python
+      placeholder: |
+        @rl_task(admission_key="producer:{producer_id}", admission_limit=1000)
+        async def process(item: str, producer_id: str) -> None:
+            ...
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What are you doing today to work around this? What other solutions did you consider?
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Phoenix resurrection
+        - Idempotency
+        - Admission control
+        - Dead Letter Queue
+        - Graceful shutdown
+        - Timeouts
+        - Checkpointing
+        - Schema versioning
+        - CLI (rl)
+        - OpenTelemetry / metrics
+        - Redis HA / Sentinel
+        - Configuration
+        - Documentation
+        - Performance
+        - New primitive (not listed)
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: How blocked are you without this?
+      options:
+        - Not blocked — nice to have
+        - Somewhat blocked — have a workaround
+        - Very blocked — can't use Relier without this
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Relevant links, prior art (Temporal, Faust, AWS Step Functions equivalent), or architecture diagrams.

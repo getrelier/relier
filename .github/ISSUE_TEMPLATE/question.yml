@@ -1,0 +1,55 @@
+name: Question / Support
+description: Usage question, integration help, or something the docs didn't answer
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the [Troubleshooting & FAQ](https://getrelier.github.io/relier/troubleshooting/) first — your question may be answered there. For quick questions, GitHub Discussions is faster than an issue.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: Be as specific as you can. What are you trying to do? What did you try?
+      placeholder: |
+        I'm integrating Relier with a Django app that uses `task.apply_async()` everywhere.
+        Should I switch all call sites to `task.push()`, or is there a compatibility shim?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Getting started / installation
+        - FastAPI integration
+        - Django integration
+        - Flask integration
+        - Configuration
+        - Phoenix resurrection
+        - Idempotency
+        - Admission control
+        - DLQ / dead letter queue
+        - Timeouts
+        - Graceful shutdown
+        - CLI (rl)
+        - Redis HA / Sentinel
+        - OpenTelemetry / metrics
+        - Performance / benchmarks
+        - Deployment
+        - Other
+
+  - type: textarea
+    id: what-tried
+    attributes:
+      label: What have you tried?
+      description: Relevant code, config, or docs sections you already looked at.
+      render: python
+
+  - type: input
+    id: relier-version
+    attributes:
+      label: Relier version
+      placeholder: "0.1.0"

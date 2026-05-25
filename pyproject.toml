@@ -1,14 +1,13 @@
 [project]
 name = "relier"
 version = "0.1.0"
-description = "Production reliability layer for Celery. Zero job loss."
+description = "Reliability layer for Celery. Zero job loss with task resurrection, idempotency, and graceful shutdown."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "Kolade Faj", email = "your@email.com" }]
+authors = [{ name = "Kolade Fajimi", email = "fajimikolade23@gmail.com" }]
 keywords = ["celery", "fastapi", "reliability", "production", "resilience"]
 dependencies = [
-    "asyncpg>=0.31.0",
     "celery[redis]>=5.6.3",
     "hiredis>=3.3.1",
     "opentelemetry-api>=1.41.1",
@@ -22,7 +21,7 @@ dependencies = [
     "rich>=13.7.0",
     "pydantic-settings>=2.2.0",
     "prometheus-client>=0.20.0",
-    "watchdog>=6.0.0",
+    "psutil>=7.2.2",
 ]
 
 [dependency-groups]
@@ -32,8 +31,10 @@ dev = [
     "pytest>=9.0.3",
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=6.0.0",
+    "pytest-rerunfailures>=15.0",
+    "pytest-timeout>=2.4.0",
     "ruff>=0.15.12",
-    "testcontainers[postgres,redis]>=4.13.3",
+    "testcontainers[redis]>=4.13.3",
 ]
 
 [project.scripts]
@@ -46,13 +47,16 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/relier"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"src/relier/py.typed" = "relier/py.typed"
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "--cov=src/relier --cov-report=term-missing --cov-fail-under=95"
+addopts = "--cov=src/relier --cov-report=term-missing"
 filterwarnings = [
-    "ignore::DeprecationWarning:testcontainers.*:"
+    "ignore::DeprecationWarning:testcontainers.*",
 ]
 
 [tool.coverage.run]
@@ -65,8 +69,8 @@ sigterm = true
 omit = [
     "src/relier/cli/*",
     "src/relier/chaos/*",
-    "src/relier/debug.py",
     "src/relier/*/__init__.py",
+    "bench/*",
 ]
 
 # Exclude from the final report
@@ -74,8 +78,8 @@ omit = [
 omit = [
     "src/relier/cli/*",
     "src/relier/chaos/*",
-    "src/relier/debug.py",
     "src/relier/*/__init__.py",
+    "bench/*",
 ]
 show_missing = true
 skip_covered = true

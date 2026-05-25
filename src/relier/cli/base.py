@@ -19,9 +19,9 @@ console = Console()
 # so the output reads more like a polished man page than a colourful demo.
 # ---------------------------------------------------------------------------
 _HELP = (
-    "[bold]Relier[/bold] - production reliability layer for Celery.\n\n"
-    "Zero job loss. Every task completes, hands off, or lands in the DLQ with "
-    "a traceable reason.\n\n"
+    "[bold]Relier[/bold] - reliability layer for Celery. Zero job loss.\n\n"
+    "Every task completes, hands off, or lands in the DLQ with a traceable "
+    "reason.\n\n"
     "[bold]Common commands[/bold]\n\n"
     "  [bold]rl doctor[/bold]              Check Redis + dependency health\n"
     "  [bold]rl run-resurrector[/bold]     Start the Phoenix resurrector loop\n"

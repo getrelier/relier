@@ -229,11 +229,22 @@ class TestTasksApp:
             f.set_result(None)
             return f
 
+        # Patch the long-lived background coroutines to no-ops so they don't
+        # leak AsyncMock awaitables when GC eventually reclaims them. The test
+        # only exercises the presence loop, which is captured + driven below.
+        async def _noop() -> None:
+            return None
+
         with (
             patch("relier.tasks.app.redis_manager") as mock_rm,
             patch("threading.Thread"),
             patch("relier.tasks.app.setup_logging"),
             patch("relier.tasks.app.setup_telemetry"),
+            patch("relier.tasks.app._cleanup_dead_workers", side_effect=_noop),
+            patch(
+                "relier.core.phoenix.PhoenixRegistry.resurrection_loop",
+                side_effect=_noop,
+            ),
             patch("asyncio.new_event_loop", return_value=mock_loop),
             patch("asyncio.run_coroutine_threadsafe", side_effect=capture_only),
         ):
@@ -251,6 +262,12 @@ class TestTasksApp:
                 pytest.raises(asyncio.CancelledError),
             ):
                 await presence_coro
+
+            # Close any remaining captured coroutines so GC does not later
+            # raise PytestUnraisableExceptionWarning.
+            for coro in captured_coros:
+                if coro is not presence_coro and asyncio.iscoroutine(coro):
+                    coro.close()
 
     @pytest.mark.asyncio
     async def test_presence_loop_exception(self) -> None:

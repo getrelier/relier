@@ -1,0 +1,66 @@
+name: Publish to PyPI
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  id-token: write  # required for OIDC trusted publishing
+
+jobs:
+  build-and-publish:
+    name: Build and Publish
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/relier/
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Verify version matches tag
+        run: |
+          TAG="${{ github.ref_name }}"
+          PKG_VERSION="v$(uv run python -c 'import relier; print(relier.__version__)')"
+          if [ "$TAG" != "$PKG_VERSION" ]; then
+            echo "Tag '$TAG' does not match package version '$PKG_VERSION'"
+            exit 1
+          fi
+
+      - name: Run unit tests with 95% coverage gate before publishing
+        run: |
+          uv run pytest tests/unit/ -v \
+            --cov=src/relier \
+            --cov-report=term-missing \
+            --cov-fail-under=95
+
+      - name: Build distribution
+        run: uv build
+
+      - name: Upload to PyPI (OIDC)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          skip-existing: false
+          verbose: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

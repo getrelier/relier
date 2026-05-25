@@ -1,0 +1,271 @@
+.TH rl 1 "2026-05-20" "Relier 0.1.0" "rl(1)"
+.SH NAME
+rl \- Relier command-line interface
+.SH SYNOPSIS
+.B rl
+.RI [ options ] " <group> <command> " [ args ]
+.SH DESCRIPTION
+.B rl
+is the command-line interface for
+.B Relier ,
+the reliability layer for Celery (built for FastAPI; supports
+Flask, Django, and any other Python web framework or script). It provides
+subcommands for task monitoring, Dead Letter Queue management, worker
+operations, chaos engineering, SLO tracking, and cluster administration.
+.PP
+Every
+.B rl
+command is a short-lived process that talks directly to the same Redis your
+workers use \- there is no daemon, no API server, no extra infrastructure to
+deploy. If Redis is reachable, the CLI works.
+.SH GLOBAL OPTIONS
+.TP
+.B \-v, \-\-version
+Print the CLI version and exit.
+.TP
+.B \-h, \-\-help
+Show the top-level help message.
+.SH TOP-LEVEL COMMANDS
+.TP
+.B rl man [\-\-plain]
+Print this manual, rendered with Rich Markdown by default. Pass
+.B \-\-plain
+to get raw Markdown for piping into another tool.
+.TP
+.B rl doctor
+Check Redis and cluster dependency health. Exits non-zero if Redis is
+unreachable. Suitable as a Docker / Kubernetes liveness probe.
+.TP
+.B rl bench [\-\-iterations N]
+Measure Relier dispatch overhead vs raw Celery
+.BR .delay() .
+Uses the always-loaded
+.B chaos_noop
+target so it runs in any environment.
+.TP
+.B rl run-resurrector [\-\-loglevel LEVEL] [\-\-interval SECS]
+Start the Phoenix resurrector engine. Monitors the cluster for dead workers
+and re-queues orphaned tasks. Typically runs as a dedicated 'guardian'
+process or container.
+.B rl resurrect
+is a hidden alias retained for backwards compatibility.
+.SH CLUSTER COMMANDS
+.B rl cluster
+manages the bundled Docker Compose stack (workers, resurrector, Redis,
+OpenTelemetry collector, Prometheus, Grafana).
+.TP
+.B rl cluster up [\-d|\-\-detach|\-\-no\-detach]
+Start the full Relier stack via Docker Compose (default: detached).
+.TP
+.B rl cluster down
+Gracefully shut down the Relier stack.
+.TP
+.B rl cluster status
+Check Docker Compose stack and Redis connectivity.
+.TP
+.B rl cluster scale N
+Scale the worker pool to N replicas.
+.TP
+.B rl cluster logs [\-f|\-\-follow] [service]
+Tail stack logs. Optionally filter to a single service (e.g.
+.IR worker ,
+.IR redis ,
+.IR resurrector ).
+.SH TASK COMMANDS
+.TP
+.B rl tasks inflight [\-f|\-\-follow] [\-\-worker ID]
+Show all tasks currently executing across the cluster.
+.B \-\-follow
+refreshes the view every 2 seconds.
+.B \-\-worker
+restricts output to a single worker.
+.TP
+.B rl tasks list
+One-shot inflight task table.
+.TP
+.B rl tasks top
+A top-like summary: active workers, queue depth, and p95 latency.
+.TP
+.B rl tasks inspect task_id
+Show the full payload, execution state, and Phoenix metadata for a task.
+.TP
+.B rl tasks retry task_id
+Re-queue a failed or quarantined task. Checks the DLQ first; falls back to
+the Phoenix payload for orphaned tasks. Preserves the resurrection count.
+.TP
+.B rl tasks cancel task_id [\-\-no\-terminate]
+Revoke and cancel a task. Sends SIGTERM to the running process by default.
+Pass
+.B \-\-no\-terminate
+to mark the task revoked without killing a running process.
+.TP
+.B rl tasks logs task_id [\-f|\-\-follow]
+Display state transitions and metadata for a task.
+.B \-\-follow
+polls Redis every 2 seconds until the task exits.
+.SH WORKER COMMANDS
+.TP
+.B rl worker status
+List all active workers with per-worker session metrics.
+.TP
+.B rl worker drain worker_id
+Initiate a graceful shutdown for a worker: it stops accepting new tasks and
+finishes (or hands off) current work before exiting.
+.TP
+.B rl worker restart worker_id
+Send a shutdown signal to a worker for a rolling restart. The process manager
+(Docker, systemd, Kubernetes) restarts the worker automatically.
+.TP
+.B rl worker reset worker_id
+Clear per-session success/failed counters for a worker.
+.SH DLQ COMMANDS
+The Dead Letter Queue holds tasks that cannot be safely retried.
+.TP
+.B rl dlq list
+List all quarantined tasks in the DLQ.
+.TP
+.B rl dlq inspect task_id
+Show the full payload, error context, and resurrection history for a
+quarantined task.
+.TP
+.B rl dlq release task_id
+Un-quarantine a task and re-submit it to its original queue. Preserves the
+resurrection count.
+.TP
+.B rl dlq retry-all
+Re-submit every task in the DLQ.
+.TP
+.B rl dlq purge \-\-confirm
+Permanently delete every DLQ entry. Requires
+.B \-\-confirm
+to proceed (irreversible).
+.SH SLO COMMANDS
+.TP
+.B rl slo status [\-\-target FRACTION]
+Show current error-budget burn rates across the 1h, 6h, and 3d windows.
+.B \-\-target
+overrides the default 99.9% SLO target.
+.TP
+.B rl slo report [\-\-period 1h|6h|3d] [\-\-format table|json]
+Historical burn-rate report. JSON output is suitable for dashboards.
+.SH CHAOS COMMANDS
+Run these only against a non-production cluster.
+.TP
+.B rl chaos worker-kill [\-\-worker ID] [\-\-seed] [\-\-seed-duration SECS] [\-\-watch] [\-\-watch-duration SECS]
+Send SIGKILL to a worker process.
+.B \-\-seed
+dispatches a long-running task first so Phoenix has something to resurrect.
+.B \-\-watch
+streams resurrection events to the console after the kill.
+.TP
+.B rl chaos network-partition [\-\-secs N]
+Simulate a Redis network partition for N seconds.
+.TP
+.B rl chaos load-spike [\-\-rps N] [\-\-duration SECS]
+Flood the dispatch path with N requests per second to stress admission
+control.
+.TP
+.B rl chaos task-corrupt
+Inject a malformed poison-pill envelope into the task queue. Expect a DLQ
+quarantine with
+.IR PayloadIntegrityError .
+.TP
+.B rl chaos slow-task [\-\-duration SECS]
+Dispatch a task that sleeps longer than its configured hard_timeout,
+triggering the timeout pipeline and DLQ quarantine.
+.SH CONFIG COMMANDS
+.TP
+.B rl config show
+Print all active configuration values. Passwords and connection URLs are
+redacted.
+.TP
+.B rl config validate
+Validate Redis policy (\fImaxmemory-policy=noeviction\fR) and all
+.B RELIER_*
+environment variables against the settings schema.
+.TP
+.B rl config set KEY VALUE
+Write a configuration key/value pair to the local
+.I .env
+file. Restart affected workers for the change to take effect.
+.SH ADMISSION COMMANDS
+.TP
+.B rl admission status
+Show the current admission control state, request count, and load-shedding
+percentage.
+.SH ADMIN COMMANDS
+Low-level Redis maintenance. Use with care.
+.TP
+.B rl admin config
+Display the active cluster configuration (abbreviated).
+.TP
+.B rl admin purge-locks
+Force-delete every idempotency lock sentinel from Redis.
+.TP
+.B rl admin reset-admission
+Reset admission control counters across the cluster.
+.SH EXAMPLES
+.PP
+Live task monitoring:
+.PP
+.nf
+rl tasks inflight --follow
+rl tasks inflight --follow --worker rl-worker-2
+.fi
+.PP
+Inspect and release a quarantined task:
+.PP
+.nf
+rl dlq list
+rl dlq inspect 5df7f30a-8404-41e1-bb80-6d480771f13f
+rl dlq release 5df7f30a-8404-41e1-bb80-6d480771f13f
+.fi
+.PP
+Validate Phoenix resurrection end-to-end:
+.PP
+.nf
+rl chaos worker-kill --seed --watch --watch-duration 60
+.fi
+.PP
+Export SLO data for a dashboard:
+.PP
+.nf
+rl slo report --format json | jq .
+.fi
+.SH INSTALLATION
+.PP
+This man page is shipped in the source tree at
+.IR man/rl.1 .
+The same content is bundled into the package and rendered cross-platform by
+.B rl man ,
+so installing the man page is optional. To install it on Linux for
+.BR man (1)
+use:
+.PP
+.nf
+sudo cp man/rl.1 /usr/local/share/man/man1/
+sudo mandb
+man rl
+.fi
+.PP
+On macOS:
+.PP
+.nf
+sudo cp man/rl.1 /usr/local/share/man/man1/
+man rl
+.fi
+.PP
+On Windows, there is no
+.BR man (1)
+command;
+.B rl man
+is the supported entry point.
+.SH SEE ALSO
+.B rl --help,
+.B rl <group> --help,
+.B rl <group> <command> --help,
+.PP
+Online documentation: https://getrelier.github.io/relier
+.SH AUTHOR
+Kolade Fajimi and Relier contributors. MIT licence.
+https://github.com/getrelier/relier

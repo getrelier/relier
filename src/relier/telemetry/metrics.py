@@ -10,6 +10,8 @@ Instruments are initialized at module import time, safe because the
 real SDK providers after ``setup_telemetry()`` is called.
 """
 
+import socket
+import threading
 import typing
 
 from opentelemetry import metrics
@@ -107,22 +109,43 @@ shutdown_duration_s = meter.create_histogram(
 # ===========================================================================
 
 
+# Worker-local in-flight task counter. Incremented when the decorator
+# registers a task and decremented when it completes. Lives per worker
+# process — the OTEL callback emits one observation per process, labelled
+# with this worker's hostname; aggregating across the cluster is the
+# responsibility of the Prometheus query layer.
+_inflight_lock = threading.Lock()
+_inflight_count = 0
+_worker_hostname = socket.gethostname()
+
+
+def _inflight_inc() -> None:
+    """Increment the worker-local in-flight task counter."""
+    global _inflight_count
+    with _inflight_lock:
+        _inflight_count += 1
+
+
+def _inflight_dec() -> None:
+    """Decrement the worker-local in-flight task counter (clamped at 0)."""
+    global _inflight_count
+    with _inflight_lock:
+        if _inflight_count > 0:
+            _inflight_count -= 1
+
+
 def _inflight_tasks_callback(
     options: metrics.CallbackOptions,
 ) -> typing.Iterator[metrics.Observation]:
-    """Yield inflight task count per worker from Redis.
-
-    This callback is intentionally a sync stub.  In production, wire it to
-    the Redis sorted-set cardinalities recorded by the decorator.
-    """
-    # The actual values are read from Redis by the CLI / API layer.
-    # This callback placeholder satisfies the OTEL SDK contract.
-    yield metrics.Observation(0, {"rl.worker.id": "unknown"})
+    """Emit the in-flight task count for the current worker process."""
+    with _inflight_lock:
+        count = _inflight_count
+    yield metrics.Observation(count, {"rl.worker.id": _worker_hostname})
 
 
 inflight_tasks = meter.create_observable_gauge(
     name="rl_inflight_tasks",
     callbacks=[_inflight_tasks_callback],
-    description="Number of tasks currently executing on each worker.",
+    description="Number of tasks currently executing on this worker.",
     unit="1",
 )

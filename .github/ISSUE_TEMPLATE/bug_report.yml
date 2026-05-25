@@ -1,0 +1,112 @@
+name: Bug Report
+description: Something isn't working as documented or expected
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill in as much detail as you can, reproduction steps and env info cut resolution time significantly.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug. What did you expect? What actually happened?
+      placeholder: |
+        I called `task.apush(...)` and expected the Phoenix resurrector to re-queue it
+        within ~8s after SIGKILL, but after 60s the task still had not reappeared.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: The smallest code snippet or `docker compose` setup that reliably triggers the bug.
+      render: python
+      placeholder: |
+        from relier.tasks.decorator import rl_task
+
+        @rl_task(hard_timeout=10)
+        async def my_task(x: str) -> str:
+            return x
+
+        # Steps to trigger the bug:
+        # 1. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-output
+    attributes:
+      label: Error output / logs
+      description: Paste the full traceback, structured logs, or `rl tasks inflight` output if available.
+      render: text
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Which component is affected?
+      multiple: true
+      options:
+        - Phoenix resurrector
+        - Idempotency
+        - Admission control
+        - Dead Letter Queue (DLQ)
+        - Graceful shutdown
+        - Timeouts (soft / hard)
+        - Checkpointing
+        - Schema versioning
+        - CLI (rl)
+        - OpenTelemetry / metrics
+        - Redis HA / Sentinel
+        - Config / settings
+        - Other
+
+  - type: input
+    id: relier-version
+    attributes:
+      label: Relier version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: "3.11.9"
+    validations:
+      required: true
+
+  - type: input
+    id: redis-version
+    attributes:
+      label: Redis version and config
+      description: Version + AOF status (redis-cli INFO server | grep redis_version; redis-cli CONFIG GET appendonly)
+      placeholder: "Redis 7.2.4, AOF=yes, maxmemory-policy=noeviction"
+    validations:
+      required: true
+
+  - type: input
+    id: celery-version
+    attributes:
+      label: Celery version
+      placeholder: "5.3.6"
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment environment
+      options:
+        - Bare metal (direct Python processes)
+        - Docker (single node)
+        - Docker Compose
+        - Kubernetes
+        - Other
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Anything else — rl bench output, network topology, load characteristics, etc.

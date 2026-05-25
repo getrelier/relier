@@ -10,9 +10,9 @@ same way on Windows, macOS, and Linux - no Unix ``man`` command required, no
 MANUAL = r"""
 # rl - Relier CLI Manual
 
-`rl` is the command-line interface for Relier, the production reliability
-layer for Celery (built for FastAPI, works with Flask, Django, and any other
-Python web framework or script).
+`rl` is the command-line interface for Relier, the reliability layer for
+Celery (built for FastAPI, works with Flask, Django, and any other Python
+web framework or script).
 
 Every `rl` command is a short-lived process that talks directly to the same
 Redis your workers use - there is no daemon, no API server, no extra

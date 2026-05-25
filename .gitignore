@@ -50,8 +50,16 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 .coverage.*
-bench/
+bench-results/
+bench_synthetic.log
+# Per-run integration worker logs emitted by tests/integration/conftest.py
+worker_*.log
+
+# Local recovery folder used during multi-commit refactors (never tracked)
+.recovery/
+
+# Docs build output
+site/
 
 # Databases
 *.sqlite3
-.aider*

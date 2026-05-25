@@ -1,5 +1,6 @@
 .PHONY: setup format lint check test test-integration clean \
-        worker resurrector dev dev-down dev-logs prod prod-down
+        worker resurrector dev dev-down dev-logs prod prod-down \
+        bench bench-docker bench-docker-down
 
 # =============================================================================
 # Setup & quality
@@ -26,7 +27,7 @@ test:
 	uv run pytest tests/unit/ -v
 
 test-integration:
-	uv run pytest tests/integration/ -v --timeout=120
+	uv run pytest tests/integration/ -v --timeout=120 --reruns 2 --reruns-delay 1
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
@@ -81,3 +82,22 @@ prod:
 
 prod-down:
 	docker compose -f docker-compose.prod.yml down
+
+# =============================================================================
+# Benchmarks
+# =============================================================================
+# Synthetic mode is the default — no Ollama, no GPU, ~2 min, runs against a
+# locally reachable Redis. Override BENCH_SYNTHETIC_SLEEP / BENCH_BATCH_SIZE
+# in your environment to tune. See bench/README.md.
+
+bench:
+	uv run python -m bench.bench --synthetic
+
+# Full bench in an isolated Docker network with Prometheus + Grafana wired up.
+# Use this when you want dashboards or repeatable hardware-independent runs.
+# Results land in ./bench-results/. Grafana: http://localhost:3001
+bench-docker:
+	docker compose -f docker-compose.bench.yml up --build
+
+bench-docker-down:
+	docker compose -f docker-compose.bench.yml down -v

@@ -44,8 +44,8 @@ class TimeoutEnforcer:
         func: Callable,
         args: tuple,
         kwargs: dict,
-        soft: int | None,
-        hard: int | None,
+        soft: float | None,
+        hard: float | None,
         on_soft: Callable | None,
         task_id: str,
     ) -> Any:

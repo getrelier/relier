@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Troubleshooting & FAQ
+    url: https://getrelier.github.io/relier/troubleshooting/
+    about: Most common issues and their fixes are documented here.
+  - name: Documentation
+    url: https://getrelier.github.io/relier/
+    about: Full docs — configuration, deployment, patterns, API reference.
+  - name: GitHub Discussions
+    url: https://github.com/getrelier/relier/discussions
+    about: General questions, ideas, and show-and-tell.
