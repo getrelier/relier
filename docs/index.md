@@ -2,6 +2,21 @@
 
 **Reliability layer for Celery. Zero job loss.**
 
+!!! warning "Pre-1.0 — public API may change"
+    Relier is currently `v0.x.y`. The **core engine** (Phoenix resurrector,
+    idempotency, schema envelope, admission control, fence-token protocol)
+    is production-grade and has been validated against the first-party
+    chaos suite.
+
+    The **public API layout** is still stabilising. Minor version bumps
+    (`0.y.0`) may introduce breaking changes to decorator options,
+    dispatch helpers, and CLI command shapes. Pin to a minor version
+    (e.g. `relier==0.1.*`) until 1.0 ships.
+
+    See the [versioning policy](#versioning-policy) at the bottom of this
+    page and the [CHANGELOG](https://github.com/getrelier/relier/blob/main/CHANGELOG.md)
+    for the migration log.
+
 ---
 
 Relier wraps your existing Celery setup with a self-healing reliability layer.
@@ -137,3 +152,24 @@ That's it. No GPU, no native extensions, no database required. Just Python + Red
 | Set up dashboards and alerts | [Metrics Reference](metrics.md) |
 | Read the deep-dive on internals | [Architecture](architecture.md) |
 | Understand exactly what's protected against what failure | [Durability, HA, & Failure Boundaries](durability.md) |
+
+---
+
+## Versioning policy
+
+Relier follows [Semantic Versioning](https://semver.org), with one
+explicit caveat for the pre-1.0 series:
+
+- **`0.PATCH.x`** — bug fixes, doc updates, internal refactors.
+  Always safe to upgrade.
+- **`0.MINOR.0`** — feature additions **and** potentially breaking
+  changes to the public API surface (`@rl_task` options, dispatch
+  helpers, CLI command shapes, `relier.config.Settings` field names).
+  Read the [CHANGELOG](https://github.com/getrelier/relier/blob/main/CHANGELOG.md)
+  before bumping.
+- **`1.0.0`** — locks the public API. From that point on, breaking
+  changes require a major-version bump per standard SemVer.
+
+The **core engine** (Redis key layout, Lua scripts, fence-token
+protocol, schema envelope format) is treated as an internal contract
+even pre-1.0: changes there are versioned and migrated, never silent.

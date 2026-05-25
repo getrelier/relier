@@ -325,9 +325,9 @@
   const panel = document.getElementById('tweaks');
   const closeBtn = document.getElementById('tweaks-close');
   if (!panel) return;
-
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
   const defaults = window.__TWEAKS || { accent: '#6366f1', theme: 'dark', density: 'full' };
-  const state = { ...defaults };
+  const state = { ...defaults, theme: currentTheme };
 
   function apply() {
     // Accent
@@ -363,6 +363,9 @@
 
   function persist(patch) {
     Object.assign(state, patch);
+    if (patch.theme) {
+      localStorage.setItem('theme', patch.theme);
+    }
     apply();
     try {
       window.parent.postMessage({ type: '__edit_mode_set_keys', edits: patch }, '*');
@@ -393,6 +396,12 @@
   document.querySelectorAll('#tw-density button').forEach(btn =>
     btn.addEventListener('click', () => persist({ density: btn.dataset.density })));
 
+  // Listen for external theme changes (like navbar toggle)
+  window.addEventListener('themechanged', (e) => {
+    state.theme = e.detail.theme;
+    apply();
+  });
+
   // Edit-mode integration (toolbar toggle)
   window.addEventListener('message', (e) => {
     const d = e.data || {};
@@ -409,4 +418,25 @@
   try { window.parent.postMessage({ type: '__edit_mode_available' }, '*'); } catch (e) {}
 
   apply();
+})();
+
+/* ============================================================
+   NAVBAR THEME TOGGLE
+   ============================================================ */
+(function () {
+  const themeToggle = document.getElementById('theme-toggle');
+  if (!themeToggle) return;
+  themeToggle.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme') || 'dark';
+    const nextTheme = current === 'dark' ? 'light' : 'dark';
+
+    // Update document attribute
+    document.documentElement.setAttribute('data-theme', nextTheme);
+
+    // Persist in localStorage
+    localStorage.setItem('theme', nextTheme);
+
+    // Broadcast to synchronize tweaks panel if open
+    window.dispatchEvent(new CustomEvent('themechanged', { detail: { theme: nextTheme } }));
+  });
 })();

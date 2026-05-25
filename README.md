@@ -85,7 +85,7 @@ infrastructure to operate beyond what you already have.
 
 ---
 
-## What Relier is — and is not
+## What Relier is and is not
 
 **Relier is a thin wrapper around Celery, not a replacement for it.**
 
@@ -102,7 +102,7 @@ decorator, switch `.delay()` to `.push()`, and you're done.
 [Temporal](https://temporal.io) and [Hatchet](https://hatchet.run) are workflow
 engines. They model *multi-step workflows* with deterministic replay, activity
 retries across process restarts, and saga compensation. That's a fundamentally
-different problem — and a fundamentally different programming model. If you need
+different problem and a fundamentally different programming model. If you need
 long-running workflows spanning hours, human approval steps, or saga rollbacks,
 use one of those.
 
@@ -115,16 +115,16 @@ operate. Same Redis you already have.
 **Relier is not a DAG runner.**
 
 [Prefect](https://prefect.io), [Airflow](https://airflow.apache.org),
-[Dagster](https://dagster.io), [Luigi](https://github.com/spotify/luigi) — these
+[Dagster](https://dagster.io), [Luigi](https://github.com/spotify/luigi)  these
 schedule and orchestrate pipelines of dependent tasks. They have UIs, schedulers,
 and retry policies baked into a pipeline definition. Relier has none of that.
 
 Relier makes individual Celery tasks reliable. What those tasks do, when they run,
-and how they depend on each other is still your problem — and Celery's.
+and how they depend on each other is still your problem and Celery's.
 
 ---
 
-**vs. building it yourself.** Most teams write some subset of this — an
+**vs. building it yourself.** Most teams write some subset of this an
 idempotency table, sometimes a heartbeat-based resurrector, occasionally a DLQ.
 The pieces are individually well-understood. Composing them correctly (fence tokens
 for the GC-pause-victim case, AOF + `noeviction` preflight checks, thundering-herd
@@ -206,6 +206,8 @@ Full guide: [docs/chaos-guide.md](https://getrelier.github.io/relier/chaos-guide
 
 Measured by the built-in bench suite (`docker compose -f docker-compose.bench.yml up --build`) on Linux with prefork workers and synthetic 0.5 s tasks. All claims verified end-to-end not microbenchmarks against a mock.
 
+_Numbers below: Relier `v0.1.0`, captured 2026-05-25 against commit `41884c5`. Re-run with `make bench-docker` to compare on your hardware._
+
 ```
 Linux (Docker, python:3.11-slim, prefork=4) | Redis 7.2 AOF | 500 tasks × 5 kills
 
@@ -244,7 +246,7 @@ Full methodology, per-test breakdowns, and Docker Compose instructions: [docs/be
 - **Dead Letter Queue**: full payload + reason + resurrection history. CLI to inspect, release, retry, purge.
 - **Admission control**: atomic Lua-based fixed-window limiter, returns `Retry-After`.
 - **SLO burn-rate tracking**: 1h / 6h / 3d windows, Google SRE-style burn rates, JSON or table output.
-- **Schema versioning**: signed envelopes with sequential migrations for rolling deploys — old workers and new workers can run simultaneously without payload mismatches.
+- **Schema versioning**: signed envelopes with sequential migrations for rolling deploys, old workers and new workers can run simultaneously without payload mismatches.
 - **Full OpenTelemetry**: every lifecycle event emits spans and metrics. Bundled OTel -> Prometheus -> Grafana stack.
 - **Redis HA out of the box**: Sentinel-based failover, replicas, hourly RDB backups, optional S3 offsite.
 - **Async-first, sync-compatible**: `apush` for asyncio (FastAPI), `push` for sync code (Flask, Django, scripts).
@@ -317,8 +319,8 @@ Open a PR against `main`. Quality gates: `make lint check test` must pass; `make
 ## Community
 
 - **Issues** — bugs, feature requests, questions via the issue templates above
-- **Discussions** — [github.com/getrelier/relier/discussions](https://github.com/getrelier/relier/discussions) — ideas, integrations, show and tell
-- **X / Twitter** — [@relierdev](https://x.com/relierdev) — release announcements and short-form updates
+- **Discussions** — [github.com/getrelier/relier/discussions](https://github.com/getrelier/relier/discussions)  ideas, integrations, show and tell
+- **X / Twitter** — [@relierdev](https://x.com/relierdev)  release announcements and short-form updates
 - **Releases** — watch this repo for new releases; the changelog is in each GitHub Release
 
 ---
@@ -335,5 +337,5 @@ Built on Celery, Redis, asyncio, and OpenTelemetry. The Phoenix Pattern owes
 its name to the obvious metaphor; the fence-token approach is borrowed from
 Martin Kleppmann's writeups on distributed locking. The explicit-checkpoint
 philosophy is shared with Faust, Temporal (despite their different model),
-and AWS Step Functions — when production systems converge on a design choice,
+and AWS Step Functions when production systems converge on a design choice,
 it's worth noticing.

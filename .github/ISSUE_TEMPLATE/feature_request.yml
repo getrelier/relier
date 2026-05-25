@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Before opening, check [the docs](https://getrelier.github.io/relier/) and existing issues — the feature may already exist or be planned. The most useful requests include a concrete use-case from a real system.
+        Before opening, check [the docs](https://getrelier.github.io/relier/) and existing issues the feature may already exist or be planned. The most useful requests include a concrete use-case from a real system.
 
   - type: textarea
     id: problem
@@ -14,7 +14,7 @@ body:
       description: Describe the specific situation where this feature would help. Concrete workload beats abstract ask every time.
       placeholder: |
         We dispatch ~10k tasks/minute from multiple FastAPI pods. When one pod is
-        doing a rolling deploy, admission control triggers across the cluster — we
+        doing a rolling deploy, admission control triggers across the cluster, we
         need per-producer quotas, not a single global counter.
     validations:
       required: true

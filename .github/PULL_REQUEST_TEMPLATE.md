@@ -42,4 +42,4 @@
 
 ## Breaking changes
 
-<!-- If this changes the public API, Redis key layout, Lua scripts, or wire format — describe the impact and migration path. -->
+<!-- If this changes the public API, Redis key layout, Lua scripts, or wire format, describe the impact and migration path. -->

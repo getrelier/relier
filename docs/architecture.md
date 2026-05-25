@@ -324,7 +324,7 @@ Consider this scenario:
 5. Worker A wakes up from its GC pause and tries to commit its result for task_123.
 
 Without fence tokens, Worker A's stale result would overwrite Worker B's correct commit. With fence tokens:
-- Step 4: Worker B's commit validates that `rl:fence:{task_id} == "abc"` — it does, commit proceeds.
+- Step 4: Worker B's commit validates that `rl:fence:{task_id} == "abc"`, it does, commit proceeds.
 - Step 5: Worker A tries to commit, validates `rl:fence:{task_id}`, it's gone (TTL or deleted). Commit rejected. Worker A's stale result is silently discarded.
 
 ---

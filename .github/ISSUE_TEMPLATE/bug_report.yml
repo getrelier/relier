@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report a bug. Please fill in as much detail as you can — reproduction steps and env info cut resolution time significantly.
+        Thanks for taking the time to report a bug. Please fill in as much detail as you can, reproduction steps and env info cut resolution time significantly.
 
   - type: textarea
     id: what-happened

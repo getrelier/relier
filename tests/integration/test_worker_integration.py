@@ -199,9 +199,12 @@ class TestAppBootstrap:
             assert app_module.worker_loop.is_running()
         finally:
             new_loop = app_module.worker_loop
-            if new_loop and new_loop is not old_loop and new_loop.is_running():
-                new_loop.call_soon_threadsafe(new_loop.stop)
-            await asyncio.sleep(0.1)
+            if new_loop and new_loop is not old_loop:
+                if new_loop.is_running():
+                    new_loop.call_soon_threadsafe(new_loop.stop)
+                await asyncio.sleep(0.1)
+                if not new_loop.is_closed():
+                    new_loop.close()
             app_module.worker_loop = old_loop
 
     async def test_init_worker_process_runs_startup_checks(self, redis_client) -> None:
@@ -219,9 +222,12 @@ class TestAppBootstrap:
             assert app_module.shutdown_handler is not None
         finally:
             new_loop = app_module.worker_loop
-            if new_loop and new_loop is not old_loop and new_loop.is_running():
-                new_loop.call_soon_threadsafe(new_loop.stop)
-            await asyncio.sleep(0.15)
+            if new_loop and new_loop is not old_loop:
+                if new_loop.is_running():
+                    new_loop.call_soon_threadsafe(new_loop.stop)
+                await asyncio.sleep(0.15)
+                if not new_loop.is_closed():
+                    new_loop.close()
             app_module.worker_loop = old_loop
             app_module.shutdown_handler = old_handler
 
