@@ -447,14 +447,20 @@ def shutdown_worker(**kwargs: object) -> None:
             _duration = time.perf_counter() - _start
             shutdown_duration_s.record(_duration)
             shutdowns_total.add(1, {"type": "clean" if _clean else "forced"})
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning(
+                "Failed to record shutdown telemetry.",
+                extra={"error_type": type(exc).__name__},
+            )
         try:
             # Gracefully release loop-affined Redis resources.
             fut = asyncio.run_coroutine_threadsafe(redis_manager.close(), worker_loop)
             fut.result(timeout=5)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning(
+                "Failed to release Redis resources during shutdown.",
+                extra={"error_type": type(exc).__name__},
+            )
         # Stop the dedicated asyncio bridge runtime.
         worker_loop.call_soon_threadsafe(worker_loop.stop)
         logger.info("Worker async runtime bridge stopped.")

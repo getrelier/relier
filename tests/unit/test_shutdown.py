@@ -127,8 +127,11 @@ class TestShutdown:
 
         assert captured_handlers, "signal.signal must have been called"
 
+        # Use a plain MagicMock for `drain` so the call inside the signal
+        # handler returns a sync sentinel rather than an AsyncMock coroutine
+        # (which would leak and raise PytestUnraisableExceptionWarning).
         with (
-            patch.object(handler, "drain", return_value=object()),
+            patch.object(handler, "drain", new=MagicMock(return_value=object())),
             patch("asyncio.run_coroutine_threadsafe") as mock_rcts,
         ):
             captured_handlers[0](signal.SIGTERM, None)
