@@ -268,7 +268,7 @@ including under network partitions and mass worker failure.
 If you're considering it for production: read
 [Durability & HA](https://getrelier.github.io/relier/durability/) first, then
 run the chaos suite against a staging cluster that mirrors your prod setup.
-File issues for anything that surprises you, those are the inputs that get
+File issues for anything that surprises you. Those are the inputs that get
 the project to 1.0.
 
 ---
@@ -289,6 +289,17 @@ make setup              # creates the venv, installs dev deps, sets up pre-commi
 make test               # unit tests
 make test-integration   # integration tests against a test-container Redis
 ```
+
+Open a PR against `main`. Quality gates: `make lint check test` must pass; `make test-integration` is recommended if you touched anything in `core/` or `tasks/`.
+
+---
+
+## Community
+
+- **Issues** — bugs, feature requests, questions via the issue templates above
+- **Discussions** — [github.com/getrelier/relier/discussions](https://github.com/getrelier/relier/discussions) — ideas, integrations, show and tell
+- **X / Twitter** — [@relierdev](https://x.com/relierdev) — release announcements and short-form updates
+- **Releases** — watch this repo for new releases; the changelog is in each GitHub Release
 
 ---
 

@@ -18,8 +18,12 @@ processors:
 exporters:
   # Prometheus scrape endpoint, consumed by the prometheus service on :8889
   # No namespace prefix; metrics keep their rl_* names as defined in Python.
+  # add_metric_suffixes: false prevents the exporter from appending unit
+  # suffixes (e.g. rl_task_duration_ms -> rl_task_duration_ms_milliseconds),
+  # which would break every dashboard query that uses the SDK-declared names.
   prometheus:
     endpoint: "0.0.0.0:8889"
+    add_metric_suffixes: false
 
   # Human-readable trace/log output for development inspection
   debug:

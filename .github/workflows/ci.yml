@@ -33,8 +33,33 @@ jobs:
       - name: Run Mypy Type Checker
         run: uv run mypy src/
 
+  test-unit:
+    name: Unit Tests (>=95% coverage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Install Relier and Dev Dependencies
+        run: uv sync --all-groups
+
+      - name: Run unit suite with 95% coverage gate
+        run: |
+          uv run pytest tests/unit/ \
+            --cov=src/relier \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-fail-under=95
+
   test-integration:
-    name: Integration Tests & Coverage
+    name: Integration Tests (>=80% coverage)
     runs-on: ubuntu-latest
     services:
       redis:
@@ -61,15 +86,15 @@ jobs:
       - name: Install Relier and Dev Dependencies
         run: uv sync --all-groups
 
-      - name: Run Pytest with 90% Coverage Requirement
+      - name: Run integration suite with 80% coverage gate
         env:
           RELIER_REDIS_URL: redis://localhost:6379/0
         run: |
-          uv run pytest tests/ \
+          uv run pytest tests/integration/ \
             --cov=src/relier \
             --cov-report=term-missing \
             --cov-report=xml \
-            --cov-fail-under=90
+            --cov-fail-under=80
 
   build-check:
     name: Validate Build Artifacts
