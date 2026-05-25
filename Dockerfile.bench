@@ -12,11 +12,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates procps \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml README.md ./
-COPY src ./src
-COPY bench ./bench
+# Non-root user — bench spawns Celery worker subprocesses which refuse to
+# run as uid 0 without C_FORCE_ROOT. WORKDIR /app was created as root, so
+# hand it to the relier user before any USER-scoped writes happen.
+RUN groupadd --system --gid 1000 relier \
+    && useradd --system --uid 1000 --gid relier \
+        --home-dir /app --shell /usr/sbin/nologin relier \
+    && chown relier:relier /app
 
-RUN uv venv && uv pip install -e .
+COPY --chown=relier:relier pyproject.toml README.md ./
+COPY --chown=relier:relier src ./src
+COPY --chown=relier:relier bench ./bench
+
+ENV UV_CACHE_DIR=/app/.uv-cache
+USER relier
+RUN uv venv && uv pip install -e . && rm -rf "$UV_CACHE_DIR"
 
 ENV PATH="/app/.venv/bin:$PATH"
 

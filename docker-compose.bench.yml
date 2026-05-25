@@ -24,8 +24,7 @@ x-bench-env: &bench-env
   BENCH_SYNTHETIC: "1"
   BENCH_SYNTHETIC_SLEEP: "${BENCH_SYNTHETIC_SLEEP:-0.5}"
   BENCH_BATCH_SIZE: "${BENCH_BATCH_SIZE:-500}"
-  C_FORCE_ROOT: "true"
-  # Disable OTel in bench — the bench measures wall-clock time, not OTEL traces.
+  # Disable OTel in bench the bench measures wall-clock time, not OTEL traces.
   RELIER_OTEL_ENABLED: "false"
 
 services:
@@ -126,7 +125,7 @@ services:
       # Mount bench source live so you can edit bench tasks without rebuilding.
       - ./bench:/app/bench:ro
       - ./src:/app/src:ro
-      # Results land here — inspect on the host after the run.
+      # Results land here inspect on the host after the run.
       - ./bench-results:/app/bench-results
     depends_on:
       bench-redis:
