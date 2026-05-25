@@ -50,13 +50,13 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 .coverage.*
-bench/
 bench-results/
 bench_synthetic.log
+# Per-run integration worker logs emitted by tests/integration/conftest.py
+worker_*.log
 
 # Docs build output
 site/
 
 # Databases
 *.sqlite3
-.aider*
