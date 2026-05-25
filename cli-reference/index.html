@@ -1,0 +1,3488 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Zero job loss. Every task completes, hands off, or lands in the DLQ with a traceable reason.">
+      
+      
+      
+        <link rel="canonical" href="https://getrelier.github.io/relier/cli-reference/">
+      
+      
+        <link rel="prev" href="../configuration/">
+      
+      
+        <link rel="next" href="../metrics/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/logo.ico">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>CLI Reference - Relier</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#cli-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Relier" class="md-header__button md-logo" aria-label="Relier" data-md-component="logo">
+      
+  <img src="../assets/images/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Relier
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              CLI Reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/getrelier/relier" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    getrelier/relier
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../quickstart/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../integrations/" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../api-reference/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+  
+  Deep Dive
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Relier" class="md-nav__button md-logo" aria-label="Relier" data-md-component="logo">
+      
+  <img src="../assets/images/logo.png" alt="logo">
+
+    </a>
+    Relier
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/getrelier/relier" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    getrelier/relier
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../celery-primer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A Quick Celery Primer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration Recipes (FastAPI, Flask, Django)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../patterns/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Patterns Cookbook
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rolling-deploys/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rolling Deploys & Schema Migrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting & FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#how-the-cli-works-underneath" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the CLI works underneath
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#global-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Global options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-run-resurrector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl run-resurrector
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-doctor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl doctor
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-man" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl man
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-bench" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl bench
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-cluster-docker-stack-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl cluster Docker stack management
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rl cluster Docker stack management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rl-cluster-up" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl cluster up
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-cluster-down" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl cluster down
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-cluster-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl cluster status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-cluster-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl cluster scale
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-cluster-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl cluster logs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-tasks-task-monitoring-and-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl tasks Task monitoring and control
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rl tasks Task monitoring and control">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rl-tasks-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl tasks list
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-tasks-inflight" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl tasks inflight
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-tasks-top" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl tasks top
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-tasks-inspect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl tasks inspect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-tasks-retry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl tasks retry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-tasks-cancel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl tasks cancel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-tasks-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl tasks logs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-worker-worker-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl worker Worker management
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rl worker Worker management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rl-worker-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl worker status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-worker-drain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl worker drain
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-worker-restart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl worker restart
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-worker-reset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl worker reset
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-dlq-dead-letter-queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl dlq Dead Letter Queue
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rl dlq Dead Letter Queue">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rl-dlq-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl dlq list
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-dlq-inspect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl dlq inspect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-dlq-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl dlq release
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-dlq-retry-all" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl dlq retry-all
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-dlq-purge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl dlq purge
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-slo-slo-monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl slo SLO monitoring
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rl slo SLO monitoring">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rl-slo-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl slo status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-slo-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl slo report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-chaos-chaos-engineering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl chaos Chaos engineering
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rl chaos Chaos engineering">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rl-chaos-worker-kill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl chaos worker-kill
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-chaos-network-partition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl chaos network-partition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-chaos-load-spike" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl chaos load-spike
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-chaos-task-corrupt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl chaos task-corrupt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-chaos-slow-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl chaos slow-task
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-config-configuration-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl config Configuration management
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rl config Configuration management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rl-config-show" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl config show
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-config-validate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl config validate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-config-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl config set
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-admission-admission-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl admission Admission control
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rl admission Admission control">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rl-admission-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl admission status
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-admin-cluster-administration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl admin Cluster administration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rl admin Cluster administration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rl-admin-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl admin config
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-admin-purge-locks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl admin purge-locks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-admin-reset-admission" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl admin reset-admission
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deep Dive
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Deep Dive
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Durability, HA, & Failure Boundaries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../chaos-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chaos Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#how-the-cli-works-underneath" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the CLI works underneath
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#global-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Global options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-run-resurrector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl run-resurrector
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-doctor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl doctor
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-man" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl man
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-bench" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl bench
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-cluster-docker-stack-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl cluster Docker stack management
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rl cluster Docker stack management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rl-cluster-up" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl cluster up
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-cluster-down" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl cluster down
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-cluster-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl cluster status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-cluster-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl cluster scale
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-cluster-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl cluster logs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-tasks-task-monitoring-and-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl tasks Task monitoring and control
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rl tasks Task monitoring and control">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rl-tasks-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl tasks list
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-tasks-inflight" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl tasks inflight
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-tasks-top" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl tasks top
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-tasks-inspect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl tasks inspect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-tasks-retry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl tasks retry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-tasks-cancel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl tasks cancel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-tasks-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl tasks logs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-worker-worker-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl worker Worker management
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rl worker Worker management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rl-worker-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl worker status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-worker-drain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl worker drain
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-worker-restart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl worker restart
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-worker-reset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl worker reset
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-dlq-dead-letter-queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl dlq Dead Letter Queue
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rl dlq Dead Letter Queue">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rl-dlq-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl dlq list
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-dlq-inspect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl dlq inspect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-dlq-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl dlq release
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-dlq-retry-all" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl dlq retry-all
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-dlq-purge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl dlq purge
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-slo-slo-monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl slo SLO monitoring
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rl slo SLO monitoring">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rl-slo-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl slo status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-slo-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl slo report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-chaos-chaos-engineering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl chaos Chaos engineering
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rl chaos Chaos engineering">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rl-chaos-worker-kill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl chaos worker-kill
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-chaos-network-partition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl chaos network-partition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-chaos-load-spike" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl chaos load-spike
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-chaos-task-corrupt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl chaos task-corrupt
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-chaos-slow-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl chaos slow-task
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-config-configuration-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl config Configuration management
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rl config Configuration management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rl-config-show" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl config show
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-config-validate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl config validate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-config-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl config set
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-admission-admission-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl admission Admission control
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rl admission Admission control">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rl-admission-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl admission status
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rl-admin-cluster-administration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl admin Cluster administration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="rl admin Cluster administration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rl-admin-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl admin config
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-admin-purge-locks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl admin purge-locks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rl-admin-reset-admission" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rl admin reset-admission
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="cli-reference">CLI Reference<a class="headerlink" href="#cli-reference" title="Permanent link">&para;</a></h1>
+<p>Complete reference for the <code>rl</code> command-line interface. Run <code>rl --help</code> for a
+summary, or <code>rl &lt;group&gt; --help</code> for options in a specific group.</p>
+<h2 id="how-the-cli-works-underneath">How the CLI works underneath<a class="headerlink" href="#how-the-cli-works-underneath" title="Permanent link">&para;</a></h2>
+<p>The <code>rl</code> CLI is a Typer app that talks directly to the same Redis cluster your
+workers use. There is no daemon, no API server, no extra process: every command
+is a short-lived Python program that connects to Redis (via Sentinel if
+configured), reads or writes the relevant <code>rl:*</code> keys, and exits. That means:</p>
+<ul>
+<li><strong>Every command requires Redis to be reachable.</strong> If Redis is down, the CLI
+  fails with a clear connection error, the same way workers do.</li>
+<li><strong>CLI calls are read-only by default.</strong> Mutating operations (<code>rl dlq purge</code>,
+  <code>rl admin reset-admission</code>, <code>rl tasks cancel</code>) require an explicit flag or
+  argument.</li>
+<li><strong>The CLI is async-first.</strong> Most commands are <code>async def</code> functions wrapped in
+  a Typer adapter that runs them via <code>asyncio.run</code>. That lets a single command
+  parallelise multiple Redis round-trips with <code>asyncio.gather</code> for example,
+  <code>rl tasks inflight</code> fetches per-worker counts concurrently.</li>
+<li><strong>No special daemon mode for <code>rl run-resurrector</code>.</strong> That command is just an
+  ordinary process: it runs the Phoenix resurrection loop and exits cleanly on
+  SIGTERM.</li>
+<li><strong>Cluster commands (<code>rl cluster …</code>) shell out to <code>docker compose</code>.</strong> They
+  assume there is a <code>docker-compose.yml</code> in the current directory and that
+  Docker is installed. Without Docker, the bare-metal <code>make</code> targets do
+  equivalent work.</li>
+</ul>
+<p>Each command section below has a <strong>Under the hood</strong> note describing the exact
+Redis keys touched. If you're debugging or building automation against Relier,
+those notes are the authoritative source, the CLI is a thin pretty-printer on
+top of those reads.</p>
+<hr />
+<h2 id="global-options">Global options<a class="headerlink" href="#global-options" title="Permanent link">&para;</a></h2>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>rl<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--version</code>, <code>-v</code></td>
+<td>Print the installed Relier version and exit.</td>
+</tr>
+<tr>
+<td><code>--help</code></td>
+<td>Show the top-level help message.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="rl-run-resurrector"><code>rl run-resurrector</code><a class="headerlink" href="#rl-run-resurrector" title="Permanent link">&para;</a></h2>
+<p>Start the Phoenix resurrector engine. This is the long-running process that
+watches for dead workers and re-queues their orphaned tasks.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>rl<span class="w"> </span>run-resurrector<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--loglevel</code></td>
+<td><code>info</code></td>
+<td>Logging level: <code>debug</code>, <code>info</code>, <code>warning</code>, <code>error</code>.</td>
+</tr>
+<tr>
+<td><code>--interval</code></td>
+<td>from config</td>
+<td>Override the resurrection check interval in seconds.</td>
+</tr>
+</tbody>
+</table>
+<p>Run this in a dedicated container (the "guardian"):</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>rl<span class="w"> </span>run-resurrector
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>rl<span class="w"> </span>run-resurrector<span class="w"> </span>--loglevel<span class="w"> </span>debug
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>rl<span class="w"> </span>run-resurrector<span class="w"> </span>--interval<span class="w"> </span><span class="m">5</span><span class="w">   </span><span class="c1"># check every 5 seconds instead of the default</span>
+</span></code></pre></div>
+<p><strong>Under the hood.</strong> This runs <code>PhoenixRegistry.resurrection_loop()</code>, an async
+loop that every <code>resurrection_check_interval</code> seconds:
+1. <code>ZRANGEBYSCORE rl:phoenix:expiry_index 0 now</code>, list every task whose
+   heartbeat deadline has passed.
+2. For each candidate, check <code>EXISTS rl:hb:{task_id}</code>. If the heartbeat is
+   still alive, the worker is fine; update the expiry score and skip.
+3. If expired, acquire <code>SET rl:lock:resurrect:{task_id} NX EX 30</code> to prevent
+   two resurrectors racing.
+4. Increment <code>rl:resurrections:{task_id}</code> (after broker ACK only). If it
+   exceeds <code>RELIER_MAX_RESURRECTIONS</code>, quarantine to <code>rl:dlq</code> instead.
+5. Atomic Lua: mint a fence token, set <code>rl:lease:{task_id}</code> and
+   <code>rl:fence:{task_id}</code>, then re-dispatch the task to the internal <code>re-queue</code>
+   queue with the fence tokens injected into kwargs.</p>
+<p>The resurrector is <strong>single-instance by design</strong>. Running two does not cause
+duplicate execution (the distributed lock prevents it), but it wastes scan
+cycles.</p>
+<hr />
+<h2 id="rl-doctor"><code>rl doctor</code><a class="headerlink" href="#rl-doctor" title="Permanent link">&para;</a></h2>
+<p>Check the health of Relier's infrastructure dependencies (Redis, etc.) and exit with code 1 if anything is unreachable.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>rl<span class="w"> </span>doctor
+</span></code></pre></div>
+<p>No options. Useful as a liveness probe in Docker and Kubernetes:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>rl<span class="w"> </span>doctor<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;All systems go&quot;</span>
+</span></code></pre></div>
+<p><strong>Under the hood.</strong> Calls <code>redis_manager.ping()</code> against the configured Redis
+endpoint (Sentinel-aware if <code>RELIER_REDIS_USE_SENTINEL=true</code>). The exit code is
+the only side effect, there are no writes to Redis. Pair with <code>rl config
+validate</code> if you also want to check <code>maxmemory-policy</code> and connection-pool
+sizing.</p>
+<hr />
+<h2 id="rl-man"><code>rl man</code><a class="headerlink" href="#rl-man" title="Permanent link">&para;</a></h2>
+<p>Print the Relier manual. Shows <code>docs/rl.md</code> if it exists in the project directory, otherwise tries the installed man page.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>rl<span class="w"> </span>man
+</span></code></pre></div>
+<hr />
+<h2 id="rl-bench"><code>rl bench</code><a class="headerlink" href="#rl-bench" title="Permanent link">&para;</a></h2>
+<p>Measure Relier's dispatch overhead versus raw Celery dispatch. Runs both
+paths against the built-in <code>chaos_noop</code> task and reports a percentile
+distribution.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>rl<span class="w"> </span>bench<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--iterations</code></td>
+<td><code>1000</code></td>
+<td>Number of measured dispatches per path.</td>
+</tr>
+<tr>
+<td><code>--warmup</code></td>
+<td><code>100</code></td>
+<td>Warmup iterations discarded before measuring (covers Redis <code>SCRIPT LOAD</code>, connection-pool warmup, and asyncio loop settling).</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>rl<span class="w"> </span>bench<span class="w">                              </span><span class="c1"># default: 1000 + 100 warmup</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>rl<span class="w"> </span>bench<span class="w"> </span>--iterations<span class="w"> </span><span class="m">5000</span><span class="w"> </span>--warmup<span class="w"> </span><span class="m">500</span>
+</span></code></pre></div>
+<p><strong>Under the hood.</strong> Force-imports <code>relier.tasks.app.celery_app</code> so the
+shared-task registry binds to the Redis broker, then:</p>
+<ol>
+<li><strong>Warmup:</strong> N dispatches per path, discarded. This pays the one-time
+   costs (Redis <code>SCRIPT LOAD</code> for the admission Lua, connection-pool
+   establishment, asyncio loop startup) so they don't pollute the
+   measurement.</li>
+<li><strong>Baseline:</strong> N calls to <code>chaos_noop.delay(...)</code>, timed individually
+   with <code>time.perf_counter</code>.</li>
+<li><strong>Relier path:</strong> N calls to <code>await chaos_noop.apush(...)</code>, timed
+   individually.</li>
+<li><strong>Percentiles:</strong> sorts the samples and emits p50, p95, p99, plus a mean
+   trimmed of the top 1% (so a single AOF-fsync hiccup doesn't drag the
+   mean up).</li>
+</ol>
+<p>The output also reports the platform and Python version it ran on, because
+the slow path on Windows + localhost Redis is roughly 30–50% slower than
+the same code on Linux + uvloop. <strong>Trust the p50 across multiple runs</strong>,
+not a single percentage from one run microbenchmarks at this scale are
+intrinsically noisy.</p>
+<p><code>.delay()</code> is used here as the baseline of comparison only, never call it
+in application code (see <a href="../api-reference/#dispatch-methods-apush-push-delay">API → Dispatch methods</a>).</p>
+<hr />
+<h2 id="rl-cluster-docker-stack-management"><code>rl cluster</code>  Docker stack management<a class="headerlink" href="#rl-cluster-docker-stack-management" title="Permanent link">&para;</a></h2>
+<p>Commands for managing the full Relier Docker Compose stack.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>rl<span class="w"> </span>cluster<span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
+</span></code></pre></div>
+<h3 id="rl-cluster-up"><code>rl cluster up</code><a class="headerlink" href="#rl-cluster-up" title="Permanent link">&para;</a></h3>
+<p>Start the full Relier stack. Builds images and starts all services in detached mode by default.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>rl<span class="w"> </span>cluster<span class="w"> </span>up<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--detach</code> / <code>--no-detach</code>, <code>-d</code></td>
+<td>detached</td>
+<td>Run in detached mode (background).</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>rl<span class="w"> </span>cluster<span class="w"> </span>up<span class="w">           </span><span class="c1"># start detached (default)</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>rl<span class="w"> </span>cluster<span class="w"> </span>up<span class="w"> </span>--no-detach<span class="w">   </span><span class="c1"># attach and stream logs</span>
+</span></code></pre></div>
+<hr />
+<h3 id="rl-cluster-down"><code>rl cluster down</code><a class="headerlink" href="#rl-cluster-down" title="Permanent link">&para;</a></h3>
+<p>Gracefully shut down all services in the Relier stack.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>rl<span class="w"> </span>cluster<span class="w"> </span>down
+</span></code></pre></div>
+<hr />
+<h3 id="rl-cluster-status"><code>rl cluster status</code><a class="headerlink" href="#rl-cluster-status" title="Permanent link">&para;</a></h3>
+<p>Show the state of Docker Compose services and Redis connectivity.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>rl<span class="w"> </span>cluster<span class="w"> </span>status
+</span></code></pre></div>
+<hr />
+<h3 id="rl-cluster-scale"><code>rl cluster scale</code><a class="headerlink" href="#rl-cluster-scale" title="Permanent link">&para;</a></h3>
+<p>Scale the worker pool to a specific number of replicas.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>rl<span class="w"> </span>cluster<span class="w"> </span>scale<span class="w"> </span>WORKERS
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>WORKERS</code></td>
+<td>Number of worker replicas to run.</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>rl<span class="w"> </span>cluster<span class="w"> </span>scale<span class="w"> </span><span class="m">4</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>rl<span class="w"> </span>cluster<span class="w"> </span>scale<span class="w"> </span><span class="m">1</span><span class="w">   </span><span class="c1"># scale down to a single worker</span>
+</span></code></pre></div>
+<hr />
+<h3 id="rl-cluster-logs"><code>rl cluster logs</code><a class="headerlink" href="#rl-cluster-logs" title="Permanent link">&para;</a></h3>
+<p>Tail logs from one or all services in the Relier stack.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>rl<span class="w"> </span>cluster<span class="w"> </span>logs<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span><span class="o">[</span>SERVICE<span class="o">]</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--follow</code>, <code>-f</code></td>
+<td><code>false</code></td>
+<td>Stream logs continuously (like <code>tail -f</code>).</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SERVICE</code></td>
+<td>Service name to filter (e.g. <code>worker</code>, <code>guardian</code>, <code>redis</code>). Omit for all services.</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>rl<span class="w"> </span>cluster<span class="w"> </span>logs<span class="w">                      </span><span class="c1"># tail all services</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>rl<span class="w"> </span>cluster<span class="w"> </span>logs<span class="w"> </span>--follow<span class="w">             </span><span class="c1"># stream all services</span>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>rl<span class="w"> </span>cluster<span class="w"> </span>logs<span class="w"> </span>--follow<span class="w"> </span>guardian<span class="w">    </span><span class="c1"># stream just the resurrector</span>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>rl<span class="w"> </span>cluster<span class="w"> </span>logs<span class="w"> </span>worker<span class="w">               </span><span class="c1"># last logs from workers</span>
+</span></code></pre></div>
+<hr />
+<h2 id="rl-tasks-task-monitoring-and-control"><code>rl tasks</code>   Task monitoring and control<a class="headerlink" href="#rl-tasks-task-monitoring-and-control" title="Permanent link">&para;</a></h2>
+<p>Commands for monitoring in-flight tasks and managing their lifecycle.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>rl<span class="w"> </span>tasks<span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
+</span></code></pre></div>
+<h3 id="rl-tasks-list"><code>rl tasks list</code><a class="headerlink" href="#rl-tasks-list" title="Permanent link">&para;</a></h3>
+<p>List all tasks currently executing across the cluster, with per-worker metrics.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>rl<span class="w"> </span>tasks<span class="w"> </span>list
+</span></code></pre></div>
+<hr />
+<h3 id="rl-tasks-inflight"><code>rl tasks inflight</code><a class="headerlink" href="#rl-tasks-inflight" title="Permanent link">&para;</a></h3>
+<p>Show in-flight tasks with optional live-refresh mode.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>rl<span class="w"> </span>tasks<span class="w"> </span>inflight<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--follow</code>, <code>-f</code></td>
+<td><code>false</code></td>
+<td>Enable live-refreshing view, updated every 2 seconds.</td>
+</tr>
+<tr>
+<td><code>--worker</code></td>
+<td>all</td>
+<td>Filter to a specific worker ID.</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>rl<span class="w"> </span>tasks<span class="w"> </span>inflight<span class="w">                          </span><span class="c1"># one-shot snapshot</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>rl<span class="w"> </span>tasks<span class="w"> </span>inflight<span class="w"> </span>--follow<span class="w">                 </span><span class="c1"># live refresh</span>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>rl<span class="w"> </span>tasks<span class="w"> </span>inflight<span class="w"> </span>--worker<span class="w"> </span>rl-worker-1<span class="w">     </span><span class="c1"># filter to one worker</span>
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>rl<span class="w"> </span>tasks<span class="w"> </span>inflight<span class="w"> </span>-f<span class="w"> </span>--worker<span class="w"> </span>rl-worker-2<span class="w">  </span><span class="c1"># live + filtered</span>
+</span></code></pre></div>
+<p>Output columns: <code>Worker</code>, <code>Status</code>, <code>In-Flight</code>, <code>Completed</code>, <code>Failed</code>, <code>Success Rate</code>.</p>
+<p>Footer shows: cluster totals, queue depth, p95 latency.</p>
+<p><strong>Under the hood.</strong> Reads in parallel:
+- <code>ZRANGEBYSCORE rl:workers -inf +inf</code>  every worker last-seen timestamp.
+- For each worker: <code>ZCARD rl:inflight:{worker_id}</code> (active tasks),
+  <code>GET rl:m:w:{worker_id}:success</code> / <code>:failed</code> (per-session counters).
+- <code>LRANGE rl:task_durations 0 -1</code> for p95 latency.</p>
+<p><code>--follow</code> re-runs the whole snapshot every 2 s with a live Rich-Table refresh
+in place. No long-lived Redis subscription.</p>
+<hr />
+<h3 id="rl-tasks-top"><code>rl tasks top</code><a class="headerlink" href="#rl-tasks-top" title="Permanent link">&para;</a></h3>
+<p>Show a top-like summary of cluster throughput, active workers, and the five workers with highest task counts.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>rl<span class="w"> </span>tasks<span class="w"> </span>top
+</span></code></pre></div>
+<hr />
+<h3 id="rl-tasks-inspect"><code>rl tasks inspect</code><a class="headerlink" href="#rl-tasks-inspect" title="Permanent link">&para;</a></h3>
+<p>Show the full payload, state, and metadata for a specific task.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>rl<span class="w"> </span>tasks<span class="w"> </span>inspect<span class="w"> </span>TASK_ID
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TASK_ID</code></td>
+<td>The Celery task UUID.</td>
+</tr>
+</tbody>
+</table>
+<p>Output is formatted JSON with syntax highlighting. Fields include:</p>
+<ul>
+<li><code>task_id</code>:  the UUID</li>
+<li><code>status</code>:  <code>RUNNING</code>, <code>QUARANTINED</code>, <code>COMPLETED_OR_ORPHANED</code>, or <code>UNKNOWN</code></li>
+<li><code>resurrection_count</code>:  how many times Phoenix has re-queued this task</li>
+<li><code>payload</code>:  the signed envelope (args, kwargs, task_name, queue)</li>
+<li><code>dlq</code>:  quarantine entry, if the task is in the DLQ</li>
+</ul>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>rl<span class="w"> </span>tasks<span class="w"> </span>inspect<span class="w"> </span>task_abc123
+</span></code></pre></div>
+<hr />
+<h3 id="rl-tasks-retry"><code>rl tasks retry</code><a class="headerlink" href="#rl-tasks-retry" title="Permanent link">&para;</a></h3>
+<p>Re-queue a failed or quarantined task by ID. Checks the DLQ first; falls back to the Phoenix payload for orphaned tasks.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>rl<span class="w"> </span>tasks<span class="w"> </span>retry<span class="w"> </span>TASK_ID
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TASK_ID</code></td>
+<td>The task UUID to retry.</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>rl<span class="w"> </span>tasks<span class="w"> </span>retry<span class="w"> </span>task_abc123
+</span></code></pre></div>
+<p>If the task is in the DLQ, this calls <code>DeadLetterQueue.release()</code> and preserves the resurrection count. If it's an orphaned (not quarantined) task, it re-submits the Phoenix payload directly.</p>
+<hr />
+<h3 id="rl-tasks-cancel"><code>rl tasks cancel</code><a class="headerlink" href="#rl-tasks-cancel" title="Permanent link">&para;</a></h3>
+<p>Revoke and cancel a running or queued task.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>rl<span class="w"> </span>tasks<span class="w"> </span>cancel<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>TASK_ID
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--terminate</code> / <code>--no-terminate</code></td>
+<td><code>true</code></td>
+<td>Send SIGTERM to the running task process. <code>--no-terminate</code> marks it revoked without killing it (only prevents future execution).</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TASK_ID</code></td>
+<td>The task UUID to cancel.</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>rl<span class="w"> </span>tasks<span class="w"> </span>cancel<span class="w"> </span>task_abc123<span class="w">           </span><span class="c1"># revoke + SIGTERM</span>
+</span><span id="__span-27-2"><a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>rl<span class="w"> </span>tasks<span class="w"> </span>cancel<span class="w"> </span>--no-terminate<span class="w"> </span>task_abc123<span class="w">   </span><span class="c1"># mark revoked, don&#39;t terminate</span>
+</span></code></pre></div>
+<hr />
+<h3 id="rl-tasks-logs"><code>rl tasks logs</code><a class="headerlink" href="#rl-tasks-logs" title="Permanent link">&para;</a></h3>
+<p>Stream state transitions for a specific task from Redis.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>rl<span class="w"> </span>tasks<span class="w"> </span>logs<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>TASK_ID
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--follow</code>, <code>-f</code></td>
+<td><code>false</code></td>
+<td>Poll for state changes every 2 seconds until the task completes or is quarantined.</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TASK_ID</code></td>
+<td>The task UUID to follow.</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-29-1"><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>rl<span class="w"> </span>tasks<span class="w"> </span>logs<span class="w"> </span>task_abc123<span class="w">           </span><span class="c1"># one-shot state snapshot</span>
+</span><span id="__span-29-2"><a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>rl<span class="w"> </span>tasks<span class="w"> </span>logs<span class="w"> </span>--follow<span class="w"> </span>task_abc123<span class="w">  </span><span class="c1"># stream until completion</span>
+</span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This command shows task state transitions from Redis (running → completed, running → quarantined, etc.). For full stdout/stderr log aggregation, you need a log backend like Loki or Elasticsearch wired to your workers.</p>
+</div>
+<hr />
+<h2 id="rl-worker-worker-management"><code>rl worker</code>  Worker management<a class="headerlink" href="#rl-worker-worker-management" title="Permanent link">&para;</a></h2>
+<p>Commands for monitoring individual workers and managing their lifecycle.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-30-1"><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>rl<span class="w"> </span>worker<span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
+</span></code></pre></div>
+<h3 id="rl-worker-status"><code>rl worker status</code><a class="headerlink" href="#rl-worker-status" title="Permanent link">&para;</a></h3>
+<p>List all active workers with their per-session execution metrics.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-31-1"><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>rl<span class="w"> </span>worker<span class="w"> </span>status
+</span></code></pre></div>
+<p>Output columns: <code>Worker ID</code>, <code>Status</code>, <code>Active</code> (in-flight), <code>Success</code>, <code>Failed</code>, <code>Success Rate</code>.</p>
+<p>Footer shows cluster totals.</p>
+<hr />
+<h3 id="rl-worker-drain"><code>rl worker drain</code><a class="headerlink" href="#rl-worker-drain" title="Permanent link">&para;</a></h3>
+<p>Send a graceful shutdown signal to a specific worker. The worker stops accepting new tasks and either finishes current work or hands tasks off to Phoenix.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-32-1"><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>rl<span class="w"> </span>worker<span class="w"> </span>drain<span class="w"> </span>WORKER_ID
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>WORKER_ID</code></td>
+<td>The worker hostname (e.g. <code>celery@rl-worker-1</code>).</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-33-1"><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>rl<span class="w"> </span>worker<span class="w"> </span>drain<span class="w"> </span>celery@rl-worker-1
+</span></code></pre></div>
+<p>Use this before taking a worker offline for maintenance. The worker exits cleanly; your process manager (Docker, Kubernetes, systemd) does not restart it unless configured to do so.</p>
+<hr />
+<h3 id="rl-worker-restart"><code>rl worker restart</code><a class="headerlink" href="#rl-worker-restart" title="Permanent link">&para;</a></h3>
+<p>Send a graceful shutdown signal to a specific worker for a rolling restart. The worker exits cleanly and the process manager restarts it automatically.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-34-1"><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>rl<span class="w"> </span>worker<span class="w"> </span>restart<span class="w"> </span>WORKER_ID
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>WORKER_ID</code></td>
+<td>The worker hostname.</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-35-1"><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>rl<span class="w"> </span>worker<span class="w"> </span>restart<span class="w"> </span>celery@rl-worker-1
+</span></code></pre></div>
+<p>Functionally identical to <code>drain</code> from Relier's perspective the difference is intent and what the process manager does afterward.</p>
+<hr />
+<h3 id="rl-worker-reset"><code>rl worker reset</code><a class="headerlink" href="#rl-worker-reset" title="Permanent link">&para;</a></h3>
+<p>Reset the per-worker session metrics (success/failed counts) for a specific worker.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-36-1"><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>rl<span class="w"> </span>worker<span class="w"> </span>reset<span class="w"> </span>WORKER_ID
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>WORKER_ID</code></td>
+<td>The worker hostname to reset.</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-37-1"><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a>rl<span class="w"> </span>worker<span class="w"> </span>reset<span class="w"> </span>celery@rl-worker-1
+</span></code></pre></div>
+<hr />
+<h2 id="rl-dlq-dead-letter-queue"><code>rl dlq</code>  Dead Letter Queue<a class="headerlink" href="#rl-dlq-dead-letter-queue" title="Permanent link">&para;</a></h2>
+<p>Commands for inspecting, releasing, and purging quarantined tasks.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-38-1"><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a>rl<span class="w"> </span>dlq<span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
+</span></code></pre></div>
+<h3 id="rl-dlq-list"><code>rl dlq list</code><a class="headerlink" href="#rl-dlq-list" title="Permanent link">&para;</a></h3>
+<p>Show all quarantined tasks currently in the DLQ.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-39-1"><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a>rl<span class="w"> </span>dlq<span class="w"> </span>list
+</span></code></pre></div>
+<p>Output columns: <code>ID</code>, <code>TASK</code>, <code>RESURRECTIONS</code>, <code>QUARANTINED_AT</code>, <code>LAST_ERROR</code>.</p>
+<p><strong>Under the hood.</strong> <code>HGETALL rl:dlq</code> followed by JSON-decoding each value.
+Sorted in-process by <code>quarantined_at</code>. The DLQ is a single Redis hash keyed by
+task ID, entry count = <code>HLEN rl:dlq</code>. Purging is <code>DEL rl:dlq</code> plus cleanup of
+any checkpoint blobs referenced by the quarantined envelopes.</p>
+<hr />
+<h3 id="rl-dlq-inspect"><code>rl dlq inspect</code><a class="headerlink" href="#rl-dlq-inspect" title="Permanent link">&para;</a></h3>
+<p>View the full JSON payload and error context of a quarantined task.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-40-1"><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a>rl<span class="w"> </span>dlq<span class="w"> </span>inspect<span class="w"> </span>TASK_ID
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TASK_ID</code></td>
+<td>The task UUID to inspect.</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-41-1"><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a>rl<span class="w"> </span>dlq<span class="w"> </span>inspect<span class="w"> </span>task_f8a2b1
+</span></code></pre></div>
+<p>Displays formatted JSON with syntax highlighting. Fields include the full original payload, error reason, resurrection count, any partial checkpoint, and quarantine timestamp.</p>
+<hr />
+<h3 id="rl-dlq-release"><code>rl dlq release</code><a class="headerlink" href="#rl-dlq-release" title="Permanent link">&para;</a></h3>
+<p>Un-quarantine a task and re-submit it to its original queue. Preserves the resurrection count so the task can't bypass <code>max_resurrections</code> by being repeatedly released.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-42-1"><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a>rl<span class="w"> </span>dlq<span class="w"> </span>release<span class="w"> </span>TASK_ID
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TASK_ID</code></td>
+<td>The task UUID to release.</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-43-1"><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a>rl<span class="w"> </span>dlq<span class="w"> </span>release<span class="w"> </span>task_f8a2b1
+</span></code></pre></div>
+<p>Exit code 1 if the task is not found in the DLQ.</p>
+<hr />
+<h3 id="rl-dlq-retry-all"><code>rl dlq retry-all</code><a class="headerlink" href="#rl-dlq-retry-all" title="Permanent link">&para;</a></h3>
+<p>Re-submit all quarantined tasks to their original queues. Shows per-task success or failure.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-44-1"><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a>rl<span class="w"> </span>dlq<span class="w"> </span>retry-all
+</span></code></pre></div>
+<p>Use this after fixing the root cause that sent tasks to the DLQ. Resurrection counts are preserved.</p>
+<hr />
+<h3 id="rl-dlq-purge"><code>rl dlq purge</code><a class="headerlink" href="#rl-dlq-purge" title="Permanent link">&para;</a></h3>
+<p>Permanently delete all tasks in the DLQ. Requires <code>--confirm</code> to prevent accidental data loss.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-45-1"><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a>rl<span class="w"> </span>dlq<span class="w"> </span>purge<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--confirm</code></td>
+<td><code>false</code></td>
+<td>Explicitly confirm the deletion. Required to proceed.</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-46-1"><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a>rl<span class="w"> </span>dlq<span class="w"> </span>purge<span class="w"> </span>--confirm
+</span></code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">This is irreversible</p>
+<p>Purged tasks are gone. Use <code>rl dlq release</code> or <code>rl dlq retry-all</code> if you want to retry them first.</p>
+</div>
+<hr />
+<h2 id="rl-slo-slo-monitoring"><code>rl slo</code>  SLO monitoring<a class="headerlink" href="#rl-slo-slo-monitoring" title="Permanent link">&para;</a></h2>
+<p>Commands for viewing error budget burn rates and generating reports.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-47-1"><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a>rl<span class="w"> </span>slo<span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
+</span></code></pre></div>
+<h3 id="rl-slo-status"><code>rl slo status</code><a class="headerlink" href="#rl-slo-status" title="Permanent link">&para;</a></h3>
+<p>Show the current error budget burn rates across all time windows.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-48-1"><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a>rl<span class="w"> </span>slo<span class="w"> </span>status<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--target</code>, <code>-t</code></td>
+<td><code>0.999</code></td>
+<td>SLO target as a decimal fraction (e.g. <code>0.999</code> = 99.9%).</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-49-1"><a id="__codelineno-49-1" name="__codelineno-49-1" href="#__codelineno-49-1"></a>rl<span class="w"> </span>slo<span class="w"> </span>status
+</span><span id="__span-49-2"><a id="__codelineno-49-2" name="__codelineno-49-2" href="#__codelineno-49-2"></a>rl<span class="w"> </span>slo<span class="w"> </span>status<span class="w"> </span>--target<span class="w"> </span><span class="m">0</span>.9999<span class="w">   </span><span class="c1"># stricter SLO target</span>
+</span></code></pre></div>
+<p>Output shows burn rates for 1h, 6h, and 3d windows:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-50-1"><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a>  Window   Burn Rate   Status
+</span><span id="__span-50-2"><a id="__codelineno-50-2" name="__codelineno-50-2" href="#__codelineno-50-2"></a>  ──────────────────────────────
+</span><span id="__span-50-3"><a id="__codelineno-50-3" name="__codelineno-50-3" href="#__codelineno-50-3"></a>  1h       0.42x       HEALTHY
+</span><span id="__span-50-4"><a id="__codelineno-50-4" name="__codelineno-50-4" href="#__codelineno-50-4"></a>  6h       0.38x       HEALTHY
+</span><span id="__span-50-5"><a id="__codelineno-50-5" name="__codelineno-50-5" href="#__codelineno-50-5"></a>  3d       0.21x       HEALTHY
+</span><span id="__span-50-6"><a id="__codelineno-50-6" name="__codelineno-50-6" href="#__codelineno-50-6"></a>
+</span><span id="__span-50-7"><a id="__codelineno-50-7" name="__codelineno-50-7" href="#__codelineno-50-7"></a>Budget used: 0.3 min (0.6% of monthly)
+</span><span id="__span-50-8"><a id="__codelineno-50-8" name="__codelineno-50-8" href="#__codelineno-50-8"></a>All reliability targets are being met.
+</span></code></pre></div>
+<p><strong>Burn rate interpretation:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Burn Rate</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0x</code></td>
+<td>No failures,  pristine</td>
+</tr>
+<tr>
+<td><code>&lt; 1x</code></td>
+<td>Under budget,  healthy</td>
+</tr>
+<tr>
+<td><code>1x</code></td>
+<td>Exactly on budget</td>
+</tr>
+<tr>
+<td><code>&gt; 1x</code></td>
+<td>Burning budget too fast,  attention needed</td>
+</tr>
+<tr>
+<td><code>≥ 14.4x</code></td>
+<td>Budget exhausted in ~2 hours,  critical</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="rl-slo-report"><code>rl slo report</code><a class="headerlink" href="#rl-slo-report" title="Permanent link">&para;</a></h3>
+<p>Generate a detailed burn-rate report with projected monthly budget consumption.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-51-1"><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a>rl<span class="w"> </span>slo<span class="w"> </span>report<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--period</code></td>
+<td><code>3d</code></td>
+<td>Reporting period: <code>1h</code>, <code>6h</code>, or <code>3d</code>.</td>
+</tr>
+<tr>
+<td><code>--format</code>, <code>-f</code></td>
+<td><code>table</code></td>
+<td>Output format: <code>table</code> or <code>json</code>.</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-52-1"><a id="__codelineno-52-1" name="__codelineno-52-1" href="#__codelineno-52-1"></a>rl<span class="w"> </span>slo<span class="w"> </span>report
+</span><span id="__span-52-2"><a id="__codelineno-52-2" name="__codelineno-52-2" href="#__codelineno-52-2"></a>rl<span class="w"> </span>slo<span class="w"> </span>report<span class="w"> </span>--format<span class="w"> </span>json
+</span><span id="__span-52-3"><a id="__codelineno-52-3" name="__codelineno-52-3" href="#__codelineno-52-3"></a>rl<span class="w"> </span>slo<span class="w"> </span>report<span class="w"> </span>--period<span class="w"> </span>1h<span class="w"> </span>--format<span class="w"> </span>json
+</span></code></pre></div>
+<p>JSON output:</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-53-1"><a id="__codelineno-53-1" name="__codelineno-53-1" href="#__codelineno-53-1"></a><span class="p">{</span>
+</span><span id="__span-53-2"><a id="__codelineno-53-2" name="__codelineno-53-2" href="#__codelineno-53-2"></a><span class="w">  </span><span class="nt">&quot;1h&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.42</span><span class="p">,</span>
+</span><span id="__span-53-3"><a id="__codelineno-53-3" name="__codelineno-53-3" href="#__codelineno-53-3"></a><span class="w">  </span><span class="nt">&quot;6h&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.38</span><span class="p">,</span>
+</span><span id="__span-53-4"><a id="__codelineno-53-4" name="__codelineno-53-4" href="#__codelineno-53-4"></a><span class="w">  </span><span class="nt">&quot;3d&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.21</span>
+</span><span id="__span-53-5"><a id="__codelineno-53-5" name="__codelineno-53-5" href="#__codelineno-53-5"></a><span class="p">}</span>
+</span></code></pre></div>
+<hr />
+<h2 id="rl-chaos-chaos-engineering"><code>rl chaos</code>  Chaos engineering<a class="headerlink" href="#rl-chaos-chaos-engineering" title="Permanent link">&para;</a></h2>
+<p>Commands for triggering deliberate failures to validate cluster reliability. See the <a href="../chaos-guide/">Chaos Guide</a> for detailed explanation of each scenario.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-54-1"><a id="__codelineno-54-1" name="__codelineno-54-1" href="#__codelineno-54-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
+</span></code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Run chaos commands against a non-production cluster.</p>
+</div>
+<h3 id="rl-chaos-worker-kill"><code>rl chaos worker-kill</code><a class="headerlink" href="#rl-chaos-worker-kill" title="Permanent link">&para;</a></h3>
+<p>Kill a random or specific worker process with SIGKILL (unclean death).</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-55-1"><a id="__codelineno-55-1" name="__codelineno-55-1" href="#__codelineno-55-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--worker</code></td>
+<td>random</td>
+<td>Specific worker container name to kill.</td>
+</tr>
+<tr>
+<td><code>--seed</code></td>
+<td><code>false</code></td>
+<td>Dispatch a long-running task before the kill.</td>
+</tr>
+<tr>
+<td><code>--seed-duration</code></td>
+<td><code>30</code></td>
+<td>Duration of the seeded task in seconds.</td>
+</tr>
+<tr>
+<td><code>--watch</code></td>
+<td><code>false</code></td>
+<td>Stream Phoenix resurrection events after the kill.</td>
+</tr>
+<tr>
+<td><code>--watch-duration</code></td>
+<td><code>30</code></td>
+<td>How long to stream events (seconds).</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-56-1"><a id="__codelineno-56-1" name="__codelineno-56-1" href="#__codelineno-56-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill
+</span><span id="__span-56-2"><a id="__codelineno-56-2" name="__codelineno-56-2" href="#__codelineno-56-2"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span>--seed<span class="w"> </span>--watch<span class="w"> </span>--watch-duration<span class="w"> </span><span class="m">60</span>
+</span><span id="__span-56-3"><a id="__codelineno-56-3" name="__codelineno-56-3" href="#__codelineno-56-3"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span>--worker<span class="w"> </span>relier-worker-1<span class="w"> </span>--seed
+</span></code></pre></div>
+<hr />
+<h3 id="rl-chaos-network-partition"><code>rl chaos network-partition</code><a class="headerlink" href="#rl-chaos-network-partition" title="Permanent link">&para;</a></h3>
+<p>Simulate a network partition between workers and Redis for a fixed duration.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-57-1"><a id="__codelineno-57-1" name="__codelineno-57-1" href="#__codelineno-57-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>network-partition<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--secs</code> / <code>--duration</code></td>
+<td><code>15</code></td>
+<td>Duration of the simulated outage in seconds.</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-58-1"><a id="__codelineno-58-1" name="__codelineno-58-1" href="#__codelineno-58-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>network-partition
+</span><span id="__span-58-2"><a id="__codelineno-58-2" name="__codelineno-58-2" href="#__codelineno-58-2"></a>rl<span class="w"> </span>chaos<span class="w"> </span>network-partition<span class="w"> </span>--secs<span class="w"> </span><span class="m">30</span>
+</span></code></pre></div>
+<hr />
+<h3 id="rl-chaos-load-spike"><code>rl chaos load-spike</code><a class="headerlink" href="#rl-chaos-load-spike" title="Permanent link">&para;</a></h3>
+<p>Flood the dispatch path to exercise admission control.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-59-1"><a id="__codelineno-59-1" name="__codelineno-59-1" href="#__codelineno-59-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>load-spike<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--rps</code></td>
+<td><code>100</code></td>
+<td>Requests per second target.</td>
+</tr>
+<tr>
+<td><code>--duration</code></td>
+<td><code>10</code></td>
+<td>Duration of the spike in seconds.</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-60-1"><a id="__codelineno-60-1" name="__codelineno-60-1" href="#__codelineno-60-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>load-spike
+</span><span id="__span-60-2"><a id="__codelineno-60-2" name="__codelineno-60-2" href="#__codelineno-60-2"></a>rl<span class="w"> </span>chaos<span class="w"> </span>load-spike<span class="w"> </span>--rps<span class="w"> </span><span class="m">2000</span><span class="w"> </span>--duration<span class="w"> </span><span class="m">30</span>
+</span></code></pre></div>
+<p>Output: <code>accepted</code>, <code>rejected</code>, <code>errored</code> counts.</p>
+<hr />
+<h3 id="rl-chaos-task-corrupt"><code>rl chaos task-corrupt</code><a class="headerlink" href="#rl-chaos-task-corrupt" title="Permanent link">&para;</a></h3>
+<p>Inject a malformed "poison pill" envelope into the queue to test payload integrity enforcement.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-61-1"><a id="__codelineno-61-1" name="__codelineno-61-1" href="#__codelineno-61-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>task-corrupt
+</span></code></pre></div>
+<p>The corrupted task should land in <code>rl dlq list</code> immediately with <code>reason: PayloadIntegrityError</code>.</p>
+<hr />
+<h3 id="rl-chaos-slow-task"><code>rl chaos slow-task</code><a class="headerlink" href="#rl-chaos-slow-task" title="Permanent link">&para;</a></h3>
+<p>Dispatch a task that sleeps past the configured <code>hard_timeout</code> to test timeout enforcement.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-62-1"><a id="__codelineno-62-1" name="__codelineno-62-1" href="#__codelineno-62-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>slow-task<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--duration</code></td>
+<td><code>35</code></td>
+<td>Seconds the task will sleep. Should exceed <code>RELIER_HARD_TIMEOUT</code>.</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-63-1"><a id="__codelineno-63-1" name="__codelineno-63-1" href="#__codelineno-63-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>slow-task
+</span><span id="__span-63-2"><a id="__codelineno-63-2" name="__codelineno-63-2" href="#__codelineno-63-2"></a>rl<span class="w"> </span>chaos<span class="w"> </span>slow-task<span class="w"> </span>--duration<span class="w"> </span><span class="m">60</span>
+</span></code></pre></div>
+<hr />
+<h2 id="rl-config-configuration-management"><code>rl config</code>  Configuration management<a class="headerlink" href="#rl-config-configuration-management" title="Permanent link">&para;</a></h2>
+<p>Commands for viewing, validating, and updating Relier configuration.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-64-1"><a id="__codelineno-64-1" name="__codelineno-64-1" href="#__codelineno-64-1"></a>rl<span class="w"> </span>config<span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
+</span></code></pre></div>
+<h3 id="rl-config-show"><code>rl config show</code><a class="headerlink" href="#rl-config-show" title="Permanent link">&para;</a></h3>
+<p>Print all active configuration settings as a table.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-65-1"><a id="__codelineno-65-1" name="__codelineno-65-1" href="#__codelineno-65-1"></a>rl<span class="w"> </span>config<span class="w"> </span>show
+</span></code></pre></div>
+<p>Sensitive values (passwords, secrets, URLs) are masked with <code>********</code>.</p>
+<hr />
+<h3 id="rl-config-validate"><code>rl config validate</code><a class="headerlink" href="#rl-config-validate" title="Permanent link">&para;</a></h3>
+<p>Validate the current configuration and Redis setup. Checks:</p>
+<ul>
+<li>Redis <code>maxmemory-policy noeviction</code> (critical — required for zero-job-loss)</li>
+<li>Connection pool pressure (<code>RELIER_REDIS_MAX_CONNECTIONS</code> vs. worker concurrency)</li>
+<li>All <code>RELIER_*</code> environment variables</li>
+</ul>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-66-1"><a id="__codelineno-66-1" name="__codelineno-66-1" href="#__codelineno-66-1"></a>rl<span class="w"> </span>config<span class="w"> </span>validate
+</span></code></pre></div>
+<p>Exit code 1 if any critical check fails. Safe to run in CI or as a startup check.</p>
+<hr />
+<h3 id="rl-config-set"><code>rl config set</code><a class="headerlink" href="#rl-config-set" title="Permanent link">&para;</a></h3>
+<p>Update a configuration value in the local <code>.env</code> file.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-67-1"><a id="__codelineno-67-1" name="__codelineno-67-1" href="#__codelineno-67-1"></a>rl<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>KEY<span class="w"> </span>VALUE
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>KEY</code></td>
+<td>The config key to set (e.g. <code>RELIER_HEARTBEAT_TTL</code>).</td>
+</tr>
+<tr>
+<td><code>VALUE</code></td>
+<td>The new value.</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-68-1"><a id="__codelineno-68-1" name="__codelineno-68-1" href="#__codelineno-68-1"></a>rl<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>RELIER_HEARTBEAT_TTL<span class="w"> </span><span class="m">15</span>
+</span><span id="__span-68-2"><a id="__codelineno-68-2" name="__codelineno-68-2" href="#__codelineno-68-2"></a>rl<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>RELIER_MAX_RESURRECTIONS<span class="w"> </span><span class="m">10</span>
+</span><span id="__span-68-3"><a id="__codelineno-68-3" name="__codelineno-68-3" href="#__codelineno-68-3"></a>rl<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>RELIER_LOG_LEVEL<span class="w"> </span>DEBUG
+</span></code></pre></div>
+<p>Searches for <code>.env</code> starting from the current directory and walking up to the root. Appends the key if it doesn't exist; replaces the value if it does.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Settings are read once at worker startup. After running <code>rl config set</code>, restart your workers for the change to take effect:
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-69-1"><a id="__codelineno-69-1" name="__codelineno-69-1" href="#__codelineno-69-1"></a>rl<span class="w"> </span>worker<span class="w"> </span>restart<span class="w"> </span>celery@rl-worker-1
+</span></code></pre></div></p>
+</div>
+<hr />
+<h2 id="rl-admission-admission-control"><code>rl admission</code>  Admission control<a class="headerlink" href="#rl-admission-admission-control" title="Permanent link">&para;</a></h2>
+<p>Commands for monitoring admission control status.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-70-1"><a id="__codelineno-70-1" name="__codelineno-70-1" href="#__codelineno-70-1"></a>rl<span class="w"> </span>admission<span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
+</span></code></pre></div>
+<h3 id="rl-admission-status"><code>rl admission status</code><a class="headerlink" href="#rl-admission-status" title="Permanent link">&para;</a></h3>
+<p>Show the current admission control status, including how many requests have been admitted in the current window.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-71-1"><a id="__codelineno-71-1" name="__codelineno-71-1" href="#__codelineno-71-1"></a>rl<span class="w"> </span>admission<span class="w"> </span>status
+</span></code></pre></div>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-72-1"><a id="__codelineno-72-1" name="__codelineno-72-1" href="#__codelineno-72-1"></a>Admission Control Status
+</span><span id="__span-72-2"><a id="__codelineno-72-2" name="__codelineno-72-2" href="#__codelineno-72-2"></a>
+</span><span id="__span-72-3"><a id="__codelineno-72-3" name="__codelineno-72-3" href="#__codelineno-72-3"></a>Status: ALLOWING (1240/5000, 24.8%)
+</span><span id="__span-72-4"><a id="__codelineno-72-4" name="__codelineno-72-4" href="#__codelineno-72-4"></a>Window: 10s
+</span></code></pre></div>
+<p>When the limit is hit:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-73-1"><a id="__codelineno-73-1" name="__codelineno-73-1" href="#__codelineno-73-1"></a>Status: SHEDDING (5001/5000)
+</span><span id="__span-73-2"><a id="__codelineno-73-2" name="__codelineno-73-2" href="#__codelineno-73-2"></a>Window: 10s
+</span></code></pre></div>
+<p><strong>Under the hood.</strong> <code>GET rl:admission:celery-dispatch</code> for the current count
+and <code>TTL</code> for the time until the window resets. Compares against
+<code>RELIER_ADMISSION_LIMIT</code> (read from <code>Settings</code>). The admission counter is
+maintained by an atomic Lua script in <code>core/admission.py</code>; this command just
+reads its state. No writes.</p>
+<hr />
+<h2 id="rl-admin-cluster-administration"><code>rl admin</code>  Cluster administration<a class="headerlink" href="#rl-admin-cluster-administration" title="Permanent link">&para;</a></h2>
+<p>Low-level administrative tools. These commands modify Redis state directly, use with care.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-74-1"><a id="__codelineno-74-1" name="__codelineno-74-1" href="#__codelineno-74-1"></a>rl<span class="w"> </span>admin<span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
+</span></code></pre></div>
+<h3 id="rl-admin-config"><code>rl admin config</code><a class="headerlink" href="#rl-admin-config" title="Permanent link">&para;</a></h3>
+<p>Display the active cluster configuration (abbreviated view of key settings).</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-75-1"><a id="__codelineno-75-1" name="__codelineno-75-1" href="#__codelineno-75-1"></a>rl<span class="w"> </span>admin<span class="w"> </span>config
+</span></code></pre></div>
+<hr />
+<h3 id="rl-admin-purge-locks"><code>rl admin purge-locks</code><a class="headerlink" href="#rl-admin-purge-locks" title="Permanent link">&para;</a></h3>
+<p>Force-delete all idempotency locks and in-flight sentinels in Redis.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-76-1"><a id="__codelineno-76-1" name="__codelineno-76-1" href="#__codelineno-76-1"></a>rl<span class="w"> </span>admin<span class="w"> </span>purge-locks
+</span></code></pre></div>
+<p>Use this to unstick tasks that are permanently stuck in the <code>IN_FLIGHT</code> state (for example, after a corrupted Redis shutdown that left sentinels without corresponding workers). This is a recovery operation,  use only when you understand the implications.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Clearing in-flight sentinels can allow duplicate execution of idempotent tasks if the original task is somehow still running. Verify workers are not executing the affected tasks before running this command.</p>
+</div>
+<hr />
+<h3 id="rl-admin-reset-admission"><code>rl admin reset-admission</code><a class="headerlink" href="#rl-admin-reset-admission" title="Permanent link">&para;</a></h3>
+<p>Reset the cluster admission control counters.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-77-1"><a id="__codelineno-77-1" name="__codelineno-77-1" href="#__codelineno-77-1"></a>rl<span class="w"> </span>admin<span class="w"> </span>reset-admission
+</span></code></pre></div>
+<p>Clears all <code>rl:admission:*</code> keys in Redis, immediately allowing new requests regardless of the previous window state. Use this to manually unblock a cluster that tripped admission control.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../configuration/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Configuration">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Configuration
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../metrics/" class="md-footer__link md-footer__link--next" aria-label="Next: Metrics Reference">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Metrics Reference
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/getrelier/relier" target="_blank" rel="noopener" title="Relier on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://x.com/relierdev" target="_blank" rel="noopener" title="Relier on X" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M357.2 48h70.6L273.6 224.2 455 464H313L201.7 318.6 74.5 464H3.8l164.9-188.5L-5.2 48h145.6l100.5 132.9zm-24.8 373.8h39.1L119.1 88h-42z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://pypi.org/project/relier/" target="_blank" rel="noopener" title="Relier on PyPI" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "navigation.footer", "search.highlight", "search.suggest", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+      
+        <script src="../assets/js/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>

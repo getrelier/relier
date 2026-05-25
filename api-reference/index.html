@@ -1,0 +1,2926 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Zero job loss. Every task completes, hands off, or lands in the DLQ with a traceable reason.">
+      
+      
+      
+        <link rel="canonical" href="https://getrelier.github.io/relier/api-reference/">
+      
+      
+        <link rel="prev" href="../troubleshooting/">
+      
+      
+        <link rel="next" href="../configuration/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/logo.ico">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>API Reference - Relier</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#api-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Relier" class="md-header__button md-logo" aria-label="Relier" data-md-component="logo">
+      
+  <img src="../assets/images/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Relier
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              API Reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/getrelier/relier" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    getrelier/relier
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../quickstart/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../integrations/" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+  
+  Deep Dive
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Relier" class="md-nav__button md-logo" aria-label="Relier" data-md-component="logo">
+      
+  <img src="../assets/images/logo.png" alt="logo">
+
+    </a>
+    Relier
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/getrelier/relier" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    getrelier/relier
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../celery-primer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A Quick Celery Primer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration Recipes (FastAPI, Flask, Django)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../patterns/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Patterns Cookbook
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rolling-deploys/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rolling Deploys & Schema Migrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting & FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#rl_task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        @rl_task
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="@rl_task">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        queue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#idempotent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        idempotent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#idempotency_ttl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        idempotency_ttl
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#soft_timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        soft_timeout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hard_timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hard_timeout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#on_soft_timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        on_soft_timeout
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dispatch-methods-apush-push-delay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dispatch methods (apush, push, delay)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dispatch methods (apush, push, delay)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#await-taskapushargs-kwargs-asyncresult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        await task.apush(*args, **kwargs) → AsyncResult
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#taskpushargs-kwargs-asyncresult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        task.push(*args, **kwargs) → AsyncResult
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#taskdelayargs-kwargs-taskapply_async-do-not-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        task.delay(*args, **kwargs) / task.apply_async(...) - do not use
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#handling-admissionrejectederror" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Handling AdmissionRejectedError
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#taskcontext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TaskContext
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TaskContext">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#accessing-the-context-inside-a-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessing the context inside a task
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctx-set-partial" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        await ctx.set_partial(data: Any) -&gt; None
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="await ctx.set_partial(data: Any) -&gt; None">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-does-the-checkpoint-know-where-the-task-got-to" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How does the checkpoint know where the task got to?
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How does the checkpoint know where the task got to?">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pattern-a-checkpoint-inline-recommended-for-incremental-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern A: Checkpoint inline (recommended for incremental work)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-b-track-progress-in-ctxmetadata-save-in-the-soft-hook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern B: Track progress in ctx.metadata, save in the soft hook
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-c-hybrid-periodic-durable-checkpoints-final-rescue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern C: Hybrid (periodic durable checkpoints + final rescue)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#size-limits-read-this-before-checkpointing-anything-bigger-than-a-json-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Size limits: read this before checkpointing anything bigger than a JSON document
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lifecycle-of-a-checkpoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lifecycle of a checkpoint
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#idempotency_lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        idempotency_lock
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="idempotency_lock">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parameters_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lock-object" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lock object
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deadletterqueue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DeadLetterQueue
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DeadLetterQueue">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#await-deadletterqueuelist_taskslimitnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        await DeadLetterQueue.list_tasks(limit=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#await-deadletterqueueinspecttask_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        await DeadLetterQueue.inspect(task_id)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#await-deadletterqueuereleasetask_id-bool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        await DeadLetterQueue.release(task_id) → bool
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#await-deadletterqueuepurge-int" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        await DeadLetterQueue.purge() → int
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#slometrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SLOMetrics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SLOMetrics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#await-slometricsrecord_eventstatus-none" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        await SLOMetrics.record_event(status) → None
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exceptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exceptions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Exceptions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#admissionrejectederror" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AdmissionRejectedError
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#idempotencyinflighterror" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IdempotencyInFlightError
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Settings
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deep Dive
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Deep Dive
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Durability, HA, & Failure Boundaries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../chaos-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chaos Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#rl_task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        @rl_task
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="@rl_task">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        queue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#idempotent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        idempotent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#idempotency_ttl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        idempotency_ttl
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#soft_timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        soft_timeout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hard_timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hard_timeout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#on_soft_timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        on_soft_timeout
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dispatch-methods-apush-push-delay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dispatch methods (apush, push, delay)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dispatch methods (apush, push, delay)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#await-taskapushargs-kwargs-asyncresult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        await task.apush(*args, **kwargs) → AsyncResult
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#taskpushargs-kwargs-asyncresult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        task.push(*args, **kwargs) → AsyncResult
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#taskdelayargs-kwargs-taskapply_async-do-not-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        task.delay(*args, **kwargs) / task.apply_async(...) - do not use
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#handling-admissionrejectederror" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Handling AdmissionRejectedError
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#taskcontext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TaskContext
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="TaskContext">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#accessing-the-context-inside-a-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessing the context inside a task
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ctx-set-partial" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        await ctx.set_partial(data: Any) -&gt; None
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="await ctx.set_partial(data: Any) -&gt; None">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-does-the-checkpoint-know-where-the-task-got-to" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How does the checkpoint know where the task got to?
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How does the checkpoint know where the task got to?">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pattern-a-checkpoint-inline-recommended-for-incremental-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern A: Checkpoint inline (recommended for incremental work)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-b-track-progress-in-ctxmetadata-save-in-the-soft-hook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern B: Track progress in ctx.metadata, save in the soft hook
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-c-hybrid-periodic-durable-checkpoints-final-rescue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern C: Hybrid (periodic durable checkpoints + final rescue)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#size-limits-read-this-before-checkpointing-anything-bigger-than-a-json-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Size limits: read this before checkpointing anything bigger than a JSON document
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lifecycle-of-a-checkpoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lifecycle of a checkpoint
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#idempotency_lock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        idempotency_lock
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="idempotency_lock">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parameters_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lock-object" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lock object
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deadletterqueue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DeadLetterQueue
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DeadLetterQueue">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#await-deadletterqueuelist_taskslimitnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        await DeadLetterQueue.list_tasks(limit=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#await-deadletterqueueinspecttask_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        await DeadLetterQueue.inspect(task_id)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#await-deadletterqueuereleasetask_id-bool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        await DeadLetterQueue.release(task_id) → bool
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#await-deadletterqueuepurge-int" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        await DeadLetterQueue.purge() → int
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#slometrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SLOMetrics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SLOMetrics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#await-slometricsrecord_eventstatus-none" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        await SLOMetrics.record_event(status) → None
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exceptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exceptions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Exceptions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#admissionrejectederror" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AdmissionRejectedError
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#idempotencyinflighterror" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IdempotencyInFlightError
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Settings
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h1>
+<p>Relier exposes one decorator (<code>@rl_task</code>) and a handful of supporting types.
+Everything else is internal.</p>
+<p>The library is <strong>async-first</strong>: the orchestration layer is built on asyncio,
+and every Relier worker process runs a persistent event loop that lives for the
+worker's lifetime. Your tasks can be <code>async def</code> or plain <code>def</code>, Relier
+bridges them either way. The producer-side API (<code>apush</code> / <code>push</code>) is the same
+shape regardless of which web framework you dispatch from.</p>
+<blockquote>
+<p><strong>Built for FastAPI, works with anything.</strong> Relier is designed for
+asyncio-native web frameworks (FastAPI, Starlette, async Django), but <code>push</code>
+exists specifically so sync code paths (Flask, classic Django views, CLIs,
+management commands, scripts running inside a Celery task) can dispatch
+reliably without owning an event loop. The reliability guarantees are
+identical regardless of which one you call.</p>
+</blockquote>
+<hr />
+<h2 id="rl_task"><code>@rl_task</code><a class="headerlink" href="#rl_task" title="Permanent link">&para;</a></h2>
+<p>The main decorator. Wraps any async (or sync) function with Relier's full
+reliability stack.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.decorator</span><span class="w"> </span><span class="kn">import</span> <span class="n">rl_task</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nd">@rl_task</span><span class="p">(</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">queue</span><span class="o">=</span><span class="s2">&quot;default&quot;</span><span class="p">,</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">idempotent</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">idempotency_ttl</span><span class="o">=</span><span class="mi">3600</span><span class="p">,</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">soft_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">hard_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">on_soft_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">)</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">my_task</span><span class="p">(</span><span class="n">arg1</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">arg2</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="o">...</span>
+</span></code></pre></div>
+<h3 id="parameters">Parameters<a class="headerlink" href="#parameters" title="Permanent link">&para;</a></h3>
+<h4 id="queue"><code>queue</code><a class="headerlink" href="#queue" title="Permanent link">&para;</a></h4>
+<p><strong>Type:</strong> <code>str</code> <strong>Default:</strong> <code>"default"</code></p>
+<p>The Celery queue this task is routed to. Three <strong>public</strong> queues are
+pre-configured:</p>
+<table>
+<thead>
+<tr>
+<th>Queue</th>
+<th>Intended use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"high_priority"</code></td>
+<td>User-facing, latency-sensitive tasks</td>
+</tr>
+<tr>
+<td><code>"default"</code></td>
+<td>Standard background work</td>
+</tr>
+<tr>
+<td><code>"low_priority"</code></td>
+<td>Batch jobs, non-urgent processing</td>
+</tr>
+</tbody>
+</table>
+<p>There is also an <strong>internal</strong> queue, <code>re-queue</code>, that the Phoenix resurrector
+uses to inject resurrected tasks. <strong>Decorating a task with <code>queue="re-queue"</code>
+raises <code>ValueError</code></strong>, only Relier itself may publish there. The internal
+queue exists so you can dedicate a worker pool to recovery traffic (see
+<code>docker-compose.yml</code>'s <code>worker-recovery</code> service) without sharing capacity
+with normal work.</p>
+<p>Workers consume queues based on their <code>-Q</code> flag:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Consume normal traffic only</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>celery<span class="w"> </span>-A<span class="w"> </span>relier.tasks.app<span class="w"> </span>worker<span class="w"> </span>-Q<span class="w"> </span>high_priority,default,low_priority
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Dedicate this pool to Phoenix recovery</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>celery<span class="w"> </span>-A<span class="w"> </span>relier.tasks.app<span class="w"> </span>worker<span class="w"> </span>-Q<span class="w"> </span>re-queue
+</span></code></pre></div>
+<hr />
+<h4 id="idempotent"><code>idempotent</code><a class="headerlink" href="#idempotent" title="Permanent link">&para;</a></h4>
+<p><strong>Type:</strong> <code>bool</code> <strong>Default:</strong> <code>False</code></p>
+<p>When <code>True</code>, Relier atomically prevents duplicate execution. If the same task
+with the same arguments is submitted while one is already running, or has
+already completed, the second submission either retries (in-flight) or
+returns the cached result (completed) without re-executing.</p>
+<p>The idempotency key is derived by hashing the task name + arguments. For
+non-deterministic arguments (random IDs, timestamps, large blobs), use
+<a href="#idempotency_lock"><code>idempotency_lock</code></a> for explicit control over the key.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nd">@rl_task</span><span class="p">(</span><span class="n">idempotent</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">idempotency_ttl</span><span class="o">=</span><span class="mi">3600</span><span class="p">)</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">send_invoice</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="o">...</span>
+</span></code></pre></div>
+<hr />
+<h4 id="idempotency_ttl"><code>idempotency_ttl</code><a class="headerlink" href="#idempotency_ttl" title="Permanent link">&para;</a></h4>
+<p><strong>Type:</strong> <code>int</code> (seconds) <strong>Default:</strong> <code>3600</code></p>
+<p>How long to cache the result of a completed idempotent task. After this TTL
+expires, the same arguments can trigger a fresh execution.</p>
+<p><strong>Constraint:</strong> <code>idempotency_ttl</code> must be greater than <code>RELIER_IDEMPOTENCY_INFLIGHT_TTL</code>
+(default 120 s), which itself must be greater than <code>hard_timeout</code>. Relier
+validates this at decoration time and raises <code>ValueError</code> if violated. The
+reason: if the in-flight sentinel expires before the task hard-times-out,
+another worker could claim the same key and run a duplicate.</p>
+<hr />
+<h4 id="soft_timeout"><code>soft_timeout</code><a class="headerlink" href="#soft_timeout" title="Permanent link">&para;</a></h4>
+<p><strong>Type:</strong> <code>int | None</code> (seconds) <strong>Default:</strong> <code>None</code></p>
+<p>After this many seconds, the <code>on_soft_timeout</code> hook is called. The task is
+<strong>not</strong> cancelled, it keeps running until either it completes or
+<code>hard_timeout</code> fires. Use the soft window to checkpoint progress and release
+locks.</p>
+<p>If <code>soft_timeout</code> is set, <code>hard_timeout</code> must also be set and must be strictly
+greater. Relier validates this at decoration time.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nd">@rl_task</span><span class="p">(</span><span class="n">soft_timeout</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">hard_timeout</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">on_soft_timeout</span><span class="o">=</span><span class="n">save_state</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">long_running_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="o">...</span>
+</span></code></pre></div>
+<hr />
+<h4 id="hard_timeout"><code>hard_timeout</code><a class="headerlink" href="#hard_timeout" title="Permanent link">&para;</a></h4>
+<p><strong>Type:</strong> <code>int | None</code> (seconds) <strong>Default:</strong> <code>None</code></p>
+<p>After this many seconds, the task coroutine is cancelled unconditionally via
+asyncio cancellation. The task is quarantined to the DLQ with
+<code>reason=TimeoutError</code>.</p>
+<p>If only <code>hard_timeout</code> is set (no <code>soft_timeout</code>), there is no cleanup window,
+the task is cancelled immediately when it expires.</p>
+<div class="admonition warning">
+<p class="admonition-title">Timeouts only apply to async tasks</p>
+<p>The two-tier timeout machinery uses asyncio cancellation. Decorating a
+plain <code>def</code> function with <code>soft_timeout=</code> or <code>hard_timeout=</code> raises
+<code>ValueError</code> at decoration time. If you need timeouts on sync code, refactor
+it to <code>async def</code> and <code>asyncio.to_thread()</code> the blocking calls inside.</p>
+</div>
+<hr />
+<h4 id="on_soft_timeout"><code>on_soft_timeout</code><a class="headerlink" href="#on_soft_timeout" title="Permanent link">&para;</a></h4>
+<p><strong>Type:</strong> <code>Callable[[TaskContext], Awaitable[None]] | None</code> <strong>Default:</strong> <code>None</code></p>
+<p>An async function called when the soft timeout fires. Receives a
+<a href="#taskcontext"><code>TaskContext</code></a> with the current task state. Has
+<code>hard_timeout - soft_timeout</code> seconds to complete before the hard timeout
+fires.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">checkpoint_progress</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="c1"># Save partial work so the next incarnation can resume.</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">set_partial</span><span class="p">({</span><span class="s2">&quot;items_processed&quot;</span><span class="p">:</span> <span class="mi">750</span><span class="p">,</span> <span class="s2">&quot;last_cursor&quot;</span><span class="p">:</span> <span class="s2">&quot;item_750&quot;</span><span class="p">})</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="c1"># Release any external locks.</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="k">await</span> <span class="n">release_lock</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="nd">@rl_task</span><span class="p">(</span><span class="n">soft_timeout</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="n">hard_timeout</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">on_soft_timeout</span><span class="o">=</span><span class="n">checkpoint_progress</span><span class="p">)</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">process_large_batch</span><span class="p">(</span><span class="n">batch_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    <span class="o">...</span>
+</span></code></pre></div>
+<p>The hook runs on the same event loop as the task, so it must be <code>async def</code>
+and non-blocking.</p>
+<hr />
+<h3 id="dispatch-methods-apush-push-delay">Dispatch methods (<code>apush</code>, <code>push</code>, <code>delay</code>)<a class="headerlink" href="#dispatch-methods-apush-push-delay" title="Permanent link">&para;</a></h3>
+<p>Every function decorated with <code>@rl_task</code> is bound to a per-task Celery <code>Task</code>
+subclass that adds two Relier-aware dispatch methods on top of Celery's native
+<code>.delay()</code> / <code>.apply_async()</code>.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">await</span> <span class="n">my_task</span><span class="o">.</span><span class="n">apush</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>  <span class="c1"># async, preferred</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">my_task</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>         <span class="c1"># sync wrapper over apush</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">my_task</span><span class="o">.</span><span class="n">delay</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>        <span class="c1"># raw Celery dispatch, do not use</span>
+</span></code></pre></div>
+<p>The distinction matters. <code>apush</code> and <code>push</code> are the only dispatch paths that
+run admission control, wrap the payload in Relier's signed envelope, and inject
+OpenTelemetry context. Choose based on whether the caller is async or sync.</p>
+<h4 id="await-taskapushargs-kwargs-asyncresult"><code>await task.apush(*args, **kwargs)</code> → <code>AsyncResult</code><a class="headerlink" href="#await-taskapushargs-kwargs-asyncresult" title="Permanent link">&para;</a></h4>
+<p><strong>Use this in FastAPI, Starlette, async Django, or any other asyncio code.</strong></p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># FastAPI route</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/invoices/</span><span class="si">{invoice_id}</span><span class="s2">/send&quot;</span><span class="p">)</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">dispatch_invoice</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="k">await</span> <span class="n">send_invoice</span><span class="o">.</span><span class="n">apush</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">)</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;queued&quot;</span><span class="p">}</span>
+</span></code></pre></div>
+<p>What <code>apush</code> does, in order:</p>
+<ol>
+<li><strong>Admission check</strong>: atomic Lua <code>INCR</code> against
+   <code>rl:admission:celery-dispatch</code>. Raises <code>AdmissionRejectedError</code> (with
+   <code>retry_after</code>) if the cluster window is full.</li>
+<li><strong>Envelope wrap</strong>: generates a UUID4 <code>task_id</code>, builds the schema envelope
+   (<code>schema_version</code>, <code>task_id</code>, <code>payload</code>, sha256 <code>checksum</code>, <code>enqueued_at</code>).</li>
+<li><strong>OTel context injection</strong>: current trace context goes into
+   <code>envelope._otel_context</code> so the worker can continue the distributed trace.</li>
+<li><strong>Dispatch</strong>: <code>celery_app.send_task(name, args=(envelope,), queue=queue,
+   task_id=task_id)</code>. Returns the Celery <code>AsyncResult</code>.</li>
+</ol>
+<p>It does <strong>not</strong> wait for the task to finish, fire-and-forget, like Celery's
+own <code>.delay()</code>.</p>
+<h4 id="taskpushargs-kwargs-asyncresult"><code>task.push(*args, **kwargs)</code> → <code>AsyncResult</code><a class="headerlink" href="#taskpushargs-kwargs-asyncresult" title="Permanent link">&para;</a></h4>
+<p><strong>Use this in Flask, classic (sync) Django, management commands, scripts, or
+inside a Celery task that wants to enqueue another task.</strong></p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Flask route</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/invoices/&lt;invoice_id&gt;/send&quot;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;POST&quot;</span><span class="p">])</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="k">def</span><span class="w"> </span><span class="nf">dispatch_invoice</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">):</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">send_invoice</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">)</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;queued&quot;</span><span class="p">},</span> <span class="mi">202</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># Django view (sync)</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="k">def</span><span class="w"> </span><span class="nf">dispatch_invoice</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">invoice_id</span><span class="p">):</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="n">send_invoice</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">)</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    <span class="k">return</span> <span class="n">JsonResponse</span><span class="p">({</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;queued&quot;</span><span class="p">},</span> <span class="n">status</span><span class="o">=</span><span class="mi">202</span><span class="p">)</span>
+</span></code></pre></div>
+<p><code>push</code> is a thin synchronous wrapper around <code>apush</code>:</p>
+<ul>
+<li>If called <strong>inside a Celery worker</strong> (whose persistent event loop is already
+  running), <code>push</code> schedules the coroutine via
+  <code>asyncio.run_coroutine_threadsafe(self.apush(...), worker_loop)</code> and waits up
+  to 5 s for the dispatch to be acknowledged by the broker.</li>
+<li>If called <strong>outside Celery</strong> (e.g., from a Flask or Django request handler),
+  <code>push</code> falls back to <code>asyncio.run(self.apush(...))</code>.</li>
+</ul>
+<p>Either way, the reliability semantics are identical to <code>apush</code>. The only
+difference is that you didn't have to <code>await</code>.</p>
+<h4 id="taskdelayargs-kwargs-taskapply_async-do-not-use"><code>task.delay(*args, **kwargs)</code> / <code>task.apply_async(...)</code> - <strong>do not use</strong><a class="headerlink" href="#taskdelayargs-kwargs-taskapply_async-do-not-use" title="Permanent link">&para;</a></h4>
+<p>These are Celery's native dispatch interfaces. They are available because
+<code>@rl_task</code> is, underneath, a Celery <code>shared_task</code>. They <strong>bypass Relier's
+admission control and schema envelope</strong>, so:</p>
+<ul>
+<li>Admission control will not reject overloaded clusters when dispatched via
+  <code>.delay()</code>.</li>
+<li>The worker won't see a signed envelope, so checksum verification is skipped
+  and schema migration cannot run. Tasks enqueued by <code>.delay()</code> are processed
+  as legacy payloads.</li>
+<li>The OTel producer span is not injected.</li>
+</ul>
+<p>There is one place where <code>.delay()</code> is correct: the <code>rl bench</code> command uses it
+as the <em>baseline</em> in a like-for-like comparison against <code>.apush()</code>. That is the
+only intended user of <code>.delay()</code>. <strong>In application code, always use <code>apush</code> or
+<code>push</code>.</strong></p>
+<table>
+<thead>
+<tr>
+<th>If you are here…</th>
+<th>Use this</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Async route or coroutine</td>
+<td><code>await task.apush(...)</code></td>
+</tr>
+<tr>
+<td>Sync route, script, management command</td>
+<td><code>task.push(...)</code></td>
+</tr>
+<tr>
+<td>Existing Celery code you're migrating</td>
+<td>Replace <code>.delay()</code> with <code>.push()</code></td>
+</tr>
+<tr>
+<td><code>.delay()</code> in new code</td>
+<td>Don't. Use <code>push</code>.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="handling-admissionrejectederror">Handling <code>AdmissionRejectedError</code><a class="headerlink" href="#handling-admissionrejectederror" title="Permanent link">&para;</a></h4>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.core.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdmissionRejectedError</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="k">try</span><span class="p">:</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="k">await</span> <span class="n">my_task</span><span class="o">.</span><span class="n">apush</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="k">except</span> <span class="n">AdmissionRejectedError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>        <span class="n">status_code</span><span class="o">=</span><span class="mi">429</span><span class="p">,</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>        <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Retry-After&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="o">.</span><span class="n">retry_after</span><span class="p">)},</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>        <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Service at capacity.&quot;</span><span class="p">,</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>    <span class="p">)</span>
+</span></code></pre></div>
+<p><code>exc.retry_after</code> is the number of seconds until the admission window resets,
+hand it to the client as the standard HTTP <code>Retry-After</code> header.</p>
+<hr />
+<h2 id="taskcontext"><code>TaskContext</code><a class="headerlink" href="#taskcontext" title="Permanent link">&para;</a></h2>
+<p>A dataclass passed to cleanup hooks and accessible from inside any <code>@rl_task</code>
+function. Use it to read task identity, save checkpoints, or read a checkpoint
+that a previous incarnation wrote.</p>
+<h3 id="accessing-the-context-inside-a-task">Accessing the context inside a task<a class="headerlink" href="#accessing-the-context-inside-a-task" title="Permanent link">&para;</a></h3>
+<p>Two ways. Pick whichever fits the call site:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># 1. Declare `ctx` as a kwarg, Relier injects it automatically.</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nd">@rl_task</span><span class="p">()</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">my_task</span><span class="p">(</span><span class="n">item_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">task_id</span><span class="p">,</span> <span class="n">ctx</span><span class="o">.</span><span class="n">worker_id</span><span class="p">)</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="c1"># 2. Read it from a contextvar proxy.</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.context</span><span class="w"> </span><span class="kn">import</span> <span class="n">task_context</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="nd">@rl_task</span><span class="p">()</span>
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">my_task</span><span class="p">(</span><span class="n">item_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">task_context</span><span class="o">.</span><span class="n">task_id</span><span class="p">,</span> <span class="n">task_context</span><span class="o">.</span><span class="n">worker_id</span><span class="p">)</span>
+</span></code></pre></div>
+<p>The contextvar proxy raises <code>RuntimeError</code> if accessed outside a running task,
+which is what you want, it makes accidental reads fail loudly in tests.</p>
+<h3 id="fields">Fields<a class="headerlink" href="#fields" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>task_id</code></td>
+<td><code>str</code></td>
+<td>Celery task UUID. Stable across resurrections.</td>
+</tr>
+<tr>
+<td><code>task_name</code></td>
+<td><code>str</code></td>
+<td>Fully qualified task name (<code>module.func</code>).</td>
+</tr>
+<tr>
+<td><code>args</code></td>
+<td><code>tuple</code></td>
+<td>Positional arguments as originally passed.</td>
+</tr>
+<tr>
+<td><code>kwargs</code></td>
+<td><code>dict</code></td>
+<td>Keyword arguments as originally passed.</td>
+</tr>
+<tr>
+<td><code>worker_id</code></td>
+<td><code>str</code></td>
+<td>Hostname of the executing worker (<code>celery@…</code>).</td>
+</tr>
+<tr>
+<td><code>partial_result</code></td>
+<td><code>Any</code></td>
+<td>Checkpoint from a previous incarnation. <code>None</code> on first run.</td>
+</tr>
+<tr>
+<td><code>metadata</code></td>
+<td><code>dict</code></td>
+<td>Arbitrary metadata, extensible.</td>
+</tr>
+<tr>
+<td><code>started_at</code></td>
+<td><code>float</code></td>
+<td>Unix timestamp when execution began.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ctx-set-partial"><code>await ctx.set_partial(data: Any) -&gt; None</code><a class="headerlink" href="#ctx-set-partial" title="Permanent link">&para;</a></h3>
+<p>Save a checkpoint. Whatever you pass here becomes <code>ctx.partial_result</code> on the
+next resurrection, so the resurrected incarnation can resume from where the
+previous one left off.</p>
+<h4 id="how-does-the-checkpoint-know-where-the-task-got-to">How does the checkpoint know where the task got to?<a class="headerlink" href="#how-does-the-checkpoint-know-where-the-task-got-to" title="Permanent link">&para;</a></h4>
+<p>It doesn't, <strong>you tell it</strong>. Relier has no way to introspect "the task was on
+line 47 of your loop." That's not the level it operates at. The checkpoint is
+just an arbitrary JSON-serialisable blob you choose to persist; what goes
+inside is your application's responsibility.</p>
+<p>There are two patterns for getting progress out of the task body. Pick the
+one that fits your workload.</p>
+<h5 id="pattern-a-checkpoint-inline-recommended-for-incremental-work">Pattern A: Checkpoint inline (recommended for incremental work)<a class="headerlink" href="#pattern-a-checkpoint-inline-recommended-for-incremental-work" title="Permanent link">&para;</a></h5>
+<p>The task body itself calls <code>ctx.set_partial</code> after each unit of work. The
+soft-timeout hook is unnecessary because the latest progress is already in
+Redis when the worker dies.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.context</span><span class="w"> </span><span class="kn">import</span> <span class="n">TaskContext</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="nd">@rl_task</span><span class="p">(</span><span class="n">hard_timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">process_items</span><span class="p">(</span><span class="n">cursor</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;start&quot;</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="n">start</span> <span class="o">=</span> <span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">partial_result</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;last_cursor&quot;</span><span class="p">,</span> <span class="n">cursor</span><span class="p">)</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="k">async</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">fetch_items</span><span class="p">(</span><span class="n">start</span><span class="p">):</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>        <span class="k">await</span> <span class="n">process</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>        <span class="c1"># Persist progress after each item. The resurrected task picks up here.</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>        <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">set_partial</span><span class="p">({</span><span class="s2">&quot;last_cursor&quot;</span><span class="p">:</span> <span class="n">item</span><span class="o">.</span><span class="n">id</span><span class="p">})</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>
+</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;done&quot;</span><span class="p">}</span>
+</span></code></pre></div>
+<p>Trade-offs</p>
+<ul>
+<li>✅ Simplest mental model, no hook, no shared state.</li>
+<li>✅ Fine-grained recovery: you lose at most one item's work.</li>
+<li>✅ Works without <code>soft_timeout</code>/<code>on_soft_timeout</code>.</li>
+<li>⚠️ One Redis write per item. Cheap, but not free; if your loop iterates
+  millions of items per second, throttle the writes (only save every N items).</li>
+</ul>
+<h5 id="pattern-b-track-progress-in-ctxmetadata-save-in-the-soft-hook">Pattern B: Track progress in <code>ctx.metadata</code>, save in the soft hook<a class="headerlink" href="#pattern-b-track-progress-in-ctxmetadata-save-in-the-soft-hook" title="Permanent link">&para;</a></h5>
+<p>The task body writes progress into <code>ctx.metadata</code> (an in-memory dict on the
+context object, no Redis writes). The soft-timeout hook reads
+<code>ctx.metadata</code> and persists a final checkpoint just before the hard timeout
+fires.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.context</span><span class="w"> </span><span class="kn">import</span> <span class="n">TaskContext</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">save_checkpoint</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    <span class="c1"># Reads whatever the task body recorded into ctx.metadata.</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>    <span class="n">last</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;last_cursor&quot;</span><span class="p">)</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>    <span class="k">if</span> <span class="n">last</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>        <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">set_partial</span><span class="p">({</span><span class="s2">&quot;last_cursor&quot;</span><span class="p">:</span> <span class="n">last</span><span class="p">})</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="nd">@rl_task</span><span class="p">(</span><span class="n">soft_timeout</span><span class="o">=</span><span class="mi">55</span><span class="p">,</span> <span class="n">hard_timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">on_soft_timeout</span><span class="o">=</span><span class="n">save_checkpoint</span><span class="p">)</span>
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">process_items</span><span class="p">(</span><span class="n">cursor</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;start&quot;</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>    <span class="n">start</span> <span class="o">=</span> <span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">partial_result</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;last_cursor&quot;</span><span class="p">,</span> <span class="n">cursor</span><span class="p">)</span>
+</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>
+</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>    <span class="k">async</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">fetch_items</span><span class="p">(</span><span class="n">start</span><span class="p">):</span>
+</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>        <span class="k">await</span> <span class="n">process</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+</span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>        <span class="c1"># In-memory only, no Redis write per item.</span>
+</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a>        <span class="n">ctx</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;last_cursor&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">id</span>
+</span><span id="__span-11-17"><a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a>
+</span><span id="__span-11-18"><a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;done&quot;</span><span class="p">}</span>
+</span></code></pre></div>
+<p>Trade-offs</p>
+<ul>
+<li>✅ Zero Redis writes during normal execution only one write at the
+  soft-timeout boundary.</li>
+<li>✅ Best for very hot loops where per-item checkpointing would dominate
+  the work.</li>
+<li>⚠️ Only protects you against soft-timeout-triggered handoff. <strong>A SIGKILL or
+  OOM-kill bypasses the soft hook entirely</strong>, the task is resurrected with
+  whatever <code>set_partial</code> last persisted (often nothing). For real crash
+  resilience, combine: write to <code>ctx.metadata</code> per item and <em>also</em> call
+  <code>set_partial</code> periodically (every N items, or every M seconds).</li>
+</ul>
+<h5 id="pattern-c-hybrid-periodic-durable-checkpoints-final-rescue">Pattern C: Hybrid (periodic durable checkpoints + final rescue)<a class="headerlink" href="#pattern-c-hybrid-periodic-durable-checkpoints-final-rescue" title="Permanent link">&para;</a></h5>
+<p>The conservative production default: cheap inline progress with periodic durable saves.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nd">@rl_task</span><span class="p">(</span><span class="n">soft_timeout</span><span class="o">=</span><span class="mi">55</span><span class="p">,</span> <span class="n">hard_timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">on_soft_timeout</span><span class="o">=</span><span class="n">save_checkpoint</span><span class="p">)</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">process_items</span><span class="p">(</span><span class="n">cursor</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;start&quot;</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>    <span class="n">start</span> <span class="o">=</span> <span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">partial_result</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;last_cursor&quot;</span><span class="p">,</span> <span class="n">cursor</span><span class="p">)</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>    <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>    <span class="k">async</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">fetch_items</span><span class="p">(</span><span class="n">start</span><span class="p">):</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>        <span class="k">await</span> <span class="n">process</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>        <span class="n">ctx</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;last_cursor&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">id</span>
+</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>        <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>
+</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>        <span class="c1"># Durable checkpoint every 100 items.</span>
+</span><span id="__span-12-12"><a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>        <span class="k">if</span> <span class="n">count</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+</span><span id="__span-12-13"><a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a>            <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">set_partial</span><span class="p">({</span><span class="s2">&quot;last_cursor&quot;</span><span class="p">:</span> <span class="n">item</span><span class="o">.</span><span class="n">id</span><span class="p">})</span>
+</span><span id="__span-12-14"><a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a>
+</span><span id="__span-12-15"><a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;done&quot;</span><span class="p">,</span> <span class="s2">&quot;processed&quot;</span><span class="p">:</span> <span class="n">count</span><span class="p">}</span>
+</span></code></pre></div>
+<p>This combines crash resilience (you re-do at most 100 items after a SIGKILL)
+with low write overhead (one Redis hit per 100 items, not per item).</p>
+<h4 id="size-limits-read-this-before-checkpointing-anything-bigger-than-a-json-document">Size limits: read this before checkpointing anything bigger than a JSON document<a class="headerlink" href="#size-limits-read-this-before-checkpointing-anything-bigger-than-a-json-document" title="Permanent link">&para;</a></h4>
+<p>Redis is Relier's coordination plane. It runs with <code>maxmemory-policy
+noeviction</code>, replicates writes to every replica, and appends to the AOF. A
+careless checkpoint i.e an embedding vector, an image, a model snapshot
+serialised straight into Redis would bloat memory, flood replication, and can
+take the entire cluster down.</p>
+<p><code>CheckpointStore</code> routes every checkpoint through a size-aware store:</p>
+<table>
+<thead>
+<tr>
+<th>Checkpoint size</th>
+<th>What happens</th>
+<th>Configured by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>≤ <code>RELIER_CHECKPOINT_MAX_INLINE_BYTES</code> (default <strong>256 KB</strong>)</td>
+<td>Stored inline in <code>rl:phoenix:{task_id}</code> hash field <code>partial_result</code>. Fast, no external dependency.</td>
+<td>always on</td>
+</tr>
+<tr>
+<td>&gt; 256 KB <strong>with</strong> <code>RELIER_CHECKPOINT_BACKEND=filesystem</code></td>
+<td>Gzipped, written to <code>RELIER_CHECKPOINT_DIR/{task_id}.ckpt</code>. Only a tiny reference envelope (<code>{ref, bytes, codec}</code>) stays in Redis.</td>
+<td><code>filesystem</code> backend</td>
+</tr>
+<tr>
+<td>&gt; 256 KB <strong>with</strong> <code>RELIER_CHECKPOINT_BACKEND=inline</code> (default)</td>
+<td><strong>Rejected</strong>, raises <code>CheckpointTooLargeError</code>.</td>
+<td>default behaviour</td>
+</tr>
+</tbody>
+</table>
+<p>The default is to <strong>reject oversized checkpoints</strong>, deliberately. Silently
+bloating Redis is worse than a loud error: the loud error tells you that you
+need to either (a) shrink the checkpoint, or (b) configure a blob backend.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># Production: enable filesystem spillover with a shared volume.</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="n">RELIER_CHECKPOINT_BACKEND</span><span class="o">=</span><span class="n">filesystem</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="n">RELIER_CHECKPOINT_DIR</span><span class="o">=/</span><span class="n">var</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">relier</span><span class="o">/</span><span class="n">checkpoints</span>
+</span></code></pre></div>
+<p><strong>The filesystem backend MUST be shared storage</strong>, every worker and the
+resurrector must see the same path, because a resurrected task is replayed on
+a different process than the one that wrote its checkpoint. Use a mounted
+volume (Docker volume, NFS, EFS), not node-local disk. The bundled
+<code>docker-compose.prod.yml</code> does this with the <code>redis_checkpoints</code> named volume.</p>
+<p><code>CheckpointTooLargeError</code> is a subclass of <code>RuntimeError</code>. Catch it if you
+have a fallback (e.g., write the bulky state to S3 yourself and checkpoint just
+the S3 key):</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.core.checkpoint</span><span class="w"> </span><span class="kn">import</span> <span class="n">CheckpointTooLargeError</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">save_progress</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>        <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">set_partial</span><span class="p">(</span><span class="n">huge_state</span><span class="p">)</span>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>    <span class="k">except</span> <span class="n">CheckpointTooLargeError</span><span class="p">:</span>
+</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>        <span class="n">s3_key</span> <span class="o">=</span> <span class="k">await</span> <span class="n">upload_to_s3</span><span class="p">(</span><span class="n">huge_state</span><span class="p">)</span>
+</span><span id="__span-14-8"><a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>        <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">set_partial</span><span class="p">({</span><span class="s2">&quot;s3_key&quot;</span><span class="p">:</span> <span class="n">s3_key</span><span class="p">})</span>
+</span></code></pre></div>
+<h4 id="lifecycle-of-a-checkpoint">Lifecycle of a checkpoint<a class="headerlink" href="#lifecycle-of-a-checkpoint" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Reclaimed immediately when <code>PhoenixRegistry.complete(task_id)</code> runs (task
+  finished, including DLQ quarantine).</li>
+<li>Reclaimed when the DLQ is purged via <code>rl dlq purge --confirm</code>.</li>
+<li>Orphaned blobs (whose owning Phoenix hash TTL-expired without cleanup) are
+  swept by <code>CheckpointStore.sweep()</code> after <code>24h + 1h</code> driven by the
+  resurrection loop.</li>
+</ul>
+<hr />
+<h2 id="idempotency_lock"><code>idempotency_lock</code><a class="headerlink" href="#idempotency_lock" title="Permanent link">&para;</a></h2>
+<p>A context manager for <strong>manual</strong> idempotency control. Use this when you need a
+custom key or conditional logic that the auto-keyed <code>idempotent=True</code> flag
+can't express.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.core.idempotency</span><span class="w"> </span><span class="kn">import</span> <span class="n">idempotency_lock</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="nd">@rl_task</span><span class="p">()</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">handle_webhook</span><span class="p">(</span><span class="n">event_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">event_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">payload</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    <span class="c1"># Use event_id as the idempotency key, not a hash of all args.</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>    <span class="k">async</span> <span class="k">with</span> <span class="n">idempotency_lock</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;webhook:</span><span class="si">{</span><span class="n">event_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">ttl</span><span class="o">=</span><span class="mi">86400</span><span class="p">)</span> <span class="k">as</span> <span class="n">lock</span><span class="p">:</span>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>        <span class="k">if</span> <span class="n">lock</span><span class="o">.</span><span class="n">already_executed</span><span class="p">:</span>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>            <span class="k">return</span> <span class="n">lock</span><span class="o">.</span><span class="n">cached_result</span>
+</span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>        <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">process_event</span><span class="p">(</span><span class="n">event_type</span><span class="p">,</span> <span class="n">payload</span><span class="p">)</span>
+</span><span id="__span-15-10"><a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>        <span class="k">await</span> <span class="n">lock</span><span class="o">.</span><span class="n">record_result</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+</span><span id="__span-15-11"><a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>        <span class="k">return</span> <span class="n">result</span>
+</span></code></pre></div>
+<h3 id="parameters_1">Parameters<a class="headerlink" href="#parameters_1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>key</code></td>
+<td><code>str</code></td>
+<td>required</td>
+<td>Idempotency key. Must be unique per logical operation.</td>
+</tr>
+<tr>
+<td><code>ttl</code></td>
+<td><code>int</code></td>
+<td>required</td>
+<td>Cache TTL in seconds.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="lock-object">Lock object<a class="headerlink" href="#lock-object" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Attribute / Method</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lock.already_executed</code></td>
+<td><code>bool</code></td>
+<td><code>True</code> if this key has a cached result</td>
+</tr>
+<tr>
+<td><code>lock.cached_result</code></td>
+<td><code>Any</code></td>
+<td>Deserialised cached result (only valid if <code>already_executed</code>)</td>
+</tr>
+<tr>
+<td><code>await lock.record_result(result)</code></td>
+<td>—</td>
+<td>Store the result in the cache</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="deadletterqueue"><code>DeadLetterQueue</code><a class="headerlink" href="#deadletterqueue" title="Permanent link">&para;</a></h2>
+<p>Direct access to DLQ operations. For most operational tasks, prefer the
+<code>rl dlq</code> CLI commands, they wrap the same calls.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.core.dlq</span><span class="w"> </span><span class="kn">import</span> <span class="n">DeadLetterQueue</span>
+</span></code></pre></div>
+<h3 id="await-deadletterqueuelist_taskslimitnone"><code>await DeadLetterQueue.list_tasks(limit=None)</code><a class="headerlink" href="#await-deadletterqueuelist_taskslimitnone" title="Permanent link">&para;</a></h3>
+<p>Returns all quarantined tasks sorted by quarantine time (newest first). Each
+entry is a <code>dict</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>task_id</code></td>
+<td>Task UUID</td>
+</tr>
+<tr>
+<td><code>task_name</code></td>
+<td>Fully qualified task name</td>
+</tr>
+<tr>
+<td><code>queue</code></td>
+<td>Original target queue</td>
+</tr>
+<tr>
+<td><code>args</code></td>
+<td>Original positional arguments</td>
+</tr>
+<tr>
+<td><code>kwargs</code></td>
+<td>Original keyword arguments</td>
+</tr>
+<tr>
+<td><code>partial_result</code></td>
+<td>Last checkpoint before quarantine (if any)</td>
+</tr>
+<tr>
+<td><code>reason</code></td>
+<td>Error type that triggered quarantine</td>
+</tr>
+<tr>
+<td><code>resurrections</code></td>
+<td>Number of resurrection attempts</td>
+</tr>
+<tr>
+<td><code>quarantined_at</code></td>
+<td>ISO-8601 timestamp</td>
+</tr>
+</tbody>
+</table>
+<h3 id="await-deadletterqueueinspecttask_id"><code>await DeadLetterQueue.inspect(task_id)</code><a class="headerlink" href="#await-deadletterqueueinspecttask_id" title="Permanent link">&para;</a></h3>
+<p>Returns the full quarantine envelope for one task, or <code>None</code> if not found.</p>
+<h3 id="await-deadletterqueuereleasetask_id-bool"><code>await DeadLetterQueue.release(task_id)</code> → <code>bool</code><a class="headerlink" href="#await-deadletterqueuereleasetask_id-bool" title="Permanent link">&para;</a></h3>
+<p>Un-quarantines a task and re-submits it to its original queue. Returns <code>True</code>
+on success, <code>False</code> if not found. Resurrection count is <strong>preserved</strong> so a
+task can't bypass <code>max_resurrections</code> by being repeatedly released.</p>
+<h3 id="await-deadletterqueuepurge-int"><code>await DeadLetterQueue.purge()</code> → <code>int</code><a class="headerlink" href="#await-deadletterqueuepurge-int" title="Permanent link">&para;</a></h3>
+<p>Permanently deletes all DLQ entries. Returns the deleted count. Also releases
+any checkpoint blobs the quarantined tasks owned.</p>
+<hr />
+<h2 id="slometrics"><code>SLOMetrics</code><a class="headerlink" href="#slometrics" title="Permanent link">&para;</a></h2>
+<p>Read SLO data programmatically.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.core.slo</span><span class="w"> </span><span class="kn">import</span> <span class="n">SLOMetrics</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="c1"># Current burn rate for a window</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="n">rate</span> <span class="o">=</span> <span class="k">await</span> <span class="n">SLOMetrics</span><span class="o">.</span><span class="n">get_burn_rate</span><span class="p">(</span><span class="n">window</span><span class="o">=</span><span class="s2">&quot;1h&quot;</span><span class="p">,</span> <span class="n">target_slo</span><span class="o">=</span><span class="mf">0.999</span><span class="p">)</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="c1"># All windows at once</span>
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="n">report</span> <span class="o">=</span> <span class="k">await</span> <span class="n">SLOMetrics</span><span class="o">.</span><span class="n">get_report</span><span class="p">()</span>
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="c1"># {&quot;1h&quot;: 0.42, &quot;6h&quot;: 0.38, &quot;3d&quot;: 0.21}</span>
+</span></code></pre></div>
+<p>Valid windows: <code>"1h"</code>, <code>"6h"</code>, <code>"3d"</code>.</p>
+<h3 id="await-slometricsrecord_eventstatus-none"><code>await SLOMetrics.record_event(status)</code> → <code>None</code><a class="headerlink" href="#await-slometricsrecord_eventstatus-none" title="Permanent link">&para;</a></h3>
+<p>Manually record a task outcome. Relier calls this automatically only use it
+for custom integrations.</p>
+<ul>
+<li><code>status="success"</code>, task completed successfully</li>
+<li><code>status="failure"</code>, task failed or was quarantined</li>
+</ul>
+<hr />
+<h2 id="exceptions">Exceptions<a class="headerlink" href="#exceptions" title="Permanent link">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.core.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>    <span class="n">RelierError</span><span class="p">,</span>                <span class="c1"># base class</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>    <span class="n">IdempotencyInFlightError</span><span class="p">,</span>   <span class="c1"># another worker holds the idempotency key</span>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>    <span class="n">AdmissionRejectedError</span><span class="p">,</span>     <span class="c1"># cluster at capacity (check exc.retry_after)</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>    <span class="n">PayloadIntegrityError</span><span class="p">,</span>      <span class="c1"># checksum mismatch on received payload</span>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>    <span class="n">SchemaMigrationError</span><span class="p">,</span>       <span class="c1"># migration function raised</span>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>    <span class="n">HardTimeoutError</span><span class="p">,</span>           <span class="c1"># task exceeded hard_timeout</span>
+</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="p">)</span>
+</span></code></pre></div>
+<p><code>from relier.core.checkpoint import CheckpointTooLargeError</code> raised by
+<code>ctx.set_partial(...)</code> when the checkpoint exceeds the inline limit and no
+filesystem backend is configured. Subclass of <code>RuntimeError</code>, not <code>RelierError</code>.</p>
+<h3 id="admissionrejectederror"><code>AdmissionRejectedError</code><a class="headerlink" href="#admissionrejectederror" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">try</span><span class="p">:</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>    <span class="k">await</span> <span class="n">my_task</span><span class="o">.</span><span class="n">apush</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="k">except</span> <span class="n">AdmissionRejectedError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">exc</span><span class="o">.</span><span class="n">retry_after</span><span class="p">)</span>  <span class="c1"># seconds until the admission window resets</span>
+</span></code></pre></div>
+<h3 id="idempotencyinflighterror"><code>IdempotencyInFlightError</code><a class="headerlink" href="#idempotencyinflighterror" title="Permanent link">&para;</a></h3>
+<p>This is caught and handled internally by <code>@rl_task</code> it triggers a Celery
+retry with 5-second backoff. You should not need to handle it yourself unless
+you're using <code>idempotency_lock</code> manually.</p>
+<hr />
+<h2 id="settings">Settings<a class="headerlink" href="#settings" title="Permanent link">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_settings</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">get_settings</span><span class="p">()</span>
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">heartbeat_ttl</span><span class="p">)</span>     <span class="c1"># 10</span>
+</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">max_resurrections</span><span class="p">)</span> <span class="c1"># 5</span>
+</span></code></pre></div>
+<p>All settings are read-only after process startup (the <code>Settings</code> model is
+frozen). To change a value, update <code>.env</code> and restart workers:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>rl<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>RELIER_HEARTBEAT_TTL<span class="w"> </span><span class="m">15</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="c1"># then restart workers</span>
+</span></code></pre></div>
+<p>See <a href="../configuration/">Configuration</a> for the full settings reference.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../troubleshooting/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Troubleshooting &amp; FAQ">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Troubleshooting & FAQ
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../configuration/" class="md-footer__link md-footer__link--next" aria-label="Next: Configuration">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Configuration
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/getrelier/relier" target="_blank" rel="noopener" title="Relier on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://x.com/relierdev" target="_blank" rel="noopener" title="Relier on X" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M357.2 48h70.6L273.6 224.2 455 464H313L201.7 318.6 74.5 464H3.8l164.9-188.5L-5.2 48h145.6l100.5 132.9zm-24.8 373.8h39.1L119.1 88h-42z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://pypi.org/project/relier/" target="_blank" rel="noopener" title="Relier on PyPI" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "navigation.footer", "search.highlight", "search.suggest", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+      
+        <script src="../assets/js/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>

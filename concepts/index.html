@@ -1,0 +1,2452 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Zero job loss. Every task completes, hands off, or lands in the DLQ with a traceable reason.">
+      
+      
+      
+        <link rel="canonical" href="https://getrelier.github.io/relier/concepts/">
+      
+      
+        <link rel="prev" href="../celery-primer/">
+      
+      
+        <link rel="next" href="../deployment/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/logo.ico">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Core Concepts - Relier</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#core-concepts" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Relier" class="md-header__button md-logo" aria-label="Relier" data-md-component="logo">
+      
+  <img src="../assets/images/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Relier
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Core Concepts
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/getrelier/relier" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    getrelier/relier
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../quickstart/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../integrations/" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../api-reference/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+  
+  Deep Dive
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Relier" class="md-nav__button md-logo" aria-label="Relier" data-md-component="logo">
+      
+  <img src="../assets/images/logo.png" alt="logo">
+
+    </a>
+    Relier
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/getrelier/relier" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    getrelier/relier
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../celery-primer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A Quick Celery Primer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Concepts
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-relier-is-and-is-not" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What Relier is and is not
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="What Relier is and is not">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#not-a-workflow-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not a workflow engine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#not-a-dag-runner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not a DAG runner
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#not-a-celery-replacement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not a Celery replacement
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#async-first-by-design-sync-compatible-by-necessity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Async-first by design, sync-compatible by necessity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-celery-quick-primer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is Celery? (Quick primer)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mental-model-what-happens-when-you-dispatch-a-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mental model: what happens when you dispatch a task
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-phoenix-pattern-zero-job-loss" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Phoenix Pattern (Zero-Job-Loss)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The Phoenix Pattern (Zero-Job-Loss)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-phoenix-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How Phoenix works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-resurrection-limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The resurrection limit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-resurrector-process" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The resurrector process
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#idempotency-safe-retries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Idempotency (Safe Retries)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Idempotency (Safe Retries)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-problem_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-reliers-idempotency-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How Relier's idempotency works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manual-idempotency-for-complex-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual idempotency for complex cases
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#task-timeouts-soft-hard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task Timeouts (Soft + Hard)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Task Timeouts (Soft + Hard)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#soft-timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Soft timeout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hard-timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hard timeout
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#checkpoints-and-partial-result-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checkpoints and partial-result storage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#graceful-shutdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Graceful Shutdown
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Graceful Shutdown">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-happens-when-relier-receives-sigterm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What happens when Relier receives SIGTERM
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#admission-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Admission Control
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dead-letter-queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dead Letter Queue
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#task-payload-schema-versioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task Payload Schema Versioning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#slo-burn-rate-monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SLO Burn Rate Monitoring
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#opentelemetry-distributed-tracing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenTelemetry (Distributed Tracing)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration Recipes (FastAPI, Flask, Django)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../patterns/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Patterns Cookbook
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rolling-deploys/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rolling Deploys & Schema Migrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting & FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deep Dive
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Deep Dive
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../durability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Durability, HA, & Failure Boundaries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../chaos-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chaos Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-relier-is-and-is-not" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What Relier is and is not
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="What Relier is and is not">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#not-a-workflow-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not a workflow engine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#not-a-dag-runner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not a DAG runner
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#not-a-celery-replacement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not a Celery replacement
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#async-first-by-design-sync-compatible-by-necessity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Async-first by design, sync-compatible by necessity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-celery-quick-primer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is Celery? (Quick primer)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mental-model-what-happens-when-you-dispatch-a-task" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mental model: what happens when you dispatch a task
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-phoenix-pattern-zero-job-loss" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Phoenix Pattern (Zero-Job-Loss)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The Phoenix Pattern (Zero-Job-Loss)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-phoenix-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How Phoenix works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-resurrection-limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The resurrection limit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-resurrector-process" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The resurrector process
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#idempotency-safe-retries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Idempotency (Safe Retries)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Idempotency (Safe Retries)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-problem_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-reliers-idempotency-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How Relier's idempotency works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manual-idempotency-for-complex-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual idempotency for complex cases
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#task-timeouts-soft-hard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task Timeouts (Soft + Hard)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Task Timeouts (Soft + Hard)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#soft-timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Soft timeout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hard-timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hard timeout
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#checkpoints-and-partial-result-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checkpoints and partial-result storage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#graceful-shutdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Graceful Shutdown
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Graceful Shutdown">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-happens-when-relier-receives-sigterm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What happens when Relier receives SIGTERM
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#admission-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Admission Control
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dead-letter-queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dead Letter Queue
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#task-payload-schema-versioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task Payload Schema Versioning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#slo-burn-rate-monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SLO Burn Rate Monitoring
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#opentelemetry-distributed-tracing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenTelemetry (Distributed Tracing)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="core-concepts">Core Concepts<a class="headerlink" href="#core-concepts" title="Permanent link">&para;</a></h1>
+<p>This page explains the key ideas behind Relier. You don't need to read it before getting started the <a href="../quickstart/">Quickstart</a> covers that. But understanding these concepts will help you make better decisions about how to use Relier in production.</p>
+<hr />
+<h2 id="what-relier-is-and-is-not">What Relier is and is not<a class="headerlink" href="#what-relier-is-and-is-not" title="Permanent link">&para;</a></h2>
+<p>Getting this right up front saves a lot of confusion.</p>
+<p><strong>Relier is a thin wrapper around Celery, not a replacement for it.</strong> Your workers are still plain Celery workers. Your Redis is still the broker. Your tasks still look like Celery tasks. Relier adds a lifecycle layer heartbeat tracking, crash detection, resurrection, idempotency enforcement, timeouts, graceful shutdown without changing your function bodies or your infrastructure.</p>
+<h3 id="not-a-workflow-engine">Not a workflow engine<a class="headerlink" href="#not-a-workflow-engine" title="Permanent link">&para;</a></h3>
+<p><a href="https://temporal.io">Temporal</a> and <a href="https://hatchet.run">Hatchet</a> are <em>workflow engines</em>. They model multi-step processes with deterministic replay, durable execution across restarts, and saga-style compensation. That's a different problem and a different programming model, you restructure your code around their execution model and deploy their server.</p>
+<p>Relier is not that. It handles individual task reliability, not workflow orchestration. The choice isn't "Relier vs. Temporal", it's "naked Celery vs. Relier + Celery." If you need multi-step workflows spanning hours or approval gates, reach for Temporal or Hatchet. If you have Celery tasks and want them to stop disappearing, that's Relier.</p>
+<h3 id="not-a-dag-runner">Not a DAG runner<a class="headerlink" href="#not-a-dag-runner" title="Permanent link">&para;</a></h3>
+<p><a href="https://prefect.io">Prefect</a>, <a href="https://airflow.apache.org">Airflow</a>, <a href="https://dagster.io">Dagster</a> schedule and orchestrate pipelines of <em>dependent</em> tasks. They have schedulers, UIs, backfill, and pipeline-level retry. Relier has none of that. It makes individual tasks reliable; what those tasks do and when they run is still Celery's responsibility.</p>
+<h3 id="not-a-celery-replacement">Not a Celery replacement<a class="headerlink" href="#not-a-celery-replacement" title="Permanent link">&para;</a></h3>
+<p>You don't swap Celery for Relier. You keep Celery and add Relier on top. The decorator, the queues, the <code>celery worker</code> command, the broker nothing changes. If you later outgrow Relier's model, you can remove the decorator and go back to vanilla Celery with zero migration cost.</p>
+<hr />
+<h2 id="async-first-by-design-sync-compatible-by-necessity">Async-first by design, sync-compatible by necessity<a class="headerlink" href="#async-first-by-design-sync-compatible-by-necessity" title="Permanent link">&para;</a></h2>
+<p>Relier's orchestration layer is built on asyncio. Every worker process owns a
+<strong>single persistent event loop</strong> created once at startup and reused for every
+task there is no per-task loop construction, no per-task Redis pool, no
+<code>asyncio.run()</code> on the hot path. Tasks dispatched from FastAPI continue the
+same trace context that started the HTTP request, and admission/dispatch
+operations are themselves <code>async def</code> so a busy producer never blocks the
+event loop.</p>
+<p>That said, much of the Python ecosystem is sync: Flask, classic Django, CLI
+tools, management commands, scheduled scripts. Relier supports them too, with
+no compromise on reliability:</p>
+<table>
+<thead>
+<tr>
+<th>You are here…</th>
+<th>Use this</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FastAPI / Starlette / async Django</td>
+<td><code>await task.apush(...)</code></td>
+<td>Runs on the calling task's event loop. No extra bridging.</td>
+</tr>
+<tr>
+<td>Flask / classic Django / scripts</td>
+<td><code>task.push(...)</code></td>
+<td>Sync wrapper. If a Celery worker loop is running, schedules the dispatch onto it via <code>run_coroutine_threadsafe</code>. Otherwise falls back to <code>asyncio.run()</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Both paths run the <strong>same</strong> reliability stack, admission control, schema
+envelope, OTel context injection. The only difference is whether the caller
+needs to <code>await</code>. Detailed explanation in
+<a href="../architecture/#the-asynccelery-bridge">Architecture → The Async/Celery Bridge</a>.</p>
+<blockquote>
+<p><strong>Note:</strong> Don't call <code>task.delay()</code> or <code>task.apply_async()</code> directly. Those
+are Celery's native dispatch methods and they bypass Relier's admission
+control and signed envelope. They're available because <code>@rl_task</code> is built
+on Celery's <code>shared_task</code>, but in application code, always use <code>apush</code> or
+<code>push</code>. The only intentional caller of <code>.delay()</code> is <code>rl bench</code>, which uses
+it as a measurement baseline.</p>
+</blockquote>
+<hr />
+<h2 id="what-is-celery-quick-primer">What is Celery? (Quick primer)<a class="headerlink" href="#what-is-celery-quick-primer" title="Permanent link">&para;</a></h2>
+<p>If you already know Celery, skip ahead. For a more thorough walkthrough see the
+dedicated <a href="../celery-primer/">Celery Primer</a>.</p>
+<p><strong>Celery</strong> is a task queue library for Python. Instead of doing slow work (sending emails, calling APIs, processing files) inside your web request, you put that work on a queue. Background worker processes pick tasks off the queue and execute them independently of your web server.</p>
+<pre class="mermaid"><code>flowchart TD
+  A[User request] --&gt; B[FastAPI handler]
+  B -- push task to Redis queue --&gt; C[(Redis broker)]
+  B --&gt; D[Immediate response to user]
+  C -- worker picks it up --&gt; E[Celery worker]
+  E --&gt; F[Executes your function]</code></pre>
+<p>This is a great pattern. But vanilla Celery has no protection against workers dying mid-task, no safe retry strategy, no visibility into what's running, and no graceful shutdown. That's what Relier adds.</p>
+<hr />
+<h2 id="mental-model-what-happens-when-you-dispatch-a-task">Mental model: what happens when you dispatch a task<a class="headerlink" href="#mental-model-what-happens-when-you-dispatch-a-task" title="Permanent link">&para;</a></h2>
+<p>End-to-end, from <code>await task.apush(...)</code> returning to the cache being filled.
+Knowing this flow makes every other piece of the docs click into place.</p>
+<pre class="mermaid"><code>flowchart TD
+    subgraph Producer["Producer — FastAPI · Flask · script"]
+        A["1 · await task.apush(arg)"]
+        A --&gt; B{"Admission check\natomic Lua INCR"}
+        B -- FAIL --&gt; C["AdmissionRejectedError\n→ caller returns 429"]
+        B -- PASS --&gt; D["Signed envelope\nschema_version · task_id\npayload · checksum · OTel ctx"]
+        D --&gt; E["send_task() → Redis LPUSH"]
+    end
+
+    subgraph Broker["Broker — Redis"]
+        F["Envelope queued\nuntil a worker pops it"]
+    end
+
+    subgraph Worker["Worker — relier.tasks.app"]
+        G["2 · Celery pops envelope\n→ wrapper(self, envelope)"]
+        G --&gt; H["3 · Async bridge\nschedule onto persistent\nworker event loop"]
+        H --&gt; I{"4 · Schema validation\n+ checksum verify"}
+        I -- "bad checksum /\nunmigratable" --&gt; J["→ DLQ\nPayloadIntegrityError\nSchemaMigrationError"]
+        I -- OK --&gt; K{"5 · Idempotency check\nif idempotent=True"}
+        K -- CLAIMED --&gt; O["6 · Phoenix registration\nrl:hb:TASK_ID · TTL 10s\nrefreshed every 5s\npayload → rl:phoenix:TASK_ID"]
+        K -- IN_FLIGHT --&gt; M["Retry with backoff"]
+        K -- COMPLETED --&gt; N["Return cached result"]
+        O --&gt; L["7 · Your function runs\nsoft + hard timeout watchers"]
+        L --&gt; P{"8 · Outcome"}
+        P -- success --&gt; Q["Cache result · SLO success\ndelete heartbeat · cleanup"]
+        P -- failure --&gt; R["SLO failure → DLQ"]
+    end
+
+    E --&gt; F
+    F --&gt; G</code></pre>
+<p>Every reliability guarantee Relier offers maps onto one of these steps. The
+rest of this page explains the <em>why</em> behind each mechanism.</p>
+<hr />
+<h2 id="the-phoenix-pattern-zero-job-loss">The Phoenix Pattern (Zero-Job-Loss)<a class="headerlink" href="#the-phoenix-pattern-zero-job-loss" title="Permanent link">&para;</a></h2>
+<p>This is Relier's core guarantee: <strong>no task is silently lost when a worker dies</strong>.</p>
+<h3 id="the-problem">The problem<a class="headerlink" href="#the-problem" title="Permanent link">&para;</a></h3>
+<p>Imagine a worker is halfway through processing a payment when it's OOM-killed by the OS. Vanilla Celery's response: the task is gone. There's nothing in the queue, no error, no trace. The payment never completes.</p>
+<h3 id="how-phoenix-works">How Phoenix works<a class="headerlink" href="#how-phoenix-works" title="Permanent link">&para;</a></h3>
+<p>Every task Relier runs writes a <strong>heartbeat</strong> to Redis, a key with a short TTL (default 10 seconds). As long as the task is running, a background loop keeps refreshing that TTL. The task is also registered in a <strong>Phoenix registry</strong> (a Redis hash) with its full payload.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Task starts
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  → heartbeat key created (rl:hb:{task_id}) with 10s TTL
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  → payload stored (rl:phoenix:{task_id})
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  → background loop refreshes heartbeat every 5s
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>Task completes
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  → heartbeat deleted
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  → Phoenix registry cleared
+</span></code></pre></div>
+<p>Meanwhile, a <strong>resurrector</strong> process runs continuously, scanning for heartbeats that have expired without the payload being cleared. An expired heartbeat + existing payload = dead worker.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Resurrector scans every 2 seconds
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  → finds rl:hb:{task_id} expired but rl:phoenix:{task_id} still exists
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  → acquires a distributed lock (prevents duplicate resurrection)
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  → re-queues the task to a fresh worker
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  → logs the resurrection in rl:monitoring
+</span></code></pre></div>
+<p><strong>The result:</strong> Within 35 seconds of a worker crash, the task is back in queue on a healthy worker. The task's original arguments are preserved exactly as they were at enqueue time.</p>
+<h3 id="the-resurrection-limit">The resurrection limit<a class="headerlink" href="#the-resurrection-limit" title="Permanent link">&para;</a></h3>
+<p>A task that consistently crashes workers is dangerous. After <code>max_resurrections</code> attempts (default: 5), Relier quarantines the task in the <a href="#dead-letter-queue">Dead Letter Queue</a> instead of re-queuing it, so it can't keep taking down workers.</p>
+<h3 id="the-resurrector-process">The resurrector process<a class="headerlink" href="#the-resurrector-process" title="Permanent link">&para;</a></h3>
+<p>The resurrector is a separate process you run alongside your workers. It's usually a single dedicated container:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>rl<span class="w"> </span>run-resurrector
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="c1"># or in Docker Compose: a &#39;guardian&#39; service</span>
+</span></code></pre></div>
+<p>It needs read/write access to Redis but doesn't process any task payloads it only moves them between queues.</p>
+<hr />
+<h2 id="idempotency-safe-retries">Idempotency (Safe Retries)<a class="headerlink" href="#idempotency-safe-retries" title="Permanent link">&para;</a></h2>
+<p><strong>Idempotency</strong> means: calling a function multiple times with the same input produces the same result as calling it once. For tasks, it means: a task that runs twice doesn't cause side effects twice.</p>
+<h3 id="the-problem_1">The problem<a class="headerlink" href="#the-problem_1" title="Permanent link">&para;</a></h3>
+<p>When a worker dies mid-task, the task gets re-queued by Phoenix and run again. Without idempotency, that's a problem:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Task: charge customer $100
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  → Runs on worker A
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  → Stripe charge succeeds
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>  → Worker A dies before Celery can ACK the task
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>  → Phoenix re-queues the task
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>  → Runs on worker B
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>  → Stripe charge runs again → customer charged $200
+</span></code></pre></div>
+<h3 id="how-reliers-idempotency-works">How Relier's idempotency works<a class="headerlink" href="#how-reliers-idempotency-works" title="Permanent link">&para;</a></h3>
+<p>When you set <code>idempotent=True</code>, Relier runs an <strong>atomic Redis Lua script</strong> before executing your function. The script checks whether this exact task (identified by a hash of its arguments) has already been run.</p>
+<p>There are three possible outcomes:</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Meaning</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CLAIMED</code></td>
+<td>First time seeing this task</td>
+<td>Run the function, cache the result</td>
+</tr>
+<tr>
+<td><code>IN_FLIGHT</code></td>
+<td>Another worker is currently running this exact task</td>
+<td>Retry with 5-second backoff</td>
+</tr>
+<tr>
+<td><code>COMPLETED</code></td>
+<td>This task already ran successfully</td>
+<td>Return the cached result immediately</td>
+</tr>
+</tbody>
+</table>
+<p>"Atomic" here is important. The check-and-set happens in a <strong>single Redis operation</strong> using a Lua script, so there's no race condition between two workers trying to claim the same task simultaneously. One wins, one sees <code>IN_FLIGHT</code>.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nd">@rl_task</span><span class="p">(</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="n">idempotent</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="n">idempotency_ttl</span><span class="o">=</span><span class="mi">3600</span><span class="p">,</span>   <span class="c1"># cache the result for 1 hour</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="p">)</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">charge_customer</span><span class="p">(</span><span class="n">customer_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">amount_cents</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">stripe</span><span class="o">.</span><span class="n">charge</span><span class="p">(</span><span class="n">customer_id</span><span class="p">,</span> <span class="n">amount_cents</span><span class="p">)</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;charge_id&quot;</span><span class="p">:</span> <span class="n">result</span><span class="o">.</span><span class="n">id</span><span class="p">}</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="c1"># First call with customer_id=&quot;cus_abc&quot; → runs, charges card, caches result</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="c1"># Second call with customer_id=&quot;cus_abc&quot; (any time within 1 hour) → returns cached result, no charge</span>
+</span></code></pre></div>
+<h3 id="manual-idempotency-for-complex-cases">Manual idempotency for complex cases<a class="headerlink" href="#manual-idempotency-for-complex-cases" title="Permanent link">&para;</a></h3>
+<p>Sometimes you need more control over the idempotency key:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.core.idempotency</span><span class="w"> </span><span class="kn">import</span> <span class="n">idempotency_lock</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="nd">@rl_task</span><span class="p">()</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">process_webhook</span><span class="p">(</span><span class="n">event_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">payload</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="c1"># Use the event_id as the key instead of hashing all args</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="k">async</span> <span class="k">with</span> <span class="n">idempotency_lock</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">event_id</span><span class="p">,</span> <span class="n">ttl</span><span class="o">=</span><span class="mi">86400</span><span class="p">)</span> <span class="k">as</span> <span class="n">lock</span><span class="p">:</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>        <span class="k">if</span> <span class="n">lock</span><span class="o">.</span><span class="n">already_executed</span><span class="p">:</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>            <span class="k">return</span> <span class="n">lock</span><span class="o">.</span><span class="n">cached_result</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>        <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">handle_webhook</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>        <span class="k">await</span> <span class="n">lock</span><span class="o">.</span><span class="n">record_result</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>        <span class="k">return</span> <span class="n">result</span>
+</span></code></pre></div>
+<hr />
+<h2 id="task-timeouts-soft-hard">Task Timeouts (Soft + Hard)<a class="headerlink" href="#task-timeouts-soft-hard" title="Permanent link">&para;</a></h2>
+<p>Zombie tasks, basically tasks that run forever and never finish hold workers hostage and starve other tasks in the queue. Relier gives you two levels of timeout control.</p>
+<h3 id="soft-timeout">Soft timeout<a class="headerlink" href="#soft-timeout" title="Permanent link">&para;</a></h3>
+<p>The soft timeout is a <strong>warning</strong>. When it fires, your cleanup hook gets called. You can save partial work, release locks, log state, whatever you need. The task is not cancelled yet.</p>
+<h3 id="hard-timeout">Hard timeout<a class="headerlink" href="#hard-timeout" title="Permanent link">&para;</a></h3>
+<p>The hard timeout is <strong>unconditional</strong>. When it fires, the task coroutine is cancelled immediately, regardless of what it's doing.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.context</span><span class="w"> </span><span class="kn">import</span> <span class="n">TaskContext</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">save_progress</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Called at soft timeout. You have (hard - soft) seconds to clean up.&quot;&quot;&quot;</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="c1"># The task body recorded progress into ctx.metadata as it ran;</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="c1"># the hook reads it from there and persists it as a checkpoint.</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    <span class="n">progress</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;progress&quot;</span><span class="p">)</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    <span class="k">if</span> <span class="n">progress</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>        <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">set_partial</span><span class="p">(</span><span class="n">progress</span><span class="p">)</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="k">await</span> <span class="n">release_expensive_lock</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="nd">@rl_task</span><span class="p">(</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>    <span class="n">soft_timeout</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>    <span class="n">hard_timeout</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>    <span class="n">on_soft_timeout</span><span class="o">=</span><span class="n">save_progress</span><span class="p">,</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="p">)</span>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">process_large_file</span><span class="p">(</span><span class="n">file_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>    <span class="c1"># On resurrection, ctx.partial_result has the last saved progress.</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>    <span class="n">resume_at</span> <span class="o">=</span> <span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">partial_result</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;bytes_read&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>    <span class="k">async</span> <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">stream_file</span><span class="p">(</span><span class="n">file_id</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="n">resume_at</span><span class="p">):</span>
+</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a>        <span class="k">await</span> <span class="n">crunch</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+</span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a>        <span class="c1"># Track progress in memory; save_progress reads this at soft timeout.</span>
+</span><span id="__span-6-23"><a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a>        <span class="n">ctx</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;progress&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;bytes_read&quot;</span><span class="p">:</span> <span class="n">chunk</span><span class="o">.</span><span class="n">end_offset</span><span class="p">}</span>
+</span><span id="__span-6-24"><a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;done&quot;</span><span class="p">}</span>
+</span></code></pre></div>
+<p>The soft/hard gap (<code>hard - soft</code>, in this case 5 seconds) is the window your cleanup hook has to finish. Design it to complete well within that window.</p>
+<div class="admonition info">
+<p class="admonition-title">The hook doesn't magically know what to save</p>
+<p>Relier can't introspect your task to figure out where the loop got to. The task body must record its progress somewhere the hook can read, <code>ctx.metadata</code> is the standard place, or the task can call <code>ctx.set_partial(...)</code> directly as it runs. Three concrete patterns (inline, hook-only, hybrid) are in <a href="../patterns/#pattern-3">Patterns → Pattern 3</a>.</p>
+</div>
+<details class="question">
+<summary>Why aren't checkpoints automatic? (Design rationale)</summary>
+<p>A reasonable question: why doesn't Relier just figure out where the task
+stopped on its own? The short answer is that every approach to "automatic
+checkpoints" trades real reliability for the appearance of convenience.</p>
+<ul>
+<li><strong>Frame introspection</strong> (capturing local variables at soft timeout) would
+  auto-serialise whatever happens to be in scope. That includes request
+  bodies, secrets, JWTs, and PII which then land in Redis, replicate to
+  every node, and end up in your AOF and your S3 backups. It's an
+  accidental data-exfiltration channel.</li>
+<li><strong>Coroutine pickling</strong> (the Temporal model) requires a different
+  programming model from regular Python, no open sockets, no file
+  handles, every step a serialisable boundary. It's a much larger system,
+  not a checkpoint feature.</li>
+<li><strong>Bytecode rewriting of loops</strong> breaks the moment a task has more than
+  one loop, conditional iteration, or recursion. It also makes the runtime
+  behaviour invisible to anyone reading the code.</li>
+</ul>
+<p>The deeper reason: Relier can't know what's "important state" vs
+"transient computation" without you telling it. The task body has that
+information; the framework doesn't. Every production task-queue system
+converges on the same answer, explicit checkpoints. The reason isn't
+laziness on the framework's part; it's that implicit state is the worst
+kind of state when something breaks at 3 AM.</p>
+<p>What Relier <em>does</em> do for you:</p>
+<ul>
+<li>Routes the checkpoint through size-aware storage (inline → filesystem
+  blob → reject) so a careless save can't bring down Redis.</li>
+<li>Garbage-collects the checkpoint when the task completes or quarantines.</li>
+<li>Re-injects the checkpoint as <code>ctx.partial_result</code> on the next
+  incarnation, no manual key lookup needed.</li>
+<li>Carries the checkpoint with the task across the DLQ boundary (release
+  from DLQ restores the checkpoint too).</li>
+</ul>
+<p>The explicit <code>ctx.set_partial(data)</code> + <code>ctx.metadata[...] = ...</code> pattern is
+deliberate. A future helper for the "iterate a paginated source and save
+every N items" case may land if real workloads converge on the same
+shape, but the explicit API stays as the primitive.</p>
+</details>
+<hr />
+<h2 id="checkpoints-and-partial-result-storage">Checkpoints and partial-result storage<a class="headerlink" href="#checkpoints-and-partial-result-storage" title="Permanent link">&para;</a></h2>
+<p>A long-running task that gets killed and resurrected would normally restart
+from scratch, redoing all the work the previous incarnation completed. Relier
+lets the soft-timeout hook (or the task itself) save a <strong>checkpoint</strong>, a JSON
+blob describing how far the task got and the next incarnation receives it as
+<code>ctx.partial_result</code>.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">save_checkpoint</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">set_partial</span><span class="p">({</span><span class="s2">&quot;items_processed&quot;</span><span class="p">:</span> <span class="mi">750</span><span class="p">,</span> <span class="s2">&quot;last_cursor&quot;</span><span class="p">:</span> <span class="s2">&quot;item_750&quot;</span><span class="p">})</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="nd">@rl_task</span><span class="p">(</span><span class="n">soft_timeout</span><span class="o">=</span><span class="mi">55</span><span class="p">,</span> <span class="n">hard_timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">on_soft_timeout</span><span class="o">=</span><span class="n">save_checkpoint</span><span class="p">)</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">process_items</span><span class="p">(</span><span class="n">cursor</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;start&quot;</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>    <span class="n">start</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">partial_result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;last_cursor&quot;</span><span class="p">,</span> <span class="n">cursor</span><span class="p">)</span> <span class="k">if</span> <span class="n">ctx</span><span class="o">.</span><span class="n">partial_result</span> <span class="k">else</span> <span class="n">cursor</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="k">async</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">fetch_items</span><span class="p">(</span><span class="n">start</span><span class="p">):</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>        <span class="k">await</span> <span class="n">process</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;total&quot;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">}</span>
+</span></code></pre></div>
+<p>Checkpoints have a size budget because Redis is shared infrastructure. Relier
+defends against a careless task accidentally bloating Redis with megabytes of
+embeddings or images:</p>
+<table>
+<thead>
+<tr>
+<th>Checkpoint size</th>
+<th>Default behaviour</th>
+<th>Configurable via</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>≤ 256 KB</td>
+<td>Stored inline in the Phoenix Redis hash.</td>
+<td><code>RELIER_CHECKPOINT_MAX_INLINE_BYTES</code></td>
+</tr>
+<tr>
+<td>&gt; 256 KB, <strong>no</strong> filesystem backend</td>
+<td><strong><code>CheckpointTooLargeError</code> raised</strong> <code>set_partial</code> fails loudly.</td>
+<td>default, must opt in to spillover</td>
+</tr>
+<tr>
+<td>&gt; 256 KB, filesystem backend enabled</td>
+<td>Gzipped, written to a shared volume. Only a tiny reference envelope stays in Redis.</td>
+<td><code>RELIER_CHECKPOINT_BACKEND=filesystem</code> + <code>RELIER_CHECKPOINT_DIR</code></td>
+</tr>
+</tbody>
+</table>
+<p>The "rejected by default" behaviour is deliberate: silent bloat is worse than a
+loud error. When you need bigger checkpoints, enable the filesystem backend
+and point it at storage that <em>every</em> worker and the resurrector can see. A
+checkpoint written by <code>worker-high</code> may later be read by <code>worker-recovery</code>
+when Phoenix resurrects the task on a different process. The bundled
+<code>docker-compose.prod.yml</code> handles this with a shared named volume.</p>
+<p>See <a href="../api-reference/#ctx-set-partial">API → <code>ctx.set_partial</code></a> for the
+full lifecycle.</p>
+<hr />
+<h2 id="graceful-shutdown">Graceful Shutdown<a class="headerlink" href="#graceful-shutdown" title="Permanent link">&para;</a></h2>
+<p>Every production system restarts workers eventually, deploys, autoscaling, Kubernetes node rotation. Vanilla Celery's SIGTERM handler drops all in-flight tasks immediately. Relier's doesn't.</p>
+<h3 id="what-happens-when-relier-receives-sigterm">What happens when Relier receives SIGTERM<a class="headerlink" href="#what-happens-when-relier-receives-sigterm" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Drain mode</strong>: the worker stops accepting new tasks from the queue.</li>
+<li><strong>Wait</strong>: Relier waits up to <code>graceful_shutdown_timeout</code> seconds (default: 30) for running tasks to finish.</li>
+<li><strong>Handoff</strong>: tasks that won't finish in time have their heartbeats deleted. The resurrector picks them up on the next scan and re-queues them on a different worker.</li>
+<li><strong>Clean exit</strong>: zero tasks dropped.</li>
+</ol>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>$<span class="w"> </span>rl<span class="w"> </span>worker<span class="w"> </span>drain<span class="w"> </span>rl-worker-2
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>Initiating<span class="w"> </span>drain<span class="w"> </span>sequence:<span class="w"> </span>rl-worker-2
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>Signal<span class="w"> </span>broadcasted.
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>Worker<span class="w"> </span>will<span class="w"> </span>now<span class="w"> </span>enter<span class="w"> </span>the<span class="w"> </span>drain<span class="w"> </span>phase<span class="w"> </span>and<span class="w"> </span><span class="nb">exit</span><span class="w"> </span>cleanly.
+</span></code></pre></div>
+<hr />
+<h2 id="admission-control">Admission Control<a class="headerlink" href="#admission-control" title="Permanent link">&para;</a></h2>
+<p>When your queue is full or your workers are overloaded, accepting more tasks makes things worse, it just queues work that can't be processed, and the backlog grows. Admission control lets you reject incoming requests before they reach your workers.</p>
+<p>Relier implements admission control with a <strong>Redis Lua script</strong> that runs atomically, no race conditions, no double-counting.</p>
+<div class="language-lua highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1">-- Simplified version of what runs in Redis</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kd">local</span><span class="w"> </span><span class="nv">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">redis</span><span class="p">.</span><span class="nf">call</span><span class="p">(</span><span class="s1">&#39;INCR&#39;</span><span class="p">,</span><span class="w"> </span><span class="nv">window_key</span><span class="p">)</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="kr">if</span><span class="w"> </span><span class="nv">count</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="kr">then</span><span class="w"> </span><span class="nv">redis</span><span class="p">.</span><span class="nf">call</span><span class="p">(</span><span class="s1">&#39;EXPIRE&#39;</span><span class="p">,</span><span class="w"> </span><span class="nv">window_key</span><span class="p">,</span><span class="w"> </span><span class="nv">window_seconds</span><span class="p">)</span><span class="w"> </span><span class="kr">end</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="kr">if</span><span class="w"> </span><span class="nv">count</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nv">limit</span><span class="w"> </span><span class="kr">then</span><span class="w"> </span><span class="kr">return</span><span class="w"> </span><span class="s2">&quot;rejected&quot;</span><span class="w"> </span><span class="kr">end</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="kr">return</span><span class="w"> </span><span class="s2">&quot;admitted&quot;</span>
+</span></code></pre></div>
+<p>When a request is rejected, <code>apush()</code> raises <code>AdmissionRejectedError</code>. Your API layer should catch this and return HTTP 429 with a <code>Retry-After</code> header:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.core.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdmissionRejectedError</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/tasks/process&quot;</span><span class="p">)</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">submit_task</span><span class="p">(</span><span class="n">payload</span><span class="p">:</span> <span class="n">TaskPayload</span><span class="p">):</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>        <span class="k">await</span> <span class="n">my_task</span><span class="o">.</span><span class="n">apush</span><span class="p">(</span><span class="n">payload</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;queued&quot;</span><span class="p">}</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>    <span class="k">except</span> <span class="n">AdmissionRejectedError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>            <span class="n">status_code</span><span class="o">=</span><span class="mi">429</span><span class="p">,</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>            <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Retry-After&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="o">.</span><span class="n">retry_after</span><span class="p">)},</span>
+</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>            <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Service is at capacity. Retry later.&quot;</span><span class="p">,</span>
+</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>        <span class="p">)</span>
+</span></code></pre></div>
+<p>If Redis is unavailable, admission control <strong>fails open</strong>, it admits the request rather than blocking your API. Availability is prioritised over rate limiting.</p>
+<hr />
+<h2 id="dead-letter-queue">Dead Letter Queue<a class="headerlink" href="#dead-letter-queue" title="Permanent link">&para;</a></h2>
+<p>The DLQ is where tasks go when they can't be recovered automatically. A task lands in the DLQ when:</p>
+<ul>
+<li>It has been resurrected <code>max_resurrections</code> times and still hasn't succeeded.</li>
+<li>Its payload checksum fails (someone tampered with it, or serialisation broke).</li>
+<li>It consistently triggers a hard timeout.</li>
+</ul>
+<p>The DLQ stores the full payload, the error reason, the resurrection count, and any partial checkpoint the task saved. Nothing is thrown away.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>$<span class="w"> </span>rl<span class="w"> </span>dlq<span class="w"> </span>list
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span>ID<span class="w">              </span>TASK<span class="w">               </span>RESURRECTIONS<span class="w">  </span>QUARANTINED_AT<span class="w">       </span>LAST_ERROR
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">  </span>──────────────────────────────────────────────────────────────────────────────────
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">  </span>task_f8a2b1<span class="w">     </span>process_document<span class="w">   </span><span class="m">5</span>/5<span class="w">            </span><span class="m">2026</span>-05-15<span class="w"> </span><span class="m">02</span>:14<span class="w">     </span>JSONDecodeError
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">  </span>task_c3d9e2<span class="w">     </span>process_webhook<span class="w">    </span><span class="m">5</span>/5<span class="w">            </span><span class="m">2026</span>-05-15<span class="w"> </span><span class="m">01</span>:58<span class="w">     </span>MemoryError
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>$<span class="w"> </span>rl<span class="w"> </span>dlq<span class="w"> </span>inspect<span class="w"> </span>task_f8a2b1<span class="w">   </span><span class="c1"># full payload + error + resurrection history</span>
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>$<span class="w"> </span>rl<span class="w"> </span>dlq<span class="w"> </span>release<span class="w"> </span>task_f8a2b1<span class="w">   </span><span class="c1"># fix the root cause, then release it</span>
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>$<span class="w"> </span>rl<span class="w"> </span>dlq<span class="w"> </span>retry-all<span class="w">             </span><span class="c1"># re-release everything at once</span>
+</span></code></pre></div>
+<p>A task in the DLQ does not affect other tasks at all. Workers are no longer exposed to it.</p>
+<hr />
+<h2 id="task-payload-schema-versioning">Task Payload Schema Versioning<a class="headerlink" href="#task-payload-schema-versioning" title="Permanent link">&para;</a></h2>
+<p>Rolling deploys are tricky. You push new code to half your workers while the other half still run the old code. If your new code changes a task's argument structure, tasks enqueued by old producers may fail when picked up by new workers.</p>
+<p>Relier wraps every task payload in a <strong>versioned envelope</strong>:</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="p">{</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="nt">&quot;schema_version&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span><span class="nt">&quot;task_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;task_abc123&quot;</span><span class="p">,</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">  </span><span class="nt">&quot;payload&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;args&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;INV-001&quot;</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;kwargs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{}</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">  </span><span class="nt">&quot;checksum&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sha256:a3f9...&quot;</span><span class="p">,</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">  </span><span class="nt">&quot;enqueued_at&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-05-15T02:00:00Z&quot;</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>If you change a task's signature in a breaking way, you register a <strong>migration</strong>:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.core.schema</span><span class="w"> </span><span class="kn">import</span> <span class="n">SchemaRegistry</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="c1"># When workers running new code see a v1 payload, this migration runs first</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="nd">@SchemaRegistry</span><span class="o">.</span><span class="n">register_migration</span><span class="p">(</span><span class="s2">&quot;my_app.process_order&quot;</span><span class="p">,</span> <span class="n">from_version</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="k">def</span><span class="w"> </span><span class="nf">migrate_v1_to_v2</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>    <span class="c1"># Old signature: process_order(order_id)</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>    <span class="c1"># New signature: process_order(order_id, region=&quot;global&quot;)</span>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>    <span class="n">kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;region&quot;</span><span class="p">,</span> <span class="s2">&quot;global&quot;</span><span class="p">)</span>
+</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>    <span class="k">return</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
+</span></code></pre></div>
+<p>Old payloads in the queue are automatically migrated when picked up. No failed tasks, no manual intervention, no deploy window restrictions.</p>
+<hr />
+<h2 id="slo-burn-rate-monitoring">SLO Burn Rate Monitoring<a class="headerlink" href="#slo-burn-rate-monitoring" title="Permanent link">&para;</a></h2>
+<p>Relier tracks your task delivery rate against a target SLO (default: 99.9%). It calculates <strong>burn rates</strong> across multiple rolling windows using the same model as Google SRE:</p>
+<table>
+<thead>
+<tr>
+<th>Burn Rate</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0×</code></td>
+<td>No failures at all</td>
+</tr>
+<tr>
+<td><code>&lt; 1×</code></td>
+<td>On or under budget, healthy</td>
+</tr>
+<tr>
+<td><code>1×</code></td>
+<td>Consuming budget at exactly the target rate</td>
+</tr>
+<tr>
+<td><code>&gt; 1×</code></td>
+<td>Consuming budget faster than allowed</td>
+</tr>
+<tr>
+<td><code>14.4×</code></td>
+<td>Budget exhausted in 2 hours, critical</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>$<span class="w"> </span>rl<span class="w"> </span>slo<span class="w"> </span>status
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span>Relier<span class="w"> </span>Reliability<span class="w"> </span>Dashboard
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">  </span>SLO<span class="w"> </span>target:<span class="w"> </span><span class="m">99</span>.9%<span class="w"> </span><span class="o">(</span><span class="m">43</span>.2<span class="w"> </span>min/month<span class="w"> </span>budget<span class="o">)</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="w">  </span>Window<span class="w">   </span>Burn<span class="w"> </span>Rate<span class="w">   </span>Status
+</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="w">  </span>──────────────────────────────
+</span><span id="__span-14-8"><a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a><span class="w">  </span>1h<span class="w">       </span><span class="m">0</span>.42×<span class="w">       </span>HEALTHY
+</span><span id="__span-14-9"><a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="w">  </span>6h<span class="w">       </span><span class="m">0</span>.38×<span class="w">       </span>HEALTHY
+</span><span id="__span-14-10"><a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="w">  </span>3d<span class="w">       </span><span class="m">0</span>.21×<span class="w">       </span>HEALTHY
+</span><span id="__span-14-11"><a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a>
+</span><span id="__span-14-12"><a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a>Budget<span class="w"> </span>used:<span class="w"> </span><span class="m">0</span>.3<span class="w"> </span>min<span class="w"> </span><span class="o">(</span><span class="m">0</span>.6%<span class="w"> </span>of<span class="w"> </span>monthly<span class="o">)</span>
+</span><span id="__span-14-13"><a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a>All<span class="w"> </span>reliability<span class="w"> </span>targets<span class="w"> </span>are<span class="w"> </span>being<span class="w"> </span>met.
+</span></code></pre></div>
+<hr />
+<h2 id="opentelemetry-distributed-tracing">OpenTelemetry (Distributed Tracing)<a class="headerlink" href="#opentelemetry-distributed-tracing" title="Permanent link">&para;</a></h2>
+<p>Every significant event Relier produces emits an OTEL span. Set <code>RELIER_OTEL_ENABLED=true</code> and point <code>RELIER_OTEL_EXPORTER_OTLP_ENDPOINT</code> at your OTLP collector.</p>
+<p>The span hierarchy mirrors the task lifecycle:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>rl.request.admitted          ← admission control check
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>  rl.task.enqueue            ← task pushed to Redis queue
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    rl.worker.pickup         ← worker dequeued the task
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>      rl.schema.migrate      ← (only if migrating from old schema version)
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>      rl.idempotency.check   ← (only if idempotent=True)
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>      rl.task.execute        ← your function runs here
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>        rl.heartbeat.emit    ← (periodic, every heartbeat_ttl/2 seconds)
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>        rl.timeout.soft      ← (only if soft timeout fires)
+</span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>      rl.task.complete       ← (or rl.task.failed)
+</span><span id="__span-15-10"><a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>        rl.resurrection.queue  ← (only if worker died)
+</span><span id="__span-15-11"><a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>          rl.dlq.quarantine    ← (only if max_resurrections exceeded)
+</span></code></pre></div>
+<p>Each span carries standard attributes like <code>rl.task.id</code>, <code>rl.task.name</code>, <code>rl.task.queue</code>, <code>rl.task.is_resurrection</code>, <code>rl.task.resurrection_count</code>, and more.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../celery-primer/" class="md-footer__link md-footer__link--prev" aria-label="Previous: A Quick Celery Primer">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                A Quick Celery Primer
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../deployment/" class="md-footer__link md-footer__link--next" aria-label="Next: Deployment">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Deployment
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/getrelier/relier" target="_blank" rel="noopener" title="Relier on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://x.com/relierdev" target="_blank" rel="noopener" title="Relier on X" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M357.2 48h70.6L273.6 224.2 455 464H313L201.7 318.6 74.5 464H3.8l164.9-188.5L-5.2 48h145.6l100.5 132.9zm-24.8 373.8h39.1L119.1 88h-42z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://pypi.org/project/relier/" target="_blank" rel="noopener" title="Relier on PyPI" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "navigation.footer", "search.highlight", "search.suggest", "content.code.copy", "content.code.annotate", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+      
+        <script src="../assets/js/mermaid-init.js"></script>
+      
+    
+  </body>
+</html>
