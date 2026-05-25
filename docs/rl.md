@@ -2,7 +2,7 @@
 
 ## Overview
 
-`rl` is the command-line interface for Relier, the production reliability layer. It exposes subcommands for monitoring tasks, managing the Dead Letter Queue, operating the Phoenix resurrector, running chaos scenarios, and inspecting cluster health.
+`rl` is the command-line interface for Relier, the reliability layer for Celery. It exposes subcommands for monitoring tasks, managing the Dead Letter Queue, operating the Phoenix resurrector, running chaos scenarios, and inspecting cluster health.
 
 ## Usage
 

@@ -4,8 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Relier — Zero Job Loss for FastAPI + Celery</title>
-  <meta name="description" content="The production reliability layer for FastAPI + Celery. When your worker dies, your tasks come back. Every single one.">
+  <meta name="description" content="Zero job loss for Celery. When your worker dies, your tasks come back. Task resurrection, idempotency, and graceful shutdown. Python • Redis.">
   <link rel="stylesheet" href="styles.css">
+  <link rel="icon" type="image/x-icon" href="../assets/images/logo.ico">
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'light' || savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      } else {
+        const hour = new Date().getHours();
+        const isDayTime = hour >= 6 && hour < 18;
+        const autoTheme = isDayTime ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', autoTheme);
+      }
+    })();
+  </script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -22,6 +36,24 @@
       <a href="#cli">CLI</a>
       <a href="#benchmarks">Benchmarks</a>
       <a href="#quickstart">Quickstart</a>
+      <button id="theme-toggle" class="theme-toggle" aria-label="Toggle light/dark theme">
+        <!-- Sun Icon (visible in dark theme) -->
+        <svg class="theme-toggle__icon theme-toggle__icon--sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2"></path>
+          <path d="M12 20v2"></path>
+          <path d="M4.93 4.93l1.41 1.41"></path>
+          <path d="M17.66 17.66l1.41 1.41"></path>
+          <path d="M2 12h2"></path>
+          <path d="M20 12h2"></path>
+          <path d="M6.34 17.66l-1.41 1.41"></path>
+          <path d="M19.07 4.93l-1.41 1.41"></path>
+        </svg>
+        <!-- Moon Icon (visible in light theme) -->
+        <svg class="theme-toggle__icon theme-toggle__icon--moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+        </svg>
+      </button>
       <a href="https://github.com/getrelier/relier" class="nav__cta" target="_blank" rel="noopener">github ↗</a>
     </div>
   </nav>
@@ -34,7 +66,7 @@
     <div class="hero__inner">
       <div class="hero__meta reveal">
         <span class="dot" aria-hidden="true"></span>
-        <span>v1.0 · production-ready</span>
+        <span>v0.1 · pre-1.0</span>
         <span class="sep">/</span>
         <span>fastapi + celery · zero job loss</span>
       </div>
@@ -43,7 +75,7 @@
         <em>your tasks come back.</em>
       </h1>
       <p class="hero__sub reveal">
-        The production reliability layer for FastAPI + Celery.
+        The reliability layer for FastAPI + Celery.
         Sync or async — zero job loss. No database. Just Redis.
       </p>
       <div class="hero__ctas reveal">
@@ -56,6 +88,41 @@
           <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
           Star on GitHub
         </a>
+      </div>
+      <!-- HERO CENTERPIECE: CODE COMPARISON -->
+      <div class="hero__code-grid reveal">
+        <!-- Before Panel -->
+        <div class="code" style="box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);">
+          <div class="code__head" style="border-left: 3px solid var(--bad)">
+            <span class="file" style="color: var(--bad); display: flex; align-items: center; gap: 8px;">
+              <span style="width: 8px; height: 8px; background: var(--bad); border-radius: 50%;"></span>
+              vanilla_celery.py (Unsafe)
+            </span>
+            <span class="lang" style="color: var(--text-mute)">worker dies = task lost</span>
+          </div>
+          <pre><span class="c"># If the worker dies mid-execution tonight,</span>
+<span class="c"># this task is lost silently and forever.</span>
+<span class="d">@celery_app.task</span>
+<span class="k">def</span> <span class="f">process_order</span><span class="p">(</span><span class="v">order_id</span><span class="p">:</span> <span class="k">str</span><span class="p">):</span>
+    <span class="f">charge_card</span><span class="p">(</span><span class="v">order_id</span><span class="p">)</span>
+    <span class="f">send_receipt</span><span class="p">(</span><span class="v">order_id</span><span class="p">)</span></pre>
+        </div>
+        <!-- After Panel -->
+        <div class="code" style="box-shadow: 0 20px 40px -15px var(--accent-bg);">
+          <div class="code__head" style="border-left: 3px solid var(--ok)">
+            <span class="file" style="color: var(--ok); display: flex; align-items: center; gap: 8px;">
+              <span style="width: 8px; height: 8px; background: var(--ok); border-radius: 50%;"></span>
+              relier_task.py (Guaranteed)
+            </span>
+            <span class="lang" style="color: var(--ok)">phoenix pattern active</span>
+          </div>
+          <pre><span class="c"># Worker dies tonight? Phoenix auto-resurrects it!</span>
+<span class="c"># Deduplicates retries automatically.</span>
+<span class="d">@rl_task</span><span class="p">(</span><span class="v">idempotent</span><span class="p">=</span><span class="k">True</span><span class="p">)</span>
+<span class="k">async def</span> <span class="f">process_order</span><span class="p">(</span><span class="v">order_id</span><span class="p">:</span> <span class="k">str</span><span class="p">):</span>
+    <span class="k">await</span> <span class="f">charge_card</span><span class="p">(</span><span class="v">order_id</span><span class="p">)</span>
+    <span class="k">await</span> <span class="f">send_receipt</span><span class="p">(</span><span class="v">order_id</span><span class="p">)</span></pre>
+        </div>
       </div>
       <!-- LIVE WORKER MONITOR -->
       <div class="monitor reveal" id="monitor" aria-label="Live worker monitor — looping demo">
@@ -412,7 +479,7 @@
       <div class="section__head reveal">
         <span class="eyebrow">§05 · Quickstart</span>
         <div>
-          <h2 class="section__title">Five minutes to production reliability.</h2>
+          <h2 class="section__title">Five minutes to zero job loss.</h2>
           <p class="section__lede">Install. Decorate. Deploy. That's the whole onboarding.</p>
         </div>
       </div>
@@ -421,7 +488,7 @@
           <div class="step__num">01 · install</div>
           <h3 class="step__title">One package.</h3>
           <p class="step__desc">Zero database dependencies. Zero GPU dependencies. Python 3.11+.</p>
-          <div class="step__code"><span style="color:var(--accent-2)">$</span> pip install relier</div>
+          <pre class="step__code"><span style="color:var(--accent-2)">$</span> pip install relier</pre>
         </div>
         <div class="step reveal">
           <div class="step__num">02 · decorate</div>
@@ -437,7 +504,7 @@
           <div class="step__num">03 · run</div>
           <h3 class="step__title">Start the cluster.</h3>
           <p class="step__desc">One command brings up workers, the Phoenix resurrector, and the OTEL exporter.</p>
-          <div class="step__code"><span style="color:var(--accent-2)">$</span> rl cluster up</div>
+          <pre class="step__code"><span style="color:var(--accent-2)">$</span> rl cluster up</pre>
         </div>
       </div>
     </div>

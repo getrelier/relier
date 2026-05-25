@@ -1,5 +1,5 @@
 """
-Relier — Production reliability layer for Celery.  Zero job loss.
+Relier — Reliability layer for Celery.  Zero job loss.
 
 Core Guarantees
 ---------------
