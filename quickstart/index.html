@@ -559,6 +559,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="4. Define your first reliable task">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#returning-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Returning results
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -573,13 +590,41 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#6-start-the-relier-stack" class="md-nav__link">
+  <a href="#6-start-the-worker" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. Start the Relier stack
+        6. Start the worker
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="6. Start the worker">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#installed-via-pip-your-own-project" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installed via pip (your own project)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cloned-from-source-contributing-dev" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cloned from source (contributing / dev)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -679,6 +724,34 @@
     
   
     Core Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../running/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running Relier
   
 
     
@@ -1041,6 +1114,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../rl/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Manual (rl man)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../metrics/" class="md-nav__link">
         
   
@@ -1308,6 +1409,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="4. Define your first reliable task">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#returning-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Returning results
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1322,13 +1440,41 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#6-start-the-relier-stack" class="md-nav__link">
+  <a href="#6-start-the-worker" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. Start the Relier stack
+        6. Start the worker
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="6. Start the worker">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#installed-via-pip-your-own-project" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installed via pip (your own project)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cloned-from-source-contributing-dev" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cloned from source (contributing / dev)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1399,66 +1545,93 @@
 <h2 id="1-install-relier">1. Install Relier<a class="headerlink" href="#1-install-relier" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>relier
 </span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">pip install vs. contributing from source</p>
+<p>This guide covers the <strong>pip install</strong> path — the right choice for adding Relier to your own project. If you're contributing to Relier itself, clone the repo and run <code>make setup</code> instead. The <code>make worker</code> / <code>make dev</code> shortcuts only exist in the cloned repo; pip users start workers with the <code>celery</code> command directly (shown in <a href="#6-start-the-worker">Step 6</a>).</p>
+</div>
 <h2 id="2-start-redis">2. Start Redis<a class="headerlink" href="#2-start-redis" title="Permanent link">&para;</a></h2>
 <p>Relier needs Redis with persistence enabled. The quickest way locally is Docker:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">macOS / Linux</label><label for="__tabbed_1_2">Windows (PowerShell)</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>--name<span class="w"> </span>relier-redis<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span>-p<span class="w"> </span><span class="m">6379</span>:6379<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>redis:7-alpine<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span>redis-server<span class="w"> </span>--appendonly<span class="w"> </span>yes<span class="w"> </span>--appendfsync<span class="w"> </span>everysec
 </span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">docker</span> <span class="n">run</span> <span class="n">-d</span> <span class="p">-</span><span class="n">-name</span> <span class="n">relier-redis</span> <span class="n">-p</span> <span class="n">6379</span><span class="p">:</span><span class="n">6379</span> <span class="n">redis</span><span class="p">:</span><span class="n">7-alpine</span> <span class="n">redis-server</span> <span class="p">-</span><span class="n">-appendonly</span> <span class="n">yes</span> <span class="p">-</span><span class="n">-appendfsync</span> <span class="n">everysec</span>
+</span></code></pre></div>
+<p>PowerShell does not support the <code>\</code> line-continuation used in Bash. Run the command as a single line.</p>
+</div>
+</div>
+</div>
 <div class="admonition note">
 <p class="admonition-title">Why persistence?</p>
 <p>The <code>--appendonly yes</code> flag enables Redis AOF persistence. Without it, a Redis restart drops every heartbeat and payload Relier has stored, breaking the zero-job-loss guarantee. See <a href="../deployment/">Deployment</a> for production Redis setup.</p>
 </div>
 <h2 id="3-configure-relier">3. Configure Relier<a class="headerlink" href="#3-configure-relier" title="Permanent link">&para;</a></h2>
 <p>Create a <code>.env</code> file in your project root:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nv">RELIER_REDIS_URL</span><span class="o">=</span>redis://localhost:6379/0
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nv">RELIER_REDIS_URL</span><span class="o">=</span>redis://localhost:6379/0
 </span></code></pre></div>
 <p>That's the only required setting. Everything else has sensible defaults.</p>
 <h2 id="4-define-your-first-reliable-task">4. Define your first reliable task<a class="headerlink" href="#4-define-your-first-reliable-task" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># tasks.py</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.decorator</span><span class="w"> </span><span class="kn">import</span> <span class="n">rl_task</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="nd">@rl_task</span><span class="p">(</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">queue</span><span class="o">=</span><span class="s2">&quot;default&quot;</span><span class="p">,</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="n">idempotent</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>           <span class="c1"># same input → same output, never runs twice</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">soft_timeout</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span>           <span class="c1"># cleanup hook fires at 25s</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="n">hard_timeout</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>           <span class="c1"># task killed unconditionally at 30s</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="p">)</span>
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">send_invoice</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Send an invoice email. Safe to retry, will never double-charge.&quot;&quot;&quot;</span>
-</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">charge_stripe</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">)</span>
-</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>    <span class="k">await</span> <span class="n">send_email</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">)</span>
-</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;charged&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;invoice_id&quot;</span><span class="p">:</span> <span class="n">invoice_id</span><span class="p">}</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># tasks.py</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.decorator</span><span class="w"> </span><span class="kn">import</span> <span class="n">rl_task</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="nd">@rl_task</span><span class="p">(</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="n">queue</span><span class="o">=</span><span class="s2">&quot;default&quot;</span><span class="p">,</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="n">idempotent</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>           <span class="c1"># same invoice_id → never runs twice</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    <span class="n">soft_timeout</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span>           <span class="c1"># cleanup hook fires at 25s</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    <span class="n">hard_timeout</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>           <span class="c1"># forcefully terminates runaway execution at 30s</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="p">)</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">send_invoice</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Send an invoice — safe to retry, never double-charges.&quot;&quot;&quot;</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>    <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>   <span class="c1"># ← replace with your actual work: Stripe, DB write, email</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;charged&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;invoice_id&quot;</span><span class="p">:</span> <span class="n">invoice_id</span><span class="p">}</span>
 </span></code></pre></div>
 <div class="admonition tip">
-<p class="admonition-title">New to async?</p>
-<p>Relier tasks are <code>async def</code> functions. If your existing Celery tasks are regular <code>def</code> functions, Relier supports those too just drop the <code>async</code> keyword. The async bridge is handled for you either way.</p>
+<p class="admonition-title">This example runs immediately — no external services needed</p>
+<p><code>asyncio.sleep(1)</code> is a stand-in. Replace it with your actual logic once the worker is running. For ready-to-copy real-world shapes (Stripe, database writes, HTTP calls) see the <a href="../integrations/">Integration Recipes</a>.</p>
 </div>
+<div class="admonition tip">
+<p class="admonition-title">New to async?</p>
+<p>Relier tasks are <code>async def</code> functions. If your existing Celery tasks are regular <code>def</code> functions, Relier supports those too — just drop the <code>async</code> keyword. The async bridge is handled for you either way.</p>
+</div>
+<h3 id="returning-results">Returning results<a class="headerlink" href="#returning-results" title="Permanent link">&para;</a></h3>
+<p>Tasks return values like any Python function:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">send_invoice</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    <span class="o">...</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;charged&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;invoice_id&quot;</span><span class="p">:</span> <span class="n">invoice_id</span><span class="p">}</span>
+</span></code></pre></div>
+<p>When <code>idempotent=True</code>, Relier automatically caches that return value. If the same <code>invoice_id</code> arrives again (retry, webhook re-delivery, duplicate dispatch), the cached result is returned immediately without re-running the function.</p>
+<p><strong>Most users never need to manage results manually.</strong> Manual result control with <code>idempotency_lock</code> is only needed when the key Relier would derive from arguments isn't the right one — for example, when a webhook <code>event_id</code> is more stable than the full payload hash. See <a href="../patterns/#pattern-2">Patterns Cookbook → Pattern 2</a>.</p>
 <h2 id="5-dispatch-tasks">5. Dispatch tasks<a class="headerlink" href="#5-dispatch-tasks" title="Permanent link">&para;</a></h2>
 <p>Relier has two dispatch methods on every <code>@rl_task</code>. Pick the one that
 matches your call site.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># FastAPI / Starlette / async Django use apush</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastAPI</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tasks</span><span class="w"> </span><span class="kn">import</span> <span class="n">send_invoice</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">()</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/invoices/</span><span class="si">{invoice_id}</span><span class="s2">/send&quot;</span><span class="p">)</span>
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">dispatch_invoice</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
-</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    <span class="k">await</span> <span class="n">send_invoice</span><span class="o">.</span><span class="n">apush</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">)</span>   <span class="c1"># async dispatch</span>
-</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;queued&quot;</span><span class="p">}</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># FastAPI / Starlette / async Django use apush</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastAPI</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tasks</span><span class="w"> </span><span class="kn">import</span> <span class="n">send_invoice</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">()</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/invoices/</span><span class="si">{invoice_id}</span><span class="s2">/send&quot;</span><span class="p">)</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">dispatch_invoice</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="k">await</span> <span class="n">send_invoice</span><span class="o">.</span><span class="n">apush</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">)</span>   <span class="c1"># async dispatch</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;queued&quot;</span><span class="p">}</span>
 </span></code></pre></div>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Flask / classic Django / scripts / management commands use push</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">flask</span><span class="w"> </span><span class="kn">import</span> <span class="n">Flask</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tasks</span><span class="w"> </span><span class="kn">import</span> <span class="n">send_invoice</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="n">app</span> <span class="o">=</span> <span class="n">Flask</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/invoices/&lt;invoice_id&gt;/send&quot;</span><span class="p">)</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="k">def</span><span class="w"> </span><span class="nf">dispatch_invoice</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">):</span>
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="n">send_invoice</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">)</span>           <span class="c1"># sync dispatch</span>
-</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;queued&quot;</span><span class="p">},</span> <span class="mi">202</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Flask / classic Django / scripts / management commands use push</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">flask</span><span class="w"> </span><span class="kn">import</span> <span class="n">Flask</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tasks</span><span class="w"> </span><span class="kn">import</span> <span class="n">send_invoice</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="n">app</span> <span class="o">=</span> <span class="n">Flask</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/invoices/&lt;invoice_id&gt;/send&quot;</span><span class="p">)</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="k">def</span><span class="w"> </span><span class="nf">dispatch_invoice</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">):</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="n">send_invoice</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">)</span>           <span class="c1"># sync dispatch</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;queued&quot;</span><span class="p">},</span> <span class="mi">202</span>
 </span></code></pre></div>
 <p>Both run the same reliability stack, admission control, schema envelope, OTel
 context and both are fire-and-forget (they return as soon as the broker has
@@ -1470,34 +1643,82 @@ control and skip the signed envelope, so the worker accepts the payload as
 a legacy unsigned message. <strong>Always use <code>apush</code> (async) or <code>push</code> (sync).</strong>
 See <a href="../api-reference/#dispatch-methods-apush-push-delay">API reference → Dispatch methods</a>.</p>
 </div>
-<h2 id="6-start-the-relier-stack">6. Start the Relier stack<a class="headerlink" href="#6-start-the-relier-stack" title="Permanent link">&para;</a></h2>
-<p>Pick whichever way fits your environment. All three are documented in
-<a href="../deployment/">Deployment</a>.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># A) Bare metal: two terminals, no Docker needed</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>make<span class="w"> </span>worker<span class="w">         </span><span class="c1"># terminal 1: Celery worker</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>make<span class="w"> </span>resurrector<span class="w">    </span><span class="c1"># terminal 2: Phoenix resurrector</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1"># B) Docker: single-node Redis + workers + resurrector + OTel/Grafana</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>make<span class="w"> </span>dev
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="c1"># C) Production HA stack: Sentinel + replicas + backup sidecar</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="nb">export</span><span class="w"> </span><span class="nv">REDIS_PASSWORD</span><span class="o">=</span>...
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="nb">export</span><span class="w"> </span><span class="nv">SENTINEL_PASSWORD</span><span class="o">=</span>...
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>make<span class="w"> </span>prod
+<h2 id="6-start-the-worker">6. Start the worker<a class="headerlink" href="#6-start-the-worker" title="Permanent link">&para;</a></h2>
+<h3 id="installed-via-pip-your-own-project">Installed via pip (your own project)<a class="headerlink" href="#installed-via-pip-your-own-project" title="Permanent link">&para;</a></h3>
+<p>Open two terminals. Start these in the directory that contains your <code>tasks.py</code>.</p>
+<p><strong>Terminal 1 — Celery worker:</strong></p>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">macOS / Linux</label><label for="__tabbed_2_2">Windows (PowerShell)</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>celery<span class="w"> </span>-A<span class="w"> </span>relier.tasks.app<span class="w"> </span>worker<span class="w"> </span>-l<span class="w"> </span>info<span class="w"> </span>-Q<span class="w"> </span>high_priority,default,low_priority,re-queue<span class="w"> </span>--include<span class="o">=</span>tasks
 </span></code></pre></div>
-<p>The bare-metal targets are just shortcuts. Underneath they run:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>celery<span class="w"> </span>-A<span class="w"> </span>relier.tasks.app<span class="w"> </span>worker<span class="w"> </span>-l<span class="w"> </span>info<span class="w"> </span>-Q<span class="w"> </span>high_priority,default,low_priority,re-queue
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>rl<span class="w"> </span>run-resurrector
+</div>
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>celery<span class="w"> </span>-A<span class="w"> </span>relier.tasks.app<span class="w"> </span>worker<span class="w"> </span>-l<span class="w"> </span>info<span class="w"> </span>-Q<span class="w"> </span>high_priority,default,low_priority,re-queue<span class="w"> </span>--include<span class="o">=</span>tasks<span class="w"> </span>--pool<span class="o">=</span>solo
 </span></code></pre></div>
+<p><code>--pool=solo</code> is required on Windows. Celery's default <code>prefork</code> pool uses named pipes for IPC that are unreliable under Windows' <code>spawn</code>-based multiprocessing, causing workers to crash with <code>OSError: [WinError 6]</code> on task receipt. <code>solo</code> runs everything in the main process and works correctly with Relier's async task execution.</p>
+</div>
+</div>
+</div>
+<p><strong>Terminal 2 — Phoenix resurrector:</strong></p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>rl<span class="w"> </span>run-resurrector
+</span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Why two processes?</p>
+<p>The Celery worker executes tasks. The Phoenix resurrector is a separate recovery service responsible for heartbeat monitoring, orphan detection, and re-queuing tasks after a worker crash. Keeping recovery isolated from workers means that a cascading worker failure cannot disable the recovery logic at the same time — the resurrector keeps running and draining the orphan backlog even as workers restart.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Workers must import your task modules</p>
+<p><strong>Relier wraps Celery's worker entry system — it does not replace it.</strong> You must provide a module that imports your task definitions so Celery registers them at startup.</p>
+<p>The simplest way is <code>--include</code>:</p>
+<ul>
+<li>Tasks in <code>tasks.py</code> → <code>--include=tasks</code></li>
+<li>Tasks in <code>myapp/tasks.py</code> → <code>--include=myapp.tasks</code></li>
+</ul>
+<p>Without this, the worker boots silently but logs <code>Received unregistered task of type '...'</code> when a task arrives and discards it. This is the most common first-time setup issue.</p>
+<p><strong>For production</strong>, create a dedicated entry-point module instead:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># worker_app.py</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.app</span><span class="w"> </span><span class="kn">import</span> <span class="n">celery_app</span>  <span class="c1"># Relier&#39;s configured Celery app</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">tasks</span>                              <span class="c1"># registers your @rl_task functions</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="kn">import</span><span class="w"> </span><span class="nn">myapp.tasks</span>                        <span class="c1"># add more modules as needed</span>
+</span></code></pre></div>
+<p>Then run: <code>celery -A worker_app worker -l info -Q ...</code> (no <code>--include</code> needed).</p>
+<p>What <code>celery -A relier.tasks.app</code> means: <em>"start a worker using Relier's Celery app"</em>. Relier's app is what wires up Phoenix, DLQ, idempotency, and the async bridge. Do not substitute a custom <code>Celery(...)</code> instance — Relier's guarantees only work through its own app.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Module name, not file path</p>
+<p>Celery's <code>-A</code> flag takes a <strong>Python module name</strong>, not a file path:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>celery<span class="w"> </span>-A<span class="w"> </span>worker_app<span class="w"> </span>worker<span class="w"> </span>...<span class="w">   </span><span class="c1"># ✓ module name</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>celery<span class="w"> </span>-A<span class="w"> </span>worker_app.py<span class="w"> </span>worker<span class="w"> </span>...<span class="w"> </span><span class="c1"># ✗ file path — raises &quot;module not found&quot;</span>
+</span></code></pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Avoid running <code>python tasks.py</code> directly</p>
+<p>If you execute <code>python tasks.py</code> as a script, Celery names your tasks <code>__main__.send_invoice</code> instead of <code>tasks.send_invoice</code>. The worker won't recognise the name and will reject the task. Always route tasks through the Celery worker command above.</p>
+</div>
+<h3 id="cloned-from-source-contributing-dev">Cloned from source (contributing / dev)<a class="headerlink" href="#cloned-from-source-contributing-dev" title="Permanent link">&para;</a></h3>
+<p><code>make worker</code> starts the Relier infrastructure (heartbeats, Phoenix, graceful shutdown) against the library itself — there are no user task modules to import in this context. It runs the same <code>celery -A relier.tasks.app worker</code> command without <code>--include</code>, which is correct for the repo's own use.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>make<span class="w"> </span>worker<span class="w">         </span><span class="c1"># terminal 1: Celery worker</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>make<span class="w"> </span>resurrector<span class="w">    </span><span class="c1"># terminal 2: Phoenix resurrector</span>
+</span></code></pre></div>
+<p>Or the full Docker dev stack (Redis + workers + resurrector + OTel/Grafana):</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>make<span class="w"> </span>dev
+</span></code></pre></div>
+<p>Production HA stack (Sentinel + replicas + backup sidecar):</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">REDIS_PASSWORD</span><span class="o">=</span>...
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">SENTINEL_PASSWORD</span><span class="o">=</span>...
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>make<span class="w"> </span>prod
+</span></code></pre></div>
+<p>All deployment options are documented in <a href="../deployment/">Deployment</a>.</p>
 <h2 id="7-verify-everything-is-working">7. Verify everything is working<a class="headerlink" href="#7-verify-everything-is-working" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Check that Redis and Docker are healthy</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>rl<span class="w"> </span>doctor
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># See what&#39;s running right now</span>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>rl<span class="w"> </span>tasks<span class="w"> </span>inflight
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>
-</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="c1"># Check your SLO burn rate</span>
-</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>rl<span class="w"> </span>slo<span class="w"> </span>status
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># Check that Redis and Docker are healthy</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>rl<span class="w"> </span>doctor
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c1"># See what&#39;s running right now</span>
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>rl<span class="w"> </span>tasks<span class="w"> </span>inflight
+</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>
+</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="c1"># Check your SLO burn rate</span>
+</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>rl<span class="w"> </span>slo<span class="w"> </span>status
 </span></code></pre></div>
 <p>You should see output like:</p>
 <div class="rl-terminal">
@@ -1534,19 +1755,27 @@ See <a href="../api-reference/#dispatch-methods-apush-push-delay">API reference 
 </ol>
 <hr />
 <h2 id="what-happens-when-a-worker-dies">What happens when a worker dies?<a class="headerlink" href="#what-happens-when-a-worker-dies" title="Permanent link">&para;</a></h2>
-<p>Let's prove it works. In a separate terminal, try the chaos test:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Seed a long-running task, kill the worker, watch Phoenix resurrect it</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span>--seed<span class="w"> </span>--watch<span class="w"> </span>--watch-duration<span class="w"> </span><span class="m">60</span>
+<p>With your worker and resurrector both running, dispatch a task and then kill the
+worker process (<code>Ctrl+C</code> or <code>kill &lt;pid&gt;</code>). Within about 12 seconds you'll see
+the resurrector log:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>[Phoenix] Orphan detected: task_abc123 — re-queuing to default
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>[Phoenix] task_abc123 picked up by rl-worker-2
 </span></code></pre></div>
-<p>You'll see output like:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>SEED  Dispatched 30s long-running task. marker=chaos-kill-seed-a3f9c1
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>CHAOS Worker terminated.
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>WATCH Streaming resurrection events for 60s...
-</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>  -&gt; task_abc123: RESURRECTED (awaiting pickup)
-</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>  -&gt; task_abc123: ALIVE (revived by replacement worker)
-</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>WATCH Done. 1 task(s) observed in monitor.
+<p>The task completes on a healthy worker. No data loss, no duplicate execution
+(idempotency blocks the re-run from charging twice), no manual intervention.</p>
+<p>That guarantee holds whether the worker was killed by OOM, a deploy SIGTERM, a
+kernel panic, or a <code>kill -9</code>. Phoenix detects the missed heartbeat and acts.</p>
+<p>To verify the full failure surface (network partitions, load spikes, payload
+corruption), the repo ships a first-party chaos suite:</p>
+<div class="admonition info">
+<p class="admonition-title">Chaos requires the Docker dev stack</p>
+<p><code>rl chaos</code> commands use <code>docker kill</code> to terminate worker containers. They only work when the stack is running via <code>make dev</code> in the cloned repo. <code>pip install</code> users can still run scenarios that don't need Docker kills (<code>load-spike</code>, <code>slow-task</code>, <code>task-corrupt</code>) — see the <a href="../chaos-guide/">Chaos Guide</a> for the breakdown.</p>
+</div>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span>--seed<span class="w"> </span>--watch<span class="w"> </span>--watch-duration<span class="w"> </span><span class="m">60</span>
 </span></code></pre></div>
-<p>That's Phoenix in action. The task survived a SIGKILL with zero intervention from you.</p>
+<p>Relier's production runtime ships entirely via <code>pip install</code>. The chaos suite is
+part of the development harness for contributors and teams that want to stress-test
+their own cluster. See the <a href="../chaos-guide/">Chaos Guide</a> for the full setup.</p>
 <hr />
 <h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
@@ -1554,8 +1783,8 @@ See <a href="../api-reference/#dispatch-methods-apush-push-delay">API reference 
   five minutes.</li>
 <li><strong><a href="../concepts/">Core Concepts</a></strong>: understand <em>why</em> Relier works the way it does.</li>
 <li><strong><a href="../integrations/">Integration Recipes</a></strong>: FastAPI, Flask, Django, scripts.</li>
-<li><strong><a href="../patterns/">Patterns Cookbook</a></strong>: copy-paste shapes for common cases
-  (idempotency keys, dedicated workers, resumable checkpoints).</li>
+<li><strong><a href="../patterns/">Patterns Cookbook</a></strong>: copy-paste shapes for common cases — including
+  manual idempotency control with <code>idempotency_lock</code> when you need a custom key.</li>
 <li><strong><a href="../troubleshooting/">Troubleshooting &amp; FAQ</a></strong>: first place to look when
   something breaks.</li>
 <li><strong><a href="../api-reference/">API Reference</a></strong>: all <code>@rl_task</code> parameters explained.</li>
