@@ -695,7 +695,7 @@ def rl_task(
                                     }
 
                                 if idempotent and idem_result is not None:
-                                    await idem_result.record_result(result)
+                                    await idem_result._record_result(result)
 
                                 await SLOMetrics.record_event("success")
 

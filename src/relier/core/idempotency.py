@@ -116,17 +116,13 @@ class IdempotencyResult:
         """
         self._pending_result = value
 
-    async def record_result(self, result: Any) -> None:
-        """
-        Persist the completed execution result for future duplicate requests.
+    async def _record_result(self, result: Any) -> None:
+        """Persist the execution result to Redis. Internal — used by the decorator only.
 
-        Replaces the temporary ``IN_FLIGHT`` sentinel with the final serialized
-        result so subsequent executions can short-circuit immediately without
-        re-running task logic.
-
-        Used by the ``@rl_task`` decorator internally. When using
-        ``idempotency_lock`` as a context manager, prefer ``set_result()``
-        instead — the commit is then handled automatically by ``__aexit__``.
+        Replaces the ``IN_FLIGHT`` sentinel with the serialized result so future
+        duplicate executions short-circuit. When using ``idempotency_lock`` as a
+        context manager, call ``lock.set_result(value)`` instead — ``__aexit__``
+        commits it automatically.
         """
         if not self._key:
             return
@@ -179,7 +175,7 @@ class IdempotencyManager:
         # The in-flight sentinel is claimed with a short, bounded TTL so a
         # worker that dies mid-execution without releasing the lock cannot
         # block duplicates for the full result TTL. The completed result is
-        # written separately (see ``record_result``) with the result TTL.
+        # written separately (see ``_record_result``) with the result TTL.
         inflight_ttl = self.settings.idempotency_inflight_ttl
         raw = await redis.eval(ACQUIRE_LUA, 1, full_key, lock_id, str(inflight_ttl))  # type: ignore[misc]
 
@@ -279,7 +275,7 @@ class IdempotencyLock:
 
         # Clean exit path.
         if result._recorded:
-            # record_result() was called directly (decorator path or old API).
+            # _record_result() was called directly (decorator path or old API).
             return False
 
         # Commit the staged value, or a None sentinel if set_result was never called.

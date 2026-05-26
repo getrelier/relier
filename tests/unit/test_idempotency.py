@@ -25,9 +25,9 @@ class TestIdempotencyManager:
         val = await mock_redis.get(RedisKeys.idempotency(key))
         assert val.decode() == result._lock_id
 
-        # Record the result
+        # Record the result via the internal method (mirrors what the decorator does)
         task_output = {"status": "success", "data": 42}
-        await result.record_result(task_output)
+        await result._record_result(task_output)
 
         # Subsequent call should return the cached result
         next_result = await idempotency_manager.check_or_claim(key, ttl)
@@ -76,7 +76,7 @@ class TestIdempotencyContextManager:
         async with idempotency_lock(key=key, ttl=30) as result:
             assert result.already_executed is False
             output = "processed_data"
-            await result.record_result(output)
+            result.set_result(output)
 
         final = await mock_redis.get(RedisKeys.idempotency(key))
         assert json.loads(final.decode()) == output

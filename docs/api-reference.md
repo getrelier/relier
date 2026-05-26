@@ -710,6 +710,7 @@ The `rl:idem:` prefix is Relier's internal namespace for idempotency keys. After
 | `lock.already_executed` | `bool` | `True` if a cached result exists for this key |
 | `lock.cached_result` | `Any` | Deserialised cached result (only valid when `already_executed` is `True`) |
 | `lock.set_result(value)` | — | Stage the result to be committed on clean context exit. Sync — no `await`. Call with `None` for fire-and-forget tasks. |
+| `lock._record_result(value)` | — | **Internal — do not call directly.** Used by the `@rl_task` decorator to write results to Redis immediately. Use `set_result()` in your own code. |
 
 ### Choosing a key
 
