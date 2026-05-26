@@ -177,13 +177,62 @@ Walk down the chain from producer to worker:
    rl dlq list
    ```
 
+### Symptoms: workers crash with `OSError: [WinError 6] The handle is invalid` or `PermissionError: [WinError 5]`
+
+This is a Windows-only issue with Celery's default `prefork` concurrency pool. On Windows, multiprocessing uses `spawn` instead of `fork`, and billiard's named-pipe IPC between the main process and worker processes is unreliable under `spawn`. Workers crash with these errors immediately after receiving a task.
+
+Add `--pool=solo` to your worker command:
+
+```powershell
+celery -A relier.tasks.app worker -l info -Q high_priority,default,low_priority,re-queue --include=tasks --pool=solo
+```
+
+`solo` runs all task execution in the main process — no subprocess IPC. This works correctly with Relier's async task execution model and is the right default for Windows development.
+
+---
+
+### Symptoms: old tasks reappear after `celery purge` or module rename
+
+`celery purge` only deletes messages from the queue lists. It does not touch Celery's unacknowledged message tracking in Redis. When a bare-metal worker crashes or is killed mid-task, any in-flight messages are held in `_kombu.redis.unacked` and re-delivered to the next worker that connects — even after a purge.
+
+This is most visible when you rename a task module: the old task name (`tasks.task`, `test.test`) keeps reappearing as an unregistered task on every worker restart. The messages will drain on their own once the new worker discards them, but if you want a clean slate immediately:
+
+```bash
+# Clear only Celery's unacked state, preserving Relier's own Redis keys
+redis-cli DEL _kombu.redis.unacked _kombu.redis.unacked_index _kombu.redis.unacked_restore
+```
+
+If you want to reset everything (Relier state included — Phoenix registry, inflight tracking, SLO counters):
+
+```bash
+redis-cli FLUSHDB
+```
+
+Use `FLUSHDB` only in local development. On Docker, `make down` restarts the Redis container which has the same effect.
+
+---
+
+### Symptoms: worker logs `Received unregistered task of type '...'`
+
+The worker received a task name it doesn't recognise. The most common cause when starting fresh is a missing `--include` flag.
+
+Celery only registers tasks from modules it imports at worker startup. If your tasks are in `tasks.py`, start the worker with:
+
+```bash
+celery -A relier.tasks.app worker -l info -Q high_priority,default,low_priority,re-queue --include=tasks
+```
+
+If your tasks live in `myapp/tasks.py`, use `--include=myapp.tasks`. Without `--include`, the worker starts cleanly but never registers your `@rl_task` functions.
+
+A related trap: if you ran `python tasks.py` as a script at some point, Celery may have named the task `__main__.send_invoice` (based on `__name__`). The worker sees `tasks.send_invoice` and treats them as different. The fix is to only ever dispatch tasks from code that imports the module normally — never from a `if __name__ == "__main__"` block.
+
 ### Symptoms: workers run normal tasks but never pick up an `@rl_task`
 
 Almost always one of:
 
 - **Module not imported.** Celery only registers tasks defined in modules it
   imports. Make sure `relier.tasks.app` (or your own Celery app whose imports
-  include your task module) is what the worker process loads.
+  include your task module) is what the worker process loads. Pass `--include=<your_task_module>` on the command line.
 
 - **Different broker.** A common slip when migrating from raw Celery: your
   producer ends up using Celery's default `amqp://` (RabbitMQ) instead of
@@ -284,6 +333,92 @@ If you kill a worker and the task never reappears:
    `docker-compose.yml` has `worker-recovery` for exactly this. In your own
    deployment, make sure at least one worker has `-Q re-queue` (or that your
    default workers consume it too).
+
+---
+
+## "Resurrected task never claimed — releasing back to scan" keeps repeating
+
+You'll see this in the resurrector log when Phoenix successfully re-queues an orphaned task but no worker picks it up:
+
+```
+WARNING  Worker death detected; replaying orphaned task.
+INFO     Acquired resurrection lease
+INFO     Resurrected task successfully re-queued.
+WARNING  Resurrected task never claimed - releasing back to scan
+```
+
+This is expected behaviour when **no worker is running** to consume the queue. The task is in the broker and waiting — Phoenix monitors for pickup within a short window, sees it unclaimed, releases the lease, and will try again on the next scan pass.
+
+**To confirm this is the cause:**
+
+```bash
+rl worker status
+# If no workers appear, nothing is consuming the queue
+```
+
+Start a worker consuming the task's queue and the task will be picked up immediately:
+
+```bash
+celery -A relier.tasks.app worker -l info -Q high_priority,default,low_priority,re-queue --include=<your_task_module>
+```
+
+**If workers ARE running** but the task is still never claimed, check:
+
+- The task's queue (`queue=` in `@rl_task`) — is the worker subscribed to that queue?
+  ```bash
+  rl worker status   # shows which queues each worker is consuming
+  ```
+- The task module is imported — without `--include=<module>`, the worker discards unregistered tasks silently.
+- `max_resurrections` — if the task has been resurrected 5 times and crashed each time, it is quarantined to the DLQ instead:
+  ```bash
+  rl dlq list
+  ```
+
+**"Lease already claimed by another resurrector"** on subsequent passes means the same resurrector found the same orphan but its own lease is still valid from the previous attempt. Once the lease TTL (30 s) expires, it re-acquires and tries again. This is correct — the lease prevents double-resurrection if multiple resurrector instances are running.
+
+---
+
+## "My task logs `Async bridge failed` with `TimeoutError` after 5 minutes"
+
+The task has no `hard_timeout` set. When `hard_timeout` is not configured on `@rl_task`, the async bridge uses a 300-second (5 minute) safety timeout on the thread-to-loop handoff. When that fires, Celery sees a `TimeoutError` and marks the task as FAILED — the task has not been cancelled by asyncio, just timed out at the bridge boundary.
+
+**The immediate fix:** set `hard_timeout` on your task:
+
+```python
+@rl_task(
+    hard_timeout=60,   # asyncio cancellation fires at 60 s — clean, no ghost
+)
+async def my_task(...): ...
+```
+
+With `hard_timeout` set, the bridge timeout becomes `hard_timeout + 10` and asyncio's own cancellation machinery fires first, stopping the coroutine cleanly inside the event loop.
+
+Without `hard_timeout`, the bridge cancels the coroutine's future after the 300-second fallback, but cancellation only fires at the next `await` checkpoint — a tight loop with no yields will keep running until it yields.
+
+**If the task takes legitimately longer than 300 seconds:** raise `hard_timeout` to match the real expected duration plus a safety margin. There is no "no timeout" option — every task should have an upper bound.
+
+---
+
+## "I see `Admission control check failed` in my logs but tasks still run"
+
+This is intentional. Admission control is a **rate limiter**, not a hard gate. If Redis is unreachable or the Lua script fails, Relier fails open — the task proceeds rather than being dropped. You'll see something like:
+
+```
+Admission control check failed (ConnectionError: Connection refused to localhost:6379) — failing open, task will proceed.
+Investigate if this recurs: sustained failure means rate limiting is inactive.
+```
+
+The log line embeds both the exception type and the full error message, so the root cause is visible directly in CLI output without needing a structured log aggregator.
+
+**A single occurrence** during a Redis restart or network blip is fine. The fail-open policy keeps your API available even when the guard layer is briefly unreliable.
+
+**Repeated occurrences** mean your rate limiter is effectively dead. While tasks still run, the queue can flood without any backpressure. Treat this as urgent:
+
+1. Read the error detail in the log line itself — it tells you the exact exception (`ConnectionError`, `TimeoutError`, `NoScriptError`, etc.) and the underlying message.
+2. Check Redis connectivity: `redis-cli -h <host> -p <port> ping`
+3. Check `RELIER_REDIS_URL` is correct: `rl config show | grep REDIS_URL`
+
+The fail-open choice reflects Relier's core trade-off: **zero job loss beats perfect gating**. A rate limiter that crashes your task dispatch is worse than one that temporarily stops enforcing limits.
 
 ---
 

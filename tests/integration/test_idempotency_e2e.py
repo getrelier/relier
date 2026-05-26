@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 import pytest
 
@@ -51,3 +52,24 @@ async def test_idempotency_concurrent_executions(
     # Cleanup
     task1.forget()
     task2.forget()
+
+
+async def test_idempotency_lock_set_result_deduplication(redis_client) -> None:
+    """idempotency_lock with set_result() commits on exit and blocks a second call."""
+    from relier.core.idempotency import idempotency_lock
+    from relier.core.keys import RedisKeys
+
+    key = "e2e_webhook_event_42"
+
+    async with idempotency_lock(key=key, ttl=60) as lock:
+        assert lock.already_executed is False
+        lock.set_result({"processed": True, "id": 42})
+
+    # Verify the result was committed to Redis by __aexit__
+    stored = await redis_client.get(RedisKeys.idempotency(key))
+    assert json.loads(stored) == {"processed": True, "id": 42}
+
+    # Second call must hit the cache — not re-execute
+    async with idempotency_lock(key=key, ttl=60) as lock2:
+        assert lock2.already_executed is True
+        assert lock2.cached_result == {"processed": True, "id": 42}

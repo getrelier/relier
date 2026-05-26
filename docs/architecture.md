@@ -377,6 +377,55 @@ return {1, val}          -- 1 = completed, val = cached result JSON
 
 Callers distinguish `IN_FLIGHT` from `COMPLETED` by checking whether `val` starts with `rl:inflight:`.
 
+### RELEASE_LUA (compare-and-delete)
+
+```lua
+if redis.call('GET', KEYS[1]) == ARGV[1] then
+    redis.call('DEL', KEYS[1])
+    return 1
+end
+return 0
+```
+
+Used on exception exit from `idempotency_lock` to release the in-flight sentinel. The compare-and-delete prevents a stale worker from clearing a lock owned by a newer execution attempt.
+
+---
+
+## IdempotencyLock context manager lifecycle
+
+`idempotency_lock()` implements the same three-state machine as the `@rl_task(idempotent=True)` decorator path, but the commit step runs automatically in `__aexit__` rather than being called explicitly by the task function.
+
+```
+idempotency_lock(key, ttl)
+  │
+  ├─ __aenter__
+  │     ACQUIRE_LUA
+  │       → CLAIMED  : key = rl:inflight:{uuid}  EX inflight_ttl
+  │                    return IdempotencyResult(already_executed=False)
+  │       → IN_FLIGHT: raise IdempotencyInFlightError
+  │       → COMPLETED: return IdempotencyResult(already_executed=True,
+  │                                             cached_result=<value>)
+  │
+  ├─ task body runs
+  │     lock.set_result(value)   ← sync; stages value in _pending_result
+  │
+  └─ __aexit__
+        Exception path:
+          RELEASE_LUA (compare-and-delete — removes in-flight sentinel)
+          → key deleted, task can be retried
+
+        Clean-exit path, set_result() was called:
+          SET rl:idem:{key} json.dumps(value)  EX ttl
+          → key = committed result, future duplicates get cached_result=value
+
+        Clean-exit path, set_result() NOT called:
+          SET rl:idem:{key} json.dumps(null)   EX ttl  + log WARNING
+          → key = None sentinel, future duplicates blocked,
+            cached_result=None
+```
+
+The critical design constraint: in-flight sentinels use a **short, bounded TTL** (`RELIER_IDEMPOTENCY_INFLIGHT_TTL`, default 120 s) so a worker that is killed mid-execution cannot permanently block future duplicate calls for the full result TTL. The committed result is written with the result TTL (`ttl` argument) in a separate `SET` call.
+
 ### COMMIT_CHECK_LUA (verify fence on success)
 
 ```lua

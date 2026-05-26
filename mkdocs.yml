@@ -54,6 +54,7 @@ nav:
     - Quickstart: quickstart.md
     - A Quick Celery Primer: celery-primer.md
     - Core Concepts: concepts.md
+    - Running Relier: running.md
     - Deployment: deployment.md
   - Guides:
     - Integration Recipes (FastAPI, Flask, Django): integrations.md
@@ -64,6 +65,7 @@ nav:
     - API Reference: api-reference.md
     - Configuration: configuration.md
     - CLI Reference: cli-reference.md
+    - CLI Manual (rl man): rl.md
     - Metrics Reference: metrics.md
   - Deep Dive:
     - Architecture: architecture.md

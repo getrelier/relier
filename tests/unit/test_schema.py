@@ -212,3 +212,146 @@ class TestSchemaMigration:
         # The core code re-raises the exception so the Relier DLQ mechanism catches it
         with pytest.raises(TypeError, match="legacy payload"):
             SchemaRegistry.unwrap_and_migrate("crash_task", envelope)
+
+
+class TestValidate:
+    """SchemaRegistry.validate() surfaces misconfigured migrations at worker startup."""
+
+    def test_logs_critical_for_migration_with_unbumped_version(self, caplog) -> None:
+        """Migration registered with from_version=CURRENT_VERSION is flagged."""
+        import logging
+
+        @SchemaRegistry.register_migration("validate_task", from_version=1)
+        def noop(args, kwargs):
+            return args, kwargs
+
+        with caplog.at_level(logging.CRITICAL, logger="relier.core.schema"):
+            SchemaRegistry.validate()
+
+        assert any("will never run" in r.message for r in caplog.records)
+        assert any("validate_task" in r.message for r in caplog.records)
+
+    def test_logs_critical_for_each_bad_migration(self, caplog) -> None:
+        """Every misconfigured migration across every task is reported."""
+        import logging
+
+        @SchemaRegistry.register_migration("task_a", from_version=1)
+        def noop_a(args, kwargs):
+            return args, kwargs
+
+        @SchemaRegistry.register_migration("task_b", from_version=1)
+        def noop_b(args, kwargs):
+            return args, kwargs
+
+        with caplog.at_level(logging.CRITICAL, logger="relier.core.schema"):
+            SchemaRegistry.validate()
+
+        messages = [r.message for r in caplog.records if r.levelno == logging.CRITICAL]
+        assert any("task_a" in m for m in messages)
+        assert any("task_b" in m for m in messages)
+
+    def test_silent_when_all_migrations_correctly_configured(self, caplog) -> None:
+        """No CRITICAL log when every migration has from_version < CURRENT_VERSION."""
+        import logging
+
+        SchemaRegistry.CURRENT_VERSION = 2
+
+        @SchemaRegistry.register_migration("clean_task", from_version=1)
+        def noop(args, kwargs):
+            return args, kwargs
+
+        with caplog.at_level(logging.CRITICAL, logger="relier.core.schema"):
+            SchemaRegistry.validate()
+
+        assert not any(r.levelno == logging.CRITICAL for r in caplog.records)
+
+    def test_silent_with_no_migrations_registered(self, caplog) -> None:
+        """No migrations registered → validate() is a no-op."""
+        import logging
+
+        with caplog.at_level(logging.CRITICAL, logger="relier.core.schema"):
+            SchemaRegistry.validate()
+
+        assert not any(r.levelno == logging.CRITICAL for r in caplog.records)
+
+    def test_includes_bump_instruction_in_message(self, caplog) -> None:
+        """Message tells the developer exactly which version to bump to."""
+        import logging
+
+        @SchemaRegistry.register_migration("bump_hint_task", from_version=1)
+        def noop(args, kwargs):
+            return args, kwargs
+
+        with caplog.at_level(logging.CRITICAL, logger="relier.core.schema"):
+            SchemaRegistry.validate()
+
+        assert any("CURRENT_VERSION" in r.message for r in caplog.records)
+        # Should tell them to bump to from_version + 1 = 2
+        assert any("2" in r.message for r in caplog.records)
+
+
+class TestRegistrationGuard:
+    """register_migration emits a warning when CURRENT_VERSION is not bumped first."""
+
+    def test_warns_when_from_version_equals_current_version(self, caplog) -> None:
+        """from_version=1 with CURRENT_VERSION=1 — loop never fires, should warn."""
+        import logging
+
+        with caplog.at_level(logging.WARNING, logger="relier.core.schema"):
+
+            @SchemaRegistry.register_migration("guard_task", from_version=1)
+            def noop(args, kwargs):
+                return args, kwargs
+
+        assert any("will never run" in r.message for r in caplog.records)
+        assert any("CURRENT_VERSION" in r.message for r in caplog.records)
+
+    def test_warns_when_from_version_exceeds_current_version(self, caplog) -> None:
+        """from_version=3 with CURRENT_VERSION=1 — even further out of range."""
+        import logging
+
+        with caplog.at_level(logging.WARNING, logger="relier.core.schema"):
+
+            @SchemaRegistry.register_migration("guard_task_2", from_version=3)
+            def noop(args, kwargs):
+                return args, kwargs
+
+        assert any("will never run" in r.message for r in caplog.records)
+
+    def test_no_warning_when_current_version_bumped(self, caplog) -> None:
+        """from_version=1 with CURRENT_VERSION=2 is valid — no warning."""
+        import logging
+
+        SchemaRegistry.CURRENT_VERSION = 2
+
+        with caplog.at_level(logging.WARNING, logger="relier.core.schema"):
+
+            @SchemaRegistry.register_migration("guard_task_3", from_version=1)
+            def noop(args, kwargs):
+                return args, kwargs
+
+        assert not any("will never run" in r.message for r in caplog.records)
+
+    def test_migration_still_registered_despite_warning(self) -> None:
+        """Migration is stored even when the warning fires, so it runs once CURRENT_VERSION is bumped."""
+
+        @SchemaRegistry.register_migration("guard_task_4", from_version=1)
+        def adds_field(args, kwargs):
+            kwargs["added"] = True
+            return args, kwargs
+
+        assert "guard_task_4" in SchemaRegistry._migrations
+        assert 1 in SchemaRegistry._migrations["guard_task_4"]
+
+        # Now fix the misconfiguration and verify the migration actually runs.
+        SchemaRegistry.CURRENT_VERSION = 2
+        payload = {"args": (), "kwargs": {}}
+        envelope = {
+            "task_id": "guard_task_4",
+            "schema_version": 1,
+            "payload": payload,
+            "enqueued_at": datetime.now(UTC).isoformat(),
+            "checksum": SchemaRegistry._generate_checksum(payload),
+        }
+        _, kwargs = SchemaRegistry.unwrap_and_migrate("guard_task_4", envelope)
+        assert kwargs["added"] is True

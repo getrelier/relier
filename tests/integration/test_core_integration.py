@@ -52,10 +52,10 @@ class TestPhoenixRegistryIntegration:
         payload = {"task_name": "t", "args": [], "kwargs": {}, "queue": "default"}
 
         await PhoenixRegistry.register(task_id, "w1", payload)
-        assert await PhoenixRegistry.is_active(task_id) is True
+        assert await PhoenixRegistry._is_active(task_id) is True
 
         await PhoenixRegistry.complete(task_id)
-        assert await PhoenixRegistry.is_active(task_id) is False
+        assert await PhoenixRegistry._is_active(task_id) is False
 
     async def test_complete_removes_all_phoenix_keys(self, redis_client) -> None:
         """complete() deletes heartbeat, phoenix hash, and expiry-index entry."""
@@ -95,7 +95,7 @@ class TestPhoenixRegistryIntegration:
         """is_active() returns False for a task that was never registered."""
         from relier.core.phoenix import PhoenixRegistry
 
-        assert await PhoenixRegistry.is_active("never-registered-task") is False
+        assert await PhoenixRegistry._is_active("never-registered-task") is False
 
 
 # ===========================================================================
@@ -242,7 +242,7 @@ class TestIdempotencyIntegration:
         key = "integ-idem-2"
         result = await idempotency_manager.check_or_claim(key, ttl=60)
         assert not result.already_executed
-        await result.record_result({"answer": 42})
+        await result._record_result({"answer": 42})
 
         result2 = await idempotency_manager.check_or_claim(key, ttl=60)
         assert result2.already_executed is True
@@ -255,7 +255,7 @@ class TestIdempotencyIntegration:
         key = "integ-lock-1"
         async with idempotency_lock(key, ttl=60) as res:
             assert not res.already_executed
-            await res.record_result("committed")
+            res.set_result("committed")
 
         async with idempotency_lock(key, ttl=60) as res2:
             assert res2.already_executed
@@ -289,7 +289,7 @@ class TestIdempotencyIntegration:
             await idempotency_manager.check_or_claim(key, ttl=60)
 
         # After recording, a third claim gets the cached result
-        await first.record_result("result")
+        await first._record_result("result")
         third = await idempotency_manager.check_or_claim(key, ttl=60)
         assert third.already_executed
 
@@ -300,6 +300,18 @@ class TestIdempotencyIntegration:
 
 
 class TestSchemaIntegration:
+    @pytest.fixture(autouse=True)
+    def _reset_registry(self):
+        from relier.core.schema import SchemaRegistry
+
+        original_version = SchemaRegistry.CURRENT_VERSION
+        original_migrations = dict(SchemaRegistry._migrations)
+        SchemaRegistry.CURRENT_VERSION = 1
+        SchemaRegistry._migrations = {}
+        yield
+        SchemaRegistry.CURRENT_VERSION = original_version
+        SchemaRegistry._migrations = original_migrations
+
     async def test_wrap_unwrap_roundtrip(self) -> None:
         """wrap() then unwrap_and_migrate() recovers the original args and kwargs."""
         from relier.core.schema import SchemaRegistry

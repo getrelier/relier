@@ -339,6 +339,12 @@ def init_worker_process(**kwargs: Any) -> None:
         # Don't let the worker start if validation fails
         raise
 
+    # Validate schema migration registrations against CURRENT_VERSION now that
+    # all application modules have been imported and CURRENT_VERSION is final.
+    from relier.core.schema import SchemaRegistry
+
+    SchemaRegistry.validate()
+
     # Reinitialize structured logging inside the isolated worker process.
     setup_logging(level=_get_settings().log_level, cache_loggers=False)
     # Bind telemetry exporters to the child process runtime.

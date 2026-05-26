@@ -26,8 +26,12 @@ class WorkerKillScenario:
     def __init__(self, worker_id: str | None = None) -> None:
         self.worker_id = worker_id
 
-    async def execute(self) -> None:
-        """Find and terminate a worker container via the Docker CLI."""
+    async def execute(self) -> bool:
+        """Find and terminate a worker container via the Docker CLI.
+
+        Returns:
+            True if a container was successfully killed, False otherwise.
+        """
         if not self.worker_id:
             try:
                 cmd = [
@@ -46,14 +50,15 @@ class WorkerKillScenario:
                 if not workers:
                     logger.error(
                         "No eligible worker containers found to kill "
-                        "(recovery workers are excluded)."
+                        "(recovery workers are excluded). "
+                        "Is the stack running via `make dev`?"
                     )
-                    return
+                    return False
 
                 self.worker_id = random.choice(workers)
             except Exception as exc:
                 logger.error("Failed to list workers.", extra={"error": str(exc)})
-                return
+                return False
 
         logger.critical(
             "Executing worker kill.",
@@ -65,8 +70,10 @@ class WorkerKillScenario:
             logger.info(
                 "Worker container terminated.", extra={"worker_id": self.worker_id}
             )
+            return True
         except subprocess.CalledProcessError as exc:
             logger.error(
                 "Failed to kill worker container.",
                 extra={"worker_id": self.worker_id, "error": str(exc)},
             )
+            return False

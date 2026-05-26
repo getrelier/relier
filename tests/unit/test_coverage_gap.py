@@ -25,7 +25,7 @@ class TestCoverageGap:
         """Hit missing lines in idempotency.py."""
         # if not self._key: return
         res = IdempotencyResult(already_executed=False)
-        await res.record_result({"foo": "bar"})
+        await res._record_result({"foo": "bar"})
         assert idempotency_manager.settings is not None
 
     async def test_schema_edge_cases(self) -> None:
@@ -95,10 +95,10 @@ async def test_phoenix_is_active() -> None:
         mock_get_redis.return_value = mock_redis
 
         mock_redis.exists.return_value = True
-        assert await PhoenixRegistry.is_active("test-task") is True
+        assert await PhoenixRegistry._is_active("test-task") is True
 
         mock_redis.exists.return_value = False
-        assert await PhoenixRegistry.is_active("test-task") is False
+        assert await PhoenixRegistry._is_active("test-task") is False
 
 
 @pytest.mark.asyncio

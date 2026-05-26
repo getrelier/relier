@@ -10,16 +10,29 @@ Get Relier running in under 5 minutes.
 pip install relier
 ```
 
+!!! note "pip install vs. contributing from source"
+    This guide covers the **pip install** path — the right choice for adding Relier to your own project. If you're contributing to Relier itself, clone the repo and run `make setup` instead. The `make worker` / `make dev` shortcuts only exist in the cloned repo; pip users start workers with the `celery` command directly (shown in [Step 6](#6-start-the-worker)).
+
 ## 2. Start Redis
 
 Relier needs Redis with persistence enabled. The quickest way locally is Docker:
 
-```bash
-docker run -d --name relier-redis \
-  -p 6379:6379 \
-  redis:7-alpine \
-  redis-server --appendonly yes --appendfsync everysec
-```
+=== "macOS / Linux"
+
+    ```bash
+    docker run -d --name relier-redis \
+      -p 6379:6379 \
+      redis:7-alpine \
+      redis-server --appendonly yes --appendfsync everysec
+    ```
+
+=== "Windows (PowerShell)"
+
+    ```powershell
+    docker run -d --name relier-redis -p 6379:6379 redis:7-alpine redis-server --appendonly yes --appendfsync everysec
+    ```
+
+    PowerShell does not support the `\` line-continuation used in Bash. Run the command as a single line.
 
 !!! note "Why persistence?"
     The `--appendonly yes` flag enables Redis AOF persistence. Without it, a Redis restart drops every heartbeat and payload Relier has stored, breaking the zero-job-loss guarantee. See [Deployment](deployment.md) for production Redis setup.
@@ -38,23 +51,40 @@ That's the only required setting. Everything else has sensible defaults.
 
 ```python
 # tasks.py
+import asyncio
 from relier.tasks.decorator import rl_task
 
 @rl_task(
     queue="default",
-    idempotent=True,           # same input → same output, never runs twice
+    idempotent=True,           # same invoice_id → never runs twice
     soft_timeout=25,           # cleanup hook fires at 25s
-    hard_timeout=30,           # task killed unconditionally at 30s
+    hard_timeout=30,           # forcefully terminates runaway execution at 30s
 )
 async def send_invoice(invoice_id: str) -> dict:
-    """Send an invoice email. Safe to retry, will never double-charge."""
-    result = await charge_stripe(invoice_id)
-    await send_email(invoice_id)
+    """Send an invoice — safe to retry, never double-charges."""
+    await asyncio.sleep(1)   # ← replace with your actual work: Stripe, DB write, email
     return {"charged": True, "invoice_id": invoice_id}
 ```
 
+!!! tip "This example runs immediately — no external services needed"
+    `asyncio.sleep(1)` is a stand-in. Replace it with your actual logic once the worker is running. For ready-to-copy real-world shapes (Stripe, database writes, HTTP calls) see the [Integration Recipes](integrations.md).
+
 !!! tip "New to async?"
-    Relier tasks are `async def` functions. If your existing Celery tasks are regular `def` functions, Relier supports those too just drop the `async` keyword. The async bridge is handled for you either way.
+    Relier tasks are `async def` functions. If your existing Celery tasks are regular `def` functions, Relier supports those too — just drop the `async` keyword. The async bridge is handled for you either way.
+
+### Returning results
+
+Tasks return values like any Python function:
+
+```python
+async def send_invoice(invoice_id: str) -> dict:
+    ...
+    return {"charged": True, "invoice_id": invoice_id}
+```
+
+When `idempotent=True`, Relier automatically caches that return value. If the same `invoice_id` arrives again (retry, webhook re-delivery, duplicate dispatch), the cached result is returned immediately without re-running the function.
+
+**Most users never need to manage results manually.** Manual result control with `idempotency_lock` is only needed when the key Relier would derive from arguments isn't the right one — for example, when a webhook `event_id` is more stable than the full payload hash. See [Patterns Cookbook → Pattern 2](patterns.md#pattern-2).
 
 ## 5. Dispatch tasks
 
@@ -97,31 +127,95 @@ the task).
     a legacy unsigned message. **Always use `apush` (async) or `push` (sync).**
     See [API reference → Dispatch methods](api-reference.md#dispatch-methods-apush-push-delay).
 
-## 6. Start the Relier stack
+## 6. Start the worker
 
-Pick whichever way fits your environment. All three are documented in
-[Deployment](deployment.md).
+### Installed via pip (your own project)
+
+Open two terminals. Start these in the directory that contains your `tasks.py`.
+
+**Terminal 1 — Celery worker:**
+
+=== "macOS / Linux"
+
+    ```bash
+    celery -A relier.tasks.app worker -l info -Q high_priority,default,low_priority,re-queue --include=tasks
+    ```
+
+=== "Windows (PowerShell)"
+
+    ```bash
+    celery -A relier.tasks.app worker -l info -Q high_priority,default,low_priority,re-queue --include=tasks --pool=solo
+    ```
+
+    `--pool=solo` is required on Windows. Celery's default `prefork` pool uses named pipes for IPC that are unreliable under Windows' `spawn`-based multiprocessing, causing workers to crash with `OSError: [WinError 6]` on task receipt. `solo` runs everything in the main process and works correctly with Relier's async task execution.
+
+**Terminal 2 — Phoenix resurrector:**
 
 ```bash
-# A) Bare metal: two terminals, no Docker needed
+rl run-resurrector
+```
+
+!!! note "Why two processes?"
+    The Celery worker executes tasks. The Phoenix resurrector is a separate recovery service responsible for heartbeat monitoring, orphan detection, and re-queuing tasks after a worker crash. Keeping recovery isolated from workers means that a cascading worker failure cannot disable the recovery logic at the same time — the resurrector keeps running and draining the orphan backlog even as workers restart.
+
+!!! warning "Workers must import your task modules"
+    **Relier wraps Celery's worker entry system — it does not replace it.** You must provide a module that imports your task definitions so Celery registers them at startup.
+
+    The simplest way is `--include`:
+
+    - Tasks in `tasks.py` → `--include=tasks`
+    - Tasks in `myapp/tasks.py` → `--include=myapp.tasks`
+
+    Without this, the worker boots silently but logs `Received unregistered task of type '...'` when a task arrives and discards it. This is the most common first-time setup issue.
+
+    **For production**, create a dedicated entry-point module instead:
+
+    ```python
+    # worker_app.py
+    from relier.tasks.app import celery_app  # Relier's configured Celery app
+    import tasks                              # registers your @rl_task functions
+    import myapp.tasks                        # add more modules as needed
+    ```
+
+    Then run: `celery -A worker_app worker -l info -Q ...` (no `--include` needed).
+
+    What `celery -A relier.tasks.app` means: *"start a worker using Relier's Celery app"*. Relier's app is what wires up Phoenix, DLQ, idempotency, and the async bridge. Do not substitute a custom `Celery(...)` instance — Relier's guarantees only work through its own app.
+
+!!! warning "Module name, not file path"
+    Celery's `-A` flag takes a **Python module name**, not a file path:
+
+    ```bash
+    celery -A worker_app worker ...   # ✓ module name
+    celery -A worker_app.py worker ... # ✗ file path — raises "module not found"
+    ```
+
+!!! note "Avoid running `python tasks.py` directly"
+    If you execute `python tasks.py` as a script, Celery names your tasks `__main__.send_invoice` instead of `tasks.send_invoice`. The worker won't recognise the name and will reject the task. Always route tasks through the Celery worker command above.
+
+### Cloned from source (contributing / dev)
+
+`make worker` starts the Relier infrastructure (heartbeats, Phoenix, graceful shutdown) against the library itself — there are no user task modules to import in this context. It runs the same `celery -A relier.tasks.app worker` command without `--include`, which is correct for the repo's own use.
+
+```bash
 make worker         # terminal 1: Celery worker
 make resurrector    # terminal 2: Phoenix resurrector
+```
 
-# B) Docker: single-node Redis + workers + resurrector + OTel/Grafana
+Or the full Docker dev stack (Redis + workers + resurrector + OTel/Grafana):
+
+```bash
 make dev
+```
 
-# C) Production HA stack: Sentinel + replicas + backup sidecar
+Production HA stack (Sentinel + replicas + backup sidecar):
+
+```bash
 export REDIS_PASSWORD=...
 export SENTINEL_PASSWORD=...
 make prod
 ```
 
-The bare-metal targets are just shortcuts. Underneath they run:
-
-```bash
-celery -A relier.tasks.app worker -l info -Q high_priority,default,low_priority,re-queue
-rl run-resurrector
-```
+All deployment options are documented in [Deployment](deployment.md).
 
 ## 7. Verify everything is working
 
@@ -176,25 +270,34 @@ When a Celery worker picked it up:
 
 ## What happens when a worker dies?
 
-Let's prove it works. In a separate terminal, try the chaos test:
+With your worker and resurrector both running, dispatch a task and then kill the
+worker process (`Ctrl+C` or `kill <pid>`). Within about 12 seconds you'll see
+the resurrector log:
+
+```
+[Phoenix] Orphan detected: task_abc123 — re-queuing to default
+[Phoenix] task_abc123 picked up by rl-worker-2
+```
+
+The task completes on a healthy worker. No data loss, no duplicate execution
+(idempotency blocks the re-run from charging twice), no manual intervention.
+
+That guarantee holds whether the worker was killed by OOM, a deploy SIGTERM, a
+kernel panic, or a `kill -9`. Phoenix detects the missed heartbeat and acts.
+
+To verify the full failure surface (network partitions, load spikes, payload
+corruption), the repo ships a first-party chaos suite:
+
+!!! info "Chaos requires the Docker dev stack"
+    `rl chaos` commands use `docker kill` to terminate worker containers. They only work when the stack is running via `make dev` in the cloned repo. `pip install` users can still run scenarios that don't need Docker kills (`load-spike`, `slow-task`, `task-corrupt`) — see the [Chaos Guide](chaos-guide.md) for the breakdown.
 
 ```bash
-# Seed a long-running task, kill the worker, watch Phoenix resurrect it
 rl chaos worker-kill --seed --watch --watch-duration 60
 ```
 
-You'll see output like:
-
-```
-SEED  Dispatched 30s long-running task. marker=chaos-kill-seed-a3f9c1
-CHAOS Worker terminated.
-WATCH Streaming resurrection events for 60s...
-  -> task_abc123: RESURRECTED (awaiting pickup)
-  -> task_abc123: ALIVE (revived by replacement worker)
-WATCH Done. 1 task(s) observed in monitor.
-```
-
-That's Phoenix in action. The task survived a SIGKILL with zero intervention from you.
+Relier's production runtime ships entirely via `pip install`. The chaos suite is
+part of the development harness for contributors and teams that want to stress-test
+their own cluster. See the [Chaos Guide](chaos-guide.md) for the full setup.
 
 ---
 
@@ -204,8 +307,8 @@ That's Phoenix in action. The task survived a SIGKILL with zero intervention fro
   five minutes.
 - **[Core Concepts](concepts.md)**: understand *why* Relier works the way it does.
 - **[Integration Recipes](integrations.md)**: FastAPI, Flask, Django, scripts.
-- **[Patterns Cookbook](patterns.md)**: copy-paste shapes for common cases
-  (idempotency keys, dedicated workers, resumable checkpoints).
+- **[Patterns Cookbook](patterns.md)**: copy-paste shapes for common cases — including
+  manual idempotency control with `idempotency_lock` when you need a custom key.
 - **[Troubleshooting & FAQ](troubleshooting.md)**: first place to look when
   something breaks.
 - **[API Reference](api-reference.md)**: all `@rl_task` parameters explained.

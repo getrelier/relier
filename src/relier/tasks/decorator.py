@@ -72,6 +72,7 @@ from relier.core.exceptions import (
     AdmissionRejectedError,
     IdempotencyInFlightError,
     PayloadIntegrityError,
+    RedisConnectionError,
     SchemaMigrationError,
 )
 from relier.core.idempotency import idempotency_manager
@@ -294,6 +295,7 @@ def rl_task(
     soft_timeout: int | None = None,
     hard_timeout: int | None = None,
     on_soft_timeout: Callable[[TaskContext], Awaitable[None]] | None = None,
+    name: str | None = None,
 ) -> Callable[[Callable[P, R]], RelierTask[P, R]]:
     """Wrap a function with the full Relier reliability stack.
 
@@ -321,6 +323,13 @@ def rl_task(
                           Receives the current :class:`~relier.tasks.context.TaskContext`
                           as its only argument.  Use it to call
                           ``ctx.set_partial(...)`` before the hard deadline.
+        name:             Explicit stable task name (e.g.
+                          ``"myapp.process_order"``).  When provided, this
+                          overrides the auto-derived
+                          ``"{module}.{function_name}"`` name.  Use this so
+                          you can rename or move the function without breaking
+                          payloads already in the queue or existing
+                          ``SchemaRegistry.register_migration`` registrations.
 
     Returns:
         A decorator that transforms your function into a
@@ -403,7 +412,7 @@ def rl_task(
                 "to 'async def' or remove the timeout arguments."
             )
 
-        task_name = f"{func.__module__}.{func.__name__}"
+        task_name = name if name is not None else f"{func.__module__}.{func.__name__}"
 
         @functools.wraps(func)
         def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
@@ -664,6 +673,7 @@ def rl_task(
                                             hard=hard_timeout,
                                             on_soft=on_soft_timeout,
                                             task_id=task_id,
+                                            ctx=ctx,
                                         )
                                     else:
                                         result = await func(  # type: ignore[misc]
@@ -685,7 +695,7 @@ def rl_task(
                                     }
 
                                 if idempotent and idem_result is not None:
-                                    await idem_result.record_result(result)
+                                    await idem_result._record_result(result)
 
                                 await SLOMetrics.record_event("success")
 
@@ -841,9 +851,17 @@ def rl_task(
             try:
                 if loop.is_running():
                     future = asyncio.run_coroutine_threadsafe(_orchestrate(), loop)
-                    return future.result(
-                        timeout=hard_timeout + 10 if hard_timeout else 300
-                    )
+                    try:
+                        return future.result(
+                            timeout=hard_timeout + 10 if hard_timeout else 300
+                        )
+                    except TimeoutError:
+                        # Cancel the coroutine so it does not keep running as a
+                        # ghost after the bridge gives up waiting. Cancellation
+                        # is delivered at the next await checkpoint inside the
+                        # event loop thread.
+                        future.cancel()
+                        raise
                 else:
                     try:
                         return loop.run_until_complete(_orchestrate())
@@ -1071,15 +1089,34 @@ async def _dispatch_internal(
 
     loop = asyncio.get_running_loop()
 
-    return await loop.run_in_executor(
-        None,
-        lambda: celery_app.send_task(
-            task.name,
-            args=(envelope,),
-            queue=queue,
-            task_id=task_id,
-        ),
-    )
+    try:
+        return await loop.run_in_executor(
+            None,
+            lambda: celery_app.send_task(
+                task.name,
+                args=(envelope,),
+                queue=queue,
+                task_id=task_id,
+            ),
+        )
+    except Exception as exc:
+        # Walk the cause chain looking for a Redis/socket connection refusal.
+        cause: BaseException | None = exc
+        while cause is not None:
+            if isinstance(cause, ConnectionRefusedError | OSError):
+                break
+            cause = cause.__cause__
+        if cause is not None or "Retry limit exceeded" in str(exc):
+            from relier.config import get_settings
+
+            url = get_settings().redis_url
+            raise RedisConnectionError(
+                f"Cannot reach Redis at {url}. "
+                "Is Redis running? Start it with:\n"
+                "  docker run -d --name relier-redis -p 6379:6379 redis:7-alpine"
+                " redis-server --appendonly yes --appendfsync everysec"
+            ) from exc
+        raise
 
 
 def _get_worker_loop() -> asyncio.AbstractEventLoop:

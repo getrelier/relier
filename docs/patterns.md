@@ -55,7 +55,7 @@ async def process_webhook(event_id: str, payload: dict) -> dict:
         if lock.already_executed:
             return lock.cached_result          # short-circuit on duplicate
         result = await handle_event(payload)
-        await lock.record_result(result)       # cache for future duplicates
+        lock.set_result(result)                # sync — committed automatically on exit
         return result
 ```
 
