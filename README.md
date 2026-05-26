@@ -50,7 +50,7 @@ from relier.tasks.decorator import rl_task
     soft_timeout=8,         # cleanup hook fires at 8s
     hard_timeout=10,        # cancelled at 10s
 )
-async def charge_customer(customer_id: str, amount_cents: int):
+async def charge_customer(customer_id: str, amount_cents: int) -> dict:
     return await stripe.charge(customer_id, amount_cents)
 
 await charge_customer.apush("cus_abc", 5000)
@@ -162,7 +162,7 @@ async def send_invoice(invoice_id: str) -> dict:
 ```python
 # FastAPI
 @app.post("/invoices/{invoice_id}/send")
-async def dispatch(invoice_id: str):
+async def dispatch(invoice_id: str) -> dict:
     await send_invoice.apush(invoice_id)
     return {"status": "queued"}
 ```
@@ -278,7 +278,7 @@ Full feature reference: [docs/](https://getrelier.github.io/relier/).
 
 ---
 
-## Recent fixes (v0.1.1)
+## Recent fixes (v0.1.2)
 
 - **`idempotency_lock` auto-commit**: `set_result(value)` stages the result synchronously; `__aexit__` commits it. Forgetting the call no longer silently breaks idempotency — a `None` sentinel is committed and future duplicates are still blocked.
 - **`RedisConnectionError` on dispatch**: `apush`/`push` now raises `RedisConnectionError` with the configured Redis URL and a `docker run` command when Redis is unreachable, instead of a 60-line Celery traceback.

@@ -57,7 +57,7 @@ from tasks import send_invoice
 app = FastAPI()
 
 @app.exception_handler(AdmissionRejectedError)
-async def admission_handler(_: Request, exc: AdmissionRejectedError):
+async def admission_handler(_: Request, exc: AdmissionRejectedError) -> JSONResponse:
     # Map cluster-at-capacity into a standard 429 with Retry-After.
     return JSONResponse(
         status_code=429,
@@ -66,7 +66,7 @@ async def admission_handler(_: Request, exc: AdmissionRejectedError):
     )
 
 @app.post("/invoices/{invoice_id}/send")
-async def dispatch_invoice(invoice_id: str):
+async def dispatch_invoice(invoice_id: str) -> dict:
     await send_invoice.apush(invoice_id)
     return {"status": "queued"}
 ```
@@ -123,14 +123,14 @@ from tasks import send_invoice
 app = Flask(__name__)
 
 @app.errorhandler(AdmissionRejectedError)
-def admission_handler(exc):
+def admission_handler(exc: AdmissionRejectedError) -> tuple:
     response = jsonify(detail="Service at capacity, retry later.")
     response.status_code = 429
     response.headers["Retry-After"] = str(exc.retry_after)
     return response
 
 @app.post("/invoices/<invoice_id>/send")
-def dispatch_invoice(invoice_id):
+def dispatch_invoice(invoice_id: str) -> tuple:
     send_invoice.push(invoice_id)        # sync dispatch, no await
     return jsonify(status="queued"), 202
 ```
@@ -158,14 +158,14 @@ views (`asgi` Django).
 
 ```python
 # views.py
-from django.http import JsonResponse
+from django.http import HttpRequest, JsonResponse
 from django.views.decorators.http import require_POST
 from relier.core.exceptions import AdmissionRejectedError
 
 from .tasks import send_invoice
 
 @require_POST
-def dispatch_invoice(request, invoice_id):
+def dispatch_invoice(request: HttpRequest, invoice_id: str) -> JsonResponse:
     try:
         send_invoice.push(invoice_id)
     except AdmissionRejectedError as exc:
@@ -181,7 +181,7 @@ def dispatch_invoice(request, invoice_id):
 ### Async view (Django 4.1+)
 
 ```python
-async def dispatch_invoice(request, invoice_id):
+async def dispatch_invoice(request: HttpRequest, invoice_id: str) -> JsonResponse:
     try:
         await send_invoice.apush(invoice_id)
     except AdmissionRejectedError as exc:
@@ -204,7 +204,7 @@ from django.core.management.base import BaseCommand
 from myapp.tasks import send_invoice
 
 class Command(BaseCommand):
-    def handle(self, *args, **opts):
+    def handle(self, *args: Any, **opts: Any) -> None:
         for invoice in queryset:
             send_invoice.push(invoice.id)
         self.stdout.write(f"Queued {queryset.count()} invoices.")
@@ -225,7 +225,7 @@ from relier.core.exceptions import AdmissionRejectedError
 
 from tasks import send_invoice
 
-async def dispatch_invoice(request):
+async def dispatch_invoice(request: Request) -> JSONResponse:
     invoice_id = request.path_params["invoice_id"]
     try:
         await send_invoice.apush(invoice_id)
@@ -262,7 +262,7 @@ for invoice_id in load_invoice_ids():
 import asyncio
 from tasks import send_invoice
 
-async def main():
+async def main() -> None:
     for invoice_id in load_invoice_ids():
         await send_invoice.apush(invoice_id)
 
@@ -279,7 +279,7 @@ often easier to read without `await` on dispatch:
 
 ```python
 @rl_task()
-async def import_user(user_id: str):
+async def import_user(user_id: str) -> None:
     profile = await fetch_profile(user_id)
     await store(profile)
     # Fan out follow-up work, fire-and-forget.
