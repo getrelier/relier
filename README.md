@@ -169,12 +169,13 @@ async def dispatch(invoice_id: str):
 
 ```bash
 # Three processes - bare metal, no Docker required
-celery -A relier.tasks.app worker -l info -Q high_priority,default,low_priority,re-queue
+# --include=tasks tells the worker where your @rl_task functions live
+celery -A relier.tasks.app worker -l info -Q high_priority,default,low_priority,re-queue --include=tasks
 rl run-resurrector
 uvicorn main:app
 ```
 
-Or get the full stack (Redis + workers + resurrector + OTel + Grafana):
+Or get the full stack (Redis + workers + resurrector + OTel + Grafana) if you've cloned the repo:
 
 ```bash
 make dev          # docker-compose.yml, single-node Redis with AOF
@@ -239,7 +240,7 @@ Full methodology, per-test breakdowns, and Docker Compose instructions: [docs/be
 ## What's in the box
 
 - **Zero job loss (Phoenix Pattern)**: heartbeat-based crash detection, atomic re-queue with lease + fence tokens.
-- **Exactly-once via idempotency**: atomic Redis Lua, claim/in-flight/completed states.
+- **Exactly-once via idempotency**: atomic Redis Lua, claim/in-flight/completed states. `@rl_task(idempotent=True)` for automatic keying; `idempotency_lock(key, ttl)` for manual control with `lock.set_result(value)` — result committed automatically on context exit, lock released automatically on exception.
 - **Two-tier timeouts**: soft (cleanup hook) + hard (asyncio cancellation), enforced on async tasks.
 - **Checkpointing**: `ctx.set_partial(state)` in the soft-timeout hook saves progress to Redis; the next resurrection resumes from that state instead of starting over.
 - **Graceful shutdown**: SIGTERM drain phase, handoff to Phoenix for tasks that won't finish in time.
@@ -274,6 +275,14 @@ Full feature reference: [docs/](https://getrelier.github.io/relier/).
 | [Architecture](https://getrelier.github.io/relier/architecture/) | Internals: async bridge, Redis keys, Lua scripts |
 | [Metrics Reference](https://getrelier.github.io/relier/metrics/) | OTel metric names and labels for dashboards |
 | [Chaos Guide](https://getrelier.github.io/relier/chaos-guide/) | How to verify the guarantees yourself |
+
+---
+
+## Recent fixes (v0.1.1)
+
+- **`idempotency_lock` auto-commit**: `set_result(value)` stages the result synchronously; `__aexit__` commits it. Forgetting the call no longer silently breaks idempotency — a `None` sentinel is committed and future duplicates are still blocked.
+- **`RedisConnectionError` on dispatch**: `apush`/`push` now raises `RedisConnectionError` with the configured Redis URL and a `docker run` command when Redis is unreachable, instead of a 60-line Celery traceback.
+- **`rl chaos worker-kill` result reporting**: prints "Worker terminated." only when a container was actually killed; prints a clear "no containers found" warning otherwise.
 
 ---
 

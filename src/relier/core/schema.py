@@ -74,6 +74,22 @@ class SchemaRegistry:
         Migration handlers transform older payload formats into the next
         compatible schema revision during task replay or execution recovery.
 
+        The ``from_version`` must be strictly less than ``CURRENT_VERSION``.
+        If it is equal, the migration loop will never reach it and the handler
+        will be silently skipped. Bump ``SchemaRegistry.CURRENT_VERSION`` first:
+
+        .. code-block:: python
+
+            # 1. Bump the global envelope version so new payloads are wrapped
+            #    at the new version and old payloads enter the migration loop.
+            SchemaRegistry.CURRENT_VERSION = 2
+
+            # 2. Register the migration that upgrades v1 → v2 payloads.
+            @SchemaRegistry.register_migration("my_app.my_task", from_version=1)
+            def migrate_v1_to_v2(args, kwargs):
+                kwargs.setdefault("new_required_arg", "default_value")
+                return args, kwargs
+
         Example::
 
             @SchemaRegistry.register_migration("my_task", from_version=1)
@@ -84,12 +100,65 @@ class SchemaRegistry:
 
         def decorator(func: Callable[[tuple, dict], tuple[tuple, dict]]) -> Callable:
             """Register the migration callable in the global schema registry."""
+            if from_version >= cls.CURRENT_VERSION:
+                logger.warning(
+                    "Schema migration registered but will never run: "
+                    "from_version=%d >= CURRENT_VERSION=%d for task '%s'. "
+                    "Bump SchemaRegistry.CURRENT_VERSION to %d to activate this migration.",
+                    from_version,
+                    cls.CURRENT_VERSION,
+                    task_name,
+                    from_version + 1,
+                )
             if task_name not in cls._migrations:
                 cls._migrations[task_name] = {}
             cls._migrations[task_name][from_version] = func
             return func
 
         return decorator
+
+    @classmethod
+    def validate(cls) -> None:
+        """
+        Validate all registered migrations against the current schema version.
+
+        Called once at worker startup (after all application modules have been
+        imported and ``CURRENT_VERSION`` is in its final state) to surface any
+        migration that was registered without bumping ``CURRENT_VERSION`` first.
+
+        Logs ``CRITICAL`` for each misconfigured migration rather than raising,
+        so the worker starts and the problem is loudly visible in logs and
+        alerting rather than causing a hard boot failure.
+
+        Call this from your worker startup hook after all task modules are
+        loaded::
+
+            # app.py
+            from relier.core.schema import SchemaRegistry
+
+            @worker_process_init.connect
+            def init_worker_process(**kwargs):
+                ...
+                SchemaRegistry.validate()
+        """
+        for task_name, migrations in cls._migrations.items():
+            for from_version in migrations:
+                if from_version >= cls.CURRENT_VERSION:
+                    logger.critical(
+                        "Misconfigured migration will never run: task '%s' has "
+                        "from_version=%d but CURRENT_VERSION=%d. "
+                        "Bump SchemaRegistry.CURRENT_VERSION to %d before this "
+                        "worker starts processing tasks.",
+                        task_name,
+                        from_version,
+                        cls.CURRENT_VERSION,
+                        from_version + 1,
+                        extra={
+                            "task_name": task_name,
+                            "from_version": from_version,
+                            "current_version": cls.CURRENT_VERSION,
+                        },
+                    )
 
     @classmethod
     def _generate_checksum(cls, payload: dict[str, Any]) -> str:
@@ -166,8 +235,10 @@ class SchemaRegistry:
             raise PayloadIntegrityError(f"Payload checksum mismatch for task {task_id}")
 
         # Restore positional arguments back to tuple form after JSON decoding.
+        # kwargs is copied so callers can mutate it (e.g. injecting ctx) without
+        # corrupting the envelope object that phoenix_payload holds a reference to.
         args = tuple(payload.get("args", []))
-        kwargs = payload.get("kwargs", {})
+        kwargs = dict(payload.get("kwargs", {}))
 
         # Apply incremental migrations until the payload reaches the current
         # runtime schema version.
@@ -197,8 +268,20 @@ class SchemaRegistry:
                     raise  # Propagate the failure so the task can be quarantined safely.
             else:
                 logger.warning(
-                    "No schema migration registered; using payload without transformation.",
-                    extra={"task_name": task_name, "version": version},
+                    "No schema migration registered for task '%s' at version %d "
+                    "(CURRENT_VERSION=%d); payload passed through without transformation. "
+                    "If this task's signature changed, register a migration with "
+                    "@SchemaRegistry.register_migration('%s', from_version=%d).",
+                    task_name,
+                    version,
+                    cls.CURRENT_VERSION,
+                    task_name,
+                    version,
+                    extra={
+                        "task_name": task_name,
+                        "from_version": version,
+                        "current_version": cls.CURRENT_VERSION,
+                    },
                 )
             version += 1
 

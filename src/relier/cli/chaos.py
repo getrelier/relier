@@ -119,10 +119,18 @@ async def worker_kill(
         # Give the broker a beat to hand the task to a worker before we kill it.
         await asyncio.sleep(1.0)
 
-    await chaos_engine.run("worker-kill", worker_id=worker_id)
-    console.print("[bold red]CHAOS[/bold red] Worker terminated.")
-    if watch:
-        await _stream_resurrection_events(watch_duration)
+    killed = await chaos_engine.run("worker-kill", worker_id=worker_id)
+    if killed:
+        console.print("[bold red]CHAOS[/bold red] Worker terminated.")
+        if watch:
+            await _stream_resurrection_events(watch_duration)
+    else:
+        console.print(
+            "[bold yellow]CHAOS[/bold yellow] No worker container was killed. "
+            "Run the stack with [bold]make dev[/bold] for the kill step to work. "
+            "The seeded task (if any) was discarded by the worker — "
+            "add [bold]--include=relier.chaos.tasks[/bold] to your worker command."
+        )
 
 
 @app.command(name="network-partition")

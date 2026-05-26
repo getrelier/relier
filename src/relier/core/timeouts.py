@@ -48,6 +48,7 @@ class TimeoutEnforcer:
         hard: float | None,
         on_soft: Callable | None,
         task_id: str,
+        ctx: TaskContext | None = None,
     ) -> Any:
         """
         Execute a coroutine under coordinated soft and hard timeout boundaries.
@@ -74,13 +75,21 @@ class TimeoutEnforcer:
                 Optional async recovery hook invoked when the soft timeout fires.
             task_id:
                 Unique execution identifier for observability and recovery.
+            ctx:
+                The task's live ``TaskContext``. When provided, the soft-timeout
+                hook receives this instance so it shares ``metadata`` with the
+                running task body. If omitted a minimal context is created for
+                backward-compatibility.
         """
-        context = TaskContext(
-            task_id=task_id,
-            task_name=getattr(func, "__name__", "unknown"),
-            args=args,
-            kwargs=kwargs,
-        )
+        # Use the caller's TaskContext so the soft hook shares metadata with the
+        # task body. Fall back to creating a minimal one if none was provided.
+        if ctx is None:
+            ctx = TaskContext(
+                task_id=task_id,
+                task_name=getattr(func, "__name__", "unknown"),
+                args=args,
+                kwargs=kwargs,
+            )
 
         # Spawn the primary workload coroutine independently from timeout watchers.
         task_coro = asyncio.create_task(func(*args, **kwargs))
@@ -95,9 +104,7 @@ class TimeoutEnforcer:
                     "Soft execution timeout exceeded.",
                     extra={"task_id": task_id, "soft_limit": soft},
                 )
-                timeouts_total.add(
-                    1, {"type": "soft", "rl.task.name": context.task_name}
-                )
+                timeouts_total.add(1, {"type": "soft", "rl.task.name": ctx.task_name})
                 # Record soft timeout as a span event on the active task span.
                 # asyncio.create_task propagates contextvars so the active span
                 # here is rl.task.execute from the parent coroutine.
@@ -107,7 +114,7 @@ class TimeoutEnforcer:
                         "rl.timeout.soft",
                         {
                             "rl.task.id": task_id,
-                            "rl.task.name": context.task_name,
+                            "rl.task.name": ctx.task_name,
                             "rl.timeout.soft_limit": soft or 0,
                         },
                     )
@@ -115,7 +122,7 @@ class TimeoutEnforcer:
                 # forced cancellation occurs.
                 if on_soft:
                     try:
-                        await on_soft(context)
+                        await on_soft(ctx)
                     except Exception as exc:
                         logger.error(
                             "Soft-timeout recovery hook raised an exception.",

@@ -33,6 +33,7 @@ from relier.tasks.decorator import rl_task
     soft_timeout=None,
     hard_timeout=None,
     on_soft_timeout=None,
+    name=None,           # optional stable override — see below
 )
 async def my_task(arg1: str, arg2: int = 0) -> dict:
     ...
@@ -134,6 +135,18 @@ asyncio cancellation. The task is quarantined to the DLQ with
 If only `hard_timeout` is set (no `soft_timeout`), there is no cleanup window,
 the task is cancelled immediately when it expires.
 
+!!! warning "Always set `hard_timeout` — the default is not \"no timeout\""
+    When `hard_timeout=None`, Relier's async bridge applies a **300-second
+    fallback** timeout on the thread-to-loop handoff. After 300 s the bridge
+    raises `TimeoutError` and Celery marks the task failed, but the underlying
+    coroutine is only requested to cancel, it will stop at its next `await`
+    checkpoint, not immediately.
+
+    Always set `hard_timeout` to match your task's expected worst-case
+    duration plus a safety margin. This replaces the bridge fallback with
+    asyncio's own cancellation machinery, which fires cleanly inside the
+    event loop.
+
 !!! warning "Timeouts only apply to async tasks"
     The two-tier timeout machinery uses asyncio cancellation. Decorating a
     plain `def` function with `soft_timeout=` or `hard_timeout=` raises
@@ -145,15 +158,19 @@ the task is cancelled immediately when it expires.
 #### `on_soft_timeout`
 **Type:** `Callable[[TaskContext], Awaitable[None]] | None` **Default:** `None`
 
-An async function called when the soft timeout fires. Receives a
-[`TaskContext`](#taskcontext) with the current task state. Has
-`hard_timeout - soft_timeout` seconds to complete before the hard timeout
-fires.
+An async function called when the soft timeout fires. Receives the **same
+[`TaskContext`](#taskcontext) instance** the task body is using, so any
+`ctx.metadata` updates made by the task body before the soft threshold fires
+are visible in the hook. Has `hard_timeout - soft_timeout` seconds to complete
+before the hard timeout fires.
 
 ```python
 async def checkpoint_progress(ctx: TaskContext) -> None:
-    # Save partial work so the next incarnation can resume.
-    await ctx.set_partial({"items_processed": 750, "last_cursor": "item_750"})
+    # ctx.metadata is live — reflects what the task body wrote before the
+    # soft timeout fired.
+    last = ctx.metadata.get("last_cursor")
+    if last is not None:
+        await ctx.set_partial({"last_cursor": last})
     # Release any external locks.
     await release_lock(ctx.args[0])
 
@@ -164,6 +181,43 @@ async def process_large_batch(batch_id: str) -> dict:
 
 The hook runs on the same event loop as the task, so it must be `async def`
 and non-blocking.
+
+---
+
+#### `name`
+**Type:** `str | None` **Default:** `None`
+
+An explicit, stable task name that overrides the auto-derived
+`"{module}.{function_name}"` default.
+
+When `name` is not set, the task is registered as `myapp.tasks.process_order`
+(the dotted import path). This works fine until you rename the function or move
+it to a different module at which point the task name changes silently,
+breaking:
+
+- `SchemaRegistry.register_migration("old.name", ...)` registrations
+- Phoenix heartbeat keys for in-flight tasks
+- Any external reference to the task by name (DLQ entries, monitoring dashboards)
+
+Set `name=` to a stable identifier that won't change with refactoring:
+
+```python
+@rl_task(name="myapp.process_order", queue="default")
+async def process_order(order_id: str, region: str = "global") -> dict:
+    ...
+```
+
+The `name` value must also be used in `register_migration`:
+
+```python
+@SchemaRegistry.register_migration("myapp.process_order", from_version=1)
+def migrate_v1_to_v2(args, kwargs):
+    kwargs.setdefault("region", "global")
+    return args, kwargs
+```
+
+!!! tip "Convention"
+    Use `"<app_name>.<task_function_name>"` — it's stable, human-readable, and unique within a project. Avoid module paths (`myapp.tasks.payments.process_order`) since those encode your directory structure and force renames when you reorganise.
 
 ---
 
@@ -209,6 +263,29 @@ What `apush` does, in order:
 
 It does **not** wait for the task to finish, fire-and-forget, like Celery's
 own `.delay()`.
+
+!!! warning "Calling `apush` without `await` silently does nothing"
+    `apush` returns a coroutine. If you call it without `await`, the coroutine
+    is created but never executed — **no admission check runs, no envelope is
+    built, and no task reaches the broker.** The task is silently dropped.
+
+    Python will eventually emit `RuntimeWarning: coroutine 'apush' was never awaited`
+    when the garbage collector cleans up, but by then the dispatch window has passed.
+
+    ```python
+    # Wrong — task is never dispatched
+    send_invoice.apush(invoice_id)
+
+    # Correct
+    await send_invoice.apush(invoice_id)
+    ```
+
+    If you are in a sync context (script, Django view, Flask route), use `push`
+    instead — it handles the event loop bridging for you:
+
+    ```python
+    send_invoice.push(invoice_id)  # sync, no await needed
+    ```
 
 #### `task.push(*args, **kwargs)` → `AsyncResult`
 
@@ -296,21 +373,58 @@ that a previous incarnation wrote.
 Two ways. Pick whichever fits the call site:
 
 ```python
-# 1. Declare `ctx` as a kwarg, Relier injects it automatically.
-@rl_task()
-async def my_task(item_id: str, ctx: TaskContext) -> dict:
-    print(ctx.task_id, ctx.worker_id)
+# 1. Inject via kwarg — Relier detects the `ctx` parameter and fills it in.
+from relier.tasks.context import TaskContext
 
-# 2. Read it from a contextvar proxy.
+@rl_task()
+async def my_task(item_id: str, ctx: TaskContext = None) -> dict:
+    resume_at = (ctx.partial_result or {}).get("cursor", 0)
+    ctx.metadata["last_id"] = item_id
+    return {"id": item_id}
+
+# 2. Read from the contextvar proxy — no parameter needed.
 from relier.tasks.context import task_context
 
 @rl_task()
 async def my_task(item_id: str) -> dict:
-    print(task_context.task_id, task_context.worker_id)
+    resume_at = (task_context.partial_result or {}).get("cursor", 0)
+    task_context.metadata["last_id"] = item_id
+    return {"id": item_id}
 ```
 
-The contextvar proxy raises `RuntimeError` if accessed outside a running task,
-which is what you want, it makes accidental reads fail loudly in tests.
+#### When to use the proxy (`task_context`)
+
+The proxy is most useful when you need to reach the context from a **helper function** that the task calls, without threading `ctx` through every intermediate signature:
+
+```python
+from relier.tasks.context import task_context
+
+async def save_progress(cursor: str) -> None:
+    """Called from deep inside the task — no ctx parameter needed."""
+    task_context.metadata["cursor"] = cursor
+    await task_context.set_partial({"cursor": cursor})
+
+async def process_page(items: list) -> None:
+    for item in items:
+        await handle(item)
+    await save_progress(items[-1]["id"])
+
+@rl_task(soft_timeout=55, hard_timeout=60, on_soft_timeout=checkpoint_on_timeout)
+async def process_feed(feed_id: str) -> dict:
+    async for page in fetch_pages(feed_id):
+        await process_page(page)
+    return {"status": "done"}
+```
+
+Without the proxy, `save_progress` and `process_page` would both need `ctx` as a parameter even though they don't logically own it. The proxy keeps helper functions clean.
+
+The proxy is bound per task execution via Python's `contextvars` — each concurrent task has its own isolated view. Reads in one task never bleed into another.
+
+The proxy raises `LookupError` if accessed outside a running `@rl_task` function, which catches accidental reads in tests or scripts early.
+
+#### When to use injection (`ctx: TaskContext = None`)
+
+Prefer injection when the function **is** the task and the parameter makes the interface explicit — it's immediately visible in the signature that the function depends on the context. Both approaches give you the same object; it's a readability choice.
 
 ### Fields
 
@@ -499,6 +613,24 @@ A context manager for **manual** idempotency control. Use this when you need a
 custom key or conditional logic that the auto-keyed `idempotent=True` flag
 can't express.
 
+!!! warning "Async only — sync tasks use `idempotent=True`"
+    `idempotency_lock` is an async context manager and requires `async with`.
+    Using it with plain `with` will raise:
+
+    ```
+    AttributeError: __enter__
+    ```
+
+    If you have a **sync** task that needs idempotency, use the decorator flag instead, it works for both sync and async task functions:
+
+    ```python
+    @rl_task(queue="default", idempotent=True, idempotency_ttl=86400)
+    def my_sync_task(event_id: str) -> dict:
+        ...
+    ```
+
+    `idempotency_lock` is only for cases where you need a **custom key** that the auto-keyed `idempotent=True` cannot derive (e.g. a webhook `event_id` that is more stable than the full argument hash). Those cases are inherently async.
+
 ```python
 from relier.core.idempotency import idempotency_lock
 
@@ -509,7 +641,7 @@ async def handle_webhook(event_id: str, event_type: str, payload: dict) -> dict:
         if lock.already_executed:
             return lock.cached_result
         result = await process_event(event_type, payload)
-        await lock.record_result(result)
+        lock.set_result(result)   # sync — committed automatically on exit
         return result
 ```
 
@@ -520,13 +652,216 @@ async def handle_webhook(event_id: str, event_type: str, payload: dict) -> dict:
 | `key` | `str` | required | Idempotency key. Must be unique per logical operation. |
 | `ttl` | `int` | required | Cache TTL in seconds. |
 
+### Execution contract
+
+`idempotency_lock` is a **3-step protocol**, not just a duplicate check. Every step is required:
+
+```python
+async with idempotency_lock(key=f"webhook:{event_id}", ttl=86400) as lock:
+    # Step 1 — check: was this already done?
+    if lock.already_executed:
+        return lock.cached_result
+
+    # Step 2 — execute: do the work
+    result = await process_event(payload)
+
+    # Step 3 — stage the result (sync, no await)
+    lock.set_result(result)
+    return result
+    # Step 3 is committed automatically when the context exits cleanly.
+```
+
+**What happens on each exit path:**
+
+| Exit | `set_result()` called | Outcome |
+|---|---|---|
+| Clean (return) | Yes | Commits `value` → future duplicates get `cached_result=value` |
+| Clean (return) | No | Commits `None` sentinel + warning → future duplicates blocked, `cached_result=None` |
+| Exception | Either | Releases lock → task can retry |
+
+The key guarantee: **even if you forget `set_result()`, the task will not run again** on the next duplicate call. The context manager always commits on clean exit. The only case where the task can retry is an exception, which is intentional.
+
+For fire-and-forget tasks with no meaningful return value:
+
+```python
+lock.set_result(None)   # explicit — suppresses the "no staged result" warning
+```
+
+### Releasing a committed lock
+
+Once a clean exit commits a result (or a `None` sentinel), the key is permanent until its TTL expires. Future duplicate calls will always get `already_executed=True`.
+
+**If you need to allow the task to run again** — for example, you caught a bug after a `None` sentinel was committed and want to force a fresh execution — delete the Redis key directly:
+
+```bash
+# Replace <your-key> with the value you passed to key=
+redis-cli DEL rl:idem:<your-key>
+```
+
+The `rl:idem:` prefix is Relier's internal namespace for idempotency keys. After deletion, the next call will see no existing entry and claim a fresh lock.
+
+!!! warning
+    Only delete the key after verifying that the original operation did not partially complete. Deleting the key on a task that already charged a payment, sent an email, or wrote to a database will not undo those side effects — it only allows the task to attempt them again.
+
 ### Lock object
 
 | Attribute / Method | Type | Description |
 |---|---|---|
-| `lock.already_executed` | `bool` | `True` if this key has a cached result |
-| `lock.cached_result` | `Any` | Deserialised cached result (only valid if `already_executed`) |
-| `await lock.record_result(result)` | — | Store the result in the cache |
+| `lock.already_executed` | `bool` | `True` if a cached result exists for this key |
+| `lock.cached_result` | `Any` | Deserialised cached result (only valid when `already_executed` is `True`) |
+| `lock.set_result(value)` | — | Stage the result to be committed on clean context exit. Sync — no `await`. Call with `None` for fire-and-forget tasks. |
+
+### Choosing a key
+
+The key must be **stable across retries and re-deliveries** — it is the field your system will use to recognise "this is the same logical operation I already ran."
+
+**Use stable, externally-assigned identifiers:**
+
+```python
+# Good — event_id is assigned by the sender and never changes across retries
+async with idempotency_lock(key=f"webhook:{event_id}", ttl=86400) as lock: ...
+
+# Good — payment_id is assigned by Stripe, stable across retries
+async with idempotency_lock(key=f"charge:{payment_id}", ttl=3600) as lock: ...
+
+# Good — compound key when the same resource can have multiple distinct operations
+async with idempotency_lock(key=f"order:{order_id}:refund", ttl=86400) as lock: ...
+```
+
+**Avoid fields that change between retries:**
+
+```python
+# Bad — timestamp is different on every retry
+async with idempotency_lock(key=f"event:{received_at}", ttl=86400) as lock: ...
+
+# Bad — full payload hash changes if any field in the payload differs between deliveries
+async with idempotency_lock(key=hashlib.md5(str(payload).encode()).hexdigest(), ...) as lock: ...
+```
+
+**Always prefix with an operation name** to avoid collisions between different task types that happen to share the same ID space:
+
+```python
+# Risky — a payment and a webhook could share the same UUID
+async with idempotency_lock(key=event_id, ttl=86400) as lock: ...
+
+# Safe — namespaced
+async with idempotency_lock(key=f"webhook.payment_received:{event_id}", ttl=86400) as lock: ...
+```
+
+**When to use `idempotent=True` instead:**
+If all your task arguments are stable across retries (no timestamps, no random IDs, no mutable payload fields), `@rl_task(idempotent=True)` is simpler — it derives the key automatically from a hash of the task name and arguments. Use `idempotency_lock` only when you need to choose which specific field is the stable identifier.
+
+---
+
+## `SchemaRegistry`
+
+Registers payload migrations so workers running new code can safely process
+payloads enqueued by older versions. Primarily used alongside `@rl_task(name=...)`.
+
+```python
+from relier.core.schema import SchemaRegistry
+```
+
+### Migration workflow
+
+When you make a **breaking change** to a task's argument signature (renaming a
+required arg, adding a required arg, removing one), you need to tell Relier how
+to upgrade old payloads that are already in the queue.
+
+The workflow is always two steps in order:
+
+**Step 1 — Bump `CURRENT_VERSION`** so new payloads are tagged at the new version
+and old payloads enter the migration loop when picked up:
+
+```python
+SchemaRegistry.CURRENT_VERSION = 2   # was 1
+```
+
+**Step 2 — Register the migration** that transforms `v1 → v2` payloads:
+
+```python
+@SchemaRegistry.register_migration("myapp.process_order", from_version=1)
+def migrate_v1_to_v2(args, kwargs):
+    # Old signature: process_order(order_id)
+    # New signature: process_order(order_id, region="global")
+    kwargs.setdefault("region", "global")
+    return args, kwargs
+```
+
+!!! warning "Step order matters — bump `CURRENT_VERSION` first"
+    If you register a migration without bumping `CURRENT_VERSION`, the migration
+    loop runs as `while 1 < 1:` — it never fires. Relier will log a warning at
+    registration time:
+
+    ```
+    Schema migration registered but will never run: from_version=1 >= CURRENT_VERSION=1
+    for task 'myapp.process_order'. Bump SchemaRegistry.CURRENT_VERSION to 2 to activate.
+    ```
+
+    If you see this warning, set `SchemaRegistry.CURRENT_VERSION = <from_version + 1>`
+    before the `@register_migration` decorator.
+
+### `SchemaRegistry.register_migration(task_name, from_version)`
+
+Registers a migration callable for a specific task and source version.
+
+| Argument | Type | Description |
+|----------|------|-------------|
+| `task_name` | `str` | The task's stable name — must match `@rl_task(name=...)`. |
+| `from_version` | `int` | The envelope version this migration upgrades from. |
+
+The decorated function receives `(args: tuple, kwargs: dict)` and must return
+`(args, kwargs)` with the payload transformed for the new signature.
+
+```python
+@SchemaRegistry.register_migration("myapp.process_order", from_version=1)
+def migrate_v1_to_v2(args, kwargs):
+    kwargs.setdefault("region", "global")
+    return args, kwargs
+```
+
+Migrations are applied sequentially. If `CURRENT_VERSION` is 3 and a payload
+is at version 1, the chain runs: `v1→v2` then `v2→v3`. Register one handler
+per version step.
+
+### `SchemaRegistry.validate()`
+
+Call this once at worker startup, after all application modules are imported
+and `CURRENT_VERSION` is in its final state. Relier calls it automatically
+inside `init_worker_process()`, so you only need to call it explicitly if you
+have a custom worker bootstrap that doesn't use `relier.tasks.app`.
+
+```python
+# Only needed if you have a custom worker setup.
+from relier.core.schema import SchemaRegistry
+SchemaRegistry.validate()
+```
+
+For each migration where `from_version >= CURRENT_VERSION`, it logs `CRITICAL`
+with the task name and the exact version to bump to:
+
+```
+CRITICAL  relier.core.schema — Misconfigured migration will never run:
+          task 'myapp.process_order' has from_version=1 but CURRENT_VERSION=1.
+          Bump SchemaRegistry.CURRENT_VERSION to 2 before this worker
+          starts processing tasks.
+```
+
+The worker is not prevented from starting — `CRITICAL` is chosen so the
+problem is immediately visible in logs and will page on-call in any standard
+log alerting setup.
+
+### Structured logs emitted
+
+| Event | Level | When |
+|-------|-------|------|
+| `Applying task payload migration.` | `INFO` | Migration ran and payload was transformed |
+| `Task payload migration failed.` | `ERROR` | Migration function raised an exception |
+| `No schema migration registered for task ...` | `WARNING` | Version loop step has no handler (task may not need one) |
+| `Schema migration registered but will never run ...` | `WARNING` | `from_version >= CURRENT_VERSION` at registration time |
+| `Misconfigured migration will never run ...` | `CRITICAL` | `validate()` found an unreachable migration at worker startup |
+
+All log lines include `task_name`, `from_version`, and `to_version` (or `current_version`) in the structured `extra` dict.
 
 ---
 

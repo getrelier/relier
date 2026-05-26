@@ -300,6 +300,18 @@ class TestIdempotencyIntegration:
 
 
 class TestSchemaIntegration:
+    @pytest.fixture(autouse=True)
+    def _reset_registry(self):
+        from relier.core.schema import SchemaRegistry
+
+        original_version = SchemaRegistry.CURRENT_VERSION
+        original_migrations = dict(SchemaRegistry._migrations)
+        SchemaRegistry.CURRENT_VERSION = 1
+        SchemaRegistry._migrations = {}
+        yield
+        SchemaRegistry.CURRENT_VERSION = original_version
+        SchemaRegistry._migrations = original_migrations
+
     async def test_wrap_unwrap_roundtrip(self) -> None:
         """wrap() then unwrap_and_migrate() recovers the original args and kwargs."""
         from relier.core.schema import SchemaRegistry

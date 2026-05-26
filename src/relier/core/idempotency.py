@@ -31,21 +31,29 @@ Decorator-level (automatic)::
     @rl_task(idempotent=True, idempotency_ttl=3600)
     async def send_invoice(invoice_id: str): ...
 
-Manual control::
+Manual control (async tasks only)::
 
-    async with idempotency_lock(key=event_id, ttl=86400) as result:
-        if result.already_executed:
-            return result.cached_result
+    async with idempotency_lock(key=event_id, ttl=86400) as lock:
+        if lock.already_executed:
+            return lock.cached_result
 
         output = await do_work()
-        await result.record_result(output)
+        lock.set_result(output)   # stage result; committed on context exit
         return output
+
+    ``idempotency_lock`` requires ``async with``. Sync tasks should use
+    ``@rl_task(idempotent=True)`` instead, which handles both sync and
+    async task functions via the internal async orchestration layer.
+
+    ``lock.set_result(value)`` is optional but strongly recommended. If
+    omitted, the context manager commits a ``None`` sentinel on clean exit
+    so future duplicates are still blocked — but ``lock.cached_result``
+    will be ``None`` for those callers. On exception exit the lock is
+    always released so the task can retry.
 """
 
 import json
 import logging
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -62,6 +70,10 @@ logger = logging.getLogger(__name__)
 # so a prefix check unambiguously distinguishes an active execution from a
 # cached result, unlike a substring match, which a result value could spoof.
 _IN_FLIGHT_SENTINEL_PREFIX = "rl:inflight:"
+
+# Sentinel used to distinguish "set_result was never called" from
+# "set_result was called with None".
+_UNSET: object = object()
 
 
 # ===========================================================================
@@ -87,6 +99,22 @@ class IdempotencyResult:
     _lock_id: str = field(default="", repr=False)
     _ttl: int = field(default=3600, repr=False)
     _recorded: bool = field(default=False, repr=False)
+    _pending_result: Any = field(default=_UNSET, repr=False)
+
+    def set_result(self, value: Any) -> None:
+        """Stage the result to be committed when the idempotency context exits.
+
+        This is the preferred way to record a result when using
+        ``idempotency_lock`` as a context manager. The actual Redis write
+        happens in ``__aexit__`` so it is guaranteed to run even if the task
+        body returns early.
+
+        If this method is never called before a clean exit, the context
+        manager commits a ``None`` sentinel and logs a warning. Future
+        duplicates will be blocked (``already_executed=True``) but
+        ``cached_result`` will be ``None``.
+        """
+        self._pending_result = value
 
     async def record_result(self, result: Any) -> None:
         """
@@ -95,6 +123,10 @@ class IdempotencyResult:
         Replaces the temporary ``IN_FLIGHT`` sentinel with the final serialized
         result so subsequent executions can short-circuit immediately without
         re-running task logic.
+
+        Used by the ``@rl_task`` decorator internally. When using
+        ``idempotency_lock`` as a context manager, prefer ``set_result()``
+        instead — the commit is then handled automatically by ``__aexit__``.
         """
         if not self._key:
             return
@@ -203,41 +235,93 @@ idempotency_manager = IdempotencyManager()
 # ===========================================================================
 
 
-@asynccontextmanager
-async def idempotency_lock(
-    key: str,
-    ttl: int | None = None,
-) -> AsyncGenerator[IdempotencyResult, None]:
+class IdempotencyLock:
+    """
+    Async context manager backing ``idempotency_lock()``.
+
+    On **clean exit** the staged result (set via ``lock.set_result()``) is
+    committed to Redis.  If ``set_result()`` was never called, a ``None``
+    sentinel is committed and a warning is logged — future duplicates are
+    still blocked but ``cached_result`` will be ``None``.
+
+    On **exception exit** the in-flight lock is released so the task can
+    be retried without being blocked by an abandoned sentinel.
+    """
+
+    def __init__(self, key: str, ttl: int | None = None) -> None:
+        settings = get_settings()
+        self._key = key
+        self._ttl = ttl if ttl is not None else settings.idempotency_default_ttl
+        self._result: IdempotencyResult | None = None
+
+    async def __aenter__(self) -> IdempotencyResult:
+        self._result = await idempotency_manager.check_or_claim(self._key, self._ttl)
+        return self._result
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> bool:
+        result = self._result
+        if result is None or result.already_executed:
+            return False
+
+        if exc_type is not None:
+            # Exception path: release the in-flight lock so retries are not
+            # blocked by an abandoned sentinel.
+            # Use self._key (raw, un-namespaced) — clear_lock applies the
+            # namespace prefix itself, same as check_or_claim does.
+            if not result._recorded:
+                await idempotency_manager.clear_lock(self._key, result._lock_id)
+            return False
+
+        # Clean exit path.
+        if result._recorded:
+            # record_result() was called directly (decorator path or old API).
+            return False
+
+        # Commit the staged value, or a None sentinel if set_result was never called.
+        if result._pending_result is _UNSET:
+            logger.warning(
+                "Execution ownership released without a staged result. "
+                "Call lock.set_result(value) before leaving the idempotency "
+                "context to cache the result for future duplicates. "
+                "Committing None as sentinel — future duplicates will be "
+                "blocked but cached_result will be None.",
+                extra={"key": result._key},
+            )
+            commit_value = None
+        else:
+            commit_value = result._pending_result
+
+        redis = await get_relier_redis()
+        await redis.set(result._key, json.dumps(commit_value), ex=self._ttl)
+        result._recorded = True
+        return False
+
+
+def idempotency_lock(key: str, ttl: int | None = None) -> IdempotencyLock:
     """
     Developer-facing async context manager for manual idempotency control.
 
     Provides structured execution ownership handling outside the automatic
     ``@rl_task`` decorator flow.
 
-    On failure, the in-flight ownership marker is automatically released so
-    future retries are not blocked indefinitely.
+    The result is committed automatically on clean exit — call
+    ``lock.set_result(value)`` to stage the value before returning.
+    On exception exit the in-flight lock is released so retries are not
+    blocked indefinitely.
+
+    Example::
+
+        async with idempotency_lock(key=f"webhook:{event_id}", ttl=86400) as lock:
+            if lock.already_executed:
+                return lock.cached_result
+
+            result = await process_event(payload)
+            lock.set_result(result)
+            return result
     """
-    settings = get_settings()
-    actual_ttl = ttl if ttl is not None else settings.idempotency_default_ttl
-
-    result = await idempotency_manager.check_or_claim(key, actual_ttl)
-
-    try:
-        yield result
-    except Exception:
-        # Release execution ownership on failure so retries are not blocked by
-        # abandoned in-flight state.
-        if not result.already_executed:
-            await idempotency_manager.clear_lock(key, result._lock_id)
-        raise
-    finally:
-        # Safety net: if execution completed but no result was recorded,
-        # clear the in-flight marker so duplicate requests are not blocked
-        # until TTL expiration.
-        if not result.already_executed and not result._recorded:
-            logger.warning(
-                "Execution ownership released without recording a final result. "
-                "Call `result.record_result(value)` before leaving the idempotency context.",
-                extra={"key": key},
-            )
-            await idempotency_manager.clear_lock(key, result._lock_id)
+    return IdempotencyLock(key=key, ttl=ttl)
