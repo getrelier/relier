@@ -181,3 +181,8 @@ await charge_customer.apush("cus_abc", 5000)
 | Pick the right pattern for retries, batches, locks | [Patterns Cookbook](patterns.md) |
 | Get unstuck when something breaks | [Troubleshooting & FAQ](troubleshooting.md) |
 | Read the deep-dive on internals | [Architecture](architecture.md) |
+
+Want to go deeper on Celery itself? The official
+[Celery documentation](https://docs.celeryq.dev/en/stable/) covers advanced
+routing, beat scheduling, canvas workflows (chains, chords, groups), and
+production deployment in detail.

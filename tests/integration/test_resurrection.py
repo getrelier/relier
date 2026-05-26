@@ -61,7 +61,7 @@ async def test_worker_kill_resurrects_task(celery_worker_manager, redis_client) 
     assert resurrected_count == 1, "Expected one task to be resurrected"
 
     # Wait for async dispatch to complete
-    await PhoenixRegistry.wait_for_resurrection(timeout=2.0)
+    await PhoenixRegistry._wait_for_resurrection(timeout=2.0)
 
     # Start Worker B AFTER resurrection completes
     await celery_worker_manager.start_worker(redis_client)
@@ -124,7 +124,7 @@ async def test_checkpoint_resume_real_flow(celery_worker_manager, redis_client) 
     assert resurrected_count == 1, "Expected one task to be resurrected"
 
     # Wait for dispatch
-    await PhoenixRegistry.wait_for_resurrection(timeout=2.0)
+    await PhoenixRegistry._wait_for_resurrection(timeout=2.0)
 
     # start new worker
     await celery_worker_manager.start_worker(redis_client)

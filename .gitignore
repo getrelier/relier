@@ -26,6 +26,7 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+
 # Environment
 .env
 .venv
@@ -60,6 +61,4 @@ worker_*.log
 
 # Docs build output
 site/
-
-# Databases
-*.sqlite3
+FIXES.md

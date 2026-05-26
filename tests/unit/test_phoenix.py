@@ -491,7 +491,7 @@ class TestPhoenixValidation:
         bg = asyncio.create_task(_short())
         PhoenixRegistry._active_resurrections["wait_test"] = bg
         try:
-            await PhoenixRegistry.wait_for_resurrection(timeout=1.0)
+            await PhoenixRegistry._wait_for_resurrection(timeout=1.0)
             assert completed.is_set()
         finally:
             PhoenixRegistry._active_resurrections.pop("wait_test", None)

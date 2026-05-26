@@ -128,8 +128,11 @@ class AdmissionController:
             # Admission control is a protective layer, not a hard dependency.
             # Preserving API availability takes priority during Redis outages.
             logger.error(
-                "Admission control error; failing open.",
-                extra={"error_type": type(exc).__name__},
+                "Admission control check failed (%s: %s) — failing open, task will proceed. "
+                "Investigate if this recurs: sustained failure means rate limiting is inactive.",
+                type(exc).__name__,
+                exc,
+                extra={"error": str(exc), "error_type": type(exc).__name__},
             )
             return True, 0
 

@@ -7,9 +7,10 @@ from celery.exceptions import SoftTimeLimitExceeded
 from relier.core.exceptions import (
     AdmissionRejectedError,
     IdempotencyInFlightError,
+    RedisConnectionError,
     SchemaMigrationError,
 )
-from relier.tasks.decorator import rl_task
+from relier.tasks.decorator import _dispatch_internal, rl_task
 
 
 class TestTasksDecorator:
@@ -416,3 +417,62 @@ class TestTasksDecorator:
                 assert loop == mock_loop
         finally:
             task_app.worker_loop = original_loop
+
+
+@pytest.mark.asyncio
+class TestDispatchInternal:
+    """Tests for _dispatch_internal error handling (Bug 1 — RedisConnectionError)."""
+
+    async def test_connection_refused_raises_redis_error(self) -> None:
+        """ConnectionRefusedError from send_task is wrapped as RedisConnectionError."""
+        task = MagicMock()
+        task.name = "my_task"
+
+        with patch("relier.tasks.app.celery_app") as mock_celery:
+            mock_celery.send_task.side_effect = ConnectionRefusedError(
+                "Connection refused"
+            )
+
+            with pytest.raises(RedisConnectionError) as exc_info:
+                await _dispatch_internal(
+                    task=task,
+                    queue="default",
+                    envelope={"schema_version": 1},
+                    task_id="abc-123",
+                )
+
+        assert "Redis" in str(exc_info.value)
+
+    async def test_retry_limit_exceeded_raises_redis_error(self) -> None:
+        """RuntimeError with 'Retry limit exceeded' is wrapped as RedisConnectionError."""
+        task = MagicMock()
+        task.name = "my_task"
+
+        with patch("relier.tasks.app.celery_app") as mock_celery:
+            mock_celery.send_task.side_effect = RuntimeError(
+                "Retry limit exceeded while trying to reconnect to the Celery result store."
+            )
+
+            with pytest.raises(RedisConnectionError):
+                await _dispatch_internal(
+                    task=task,
+                    queue="default",
+                    envelope={"schema_version": 1},
+                    task_id="abc-123",
+                )
+
+    async def test_unrelated_exception_propagates_unchanged(self) -> None:
+        """Non-connection exceptions are re-raised without wrapping."""
+        task = MagicMock()
+        task.name = "my_task"
+
+        with patch("relier.tasks.app.celery_app") as mock_celery:
+            mock_celery.send_task.side_effect = ValueError("some other celery error")
+
+            with pytest.raises(ValueError, match="some other celery error"):
+                await _dispatch_internal(
+                    task=task,
+                    queue="default",
+                    envelope={"schema_version": 1},
+                    task_id="abc-123",
+                )

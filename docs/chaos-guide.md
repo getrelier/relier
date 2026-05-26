@@ -69,6 +69,38 @@ WATCH Done. 1 task(s) observed in monitor.
 | Task is RESURRECTED but never ALIVE | No healthy workers are available to pick it up |
 | Task appears twice in your output | Heartbeat TTL is set shorter than your resurrection check interval, reduce `RELIER_RESURRECTION_CHECK_INTERVAL` |
 
+!!! warning "`rl chaos worker-kill` requires Docker"
+    The kill step uses `docker ps` and `docker kill` to find and terminate worker containers. It **only works** when the stack is running via `make dev`. On bare-metal workers, the Docker commands will find no containers and exit early without killing anything.
+
+    If you see the message _"No worker container was killed"_, the stack is not running under Docker.
+
+**Running chaos scenarios with bare-metal workers:**
+
+The `--seed` flag dispatches `relier.chaos.tasks.chaos_long_running` to the broker. This module is not imported by the default worker start command, so bare-metal workers will log:
+
+```
+Received unregistered task of type 'relier.chaos.tasks.chaos_long_running'.
+The message has been ignored and discarded.
+```
+
+To include chaos tasks on a bare-metal worker, add `--include=relier.chaos.tasks`:
+
+```bash
+celery -A relier.tasks.app worker -l info \
+  -Q high_priority,default,low_priority,re-queue \
+  --include=relier.chaos.tasks
+```
+
+Note that even with chaos tasks registered, **the kill step will still not work on bare metal** — only the scenarios that do not rely on Docker (`load-spike`, `slow-task`, `task-corrupt`) work without the Docker dev stack.
+
+| Scenario | Works on bare metal? |
+|----------|---------------------|
+| `worker-kill` | No — requires Docker |
+| `network-partition` | No — requires Docker |
+| `load-spike` | Yes |
+| `slow-task` | Yes |
+| `task-corrupt` | Yes |
+
 ---
 
 ### `rl chaos network-partition`, Isolate Redis from workers
@@ -186,7 +218,7 @@ rl dlq list
 
 ```
 ID              TASK               RESURRECTIONS  QUARANTINED_AT       LAST_ERROR
-──────────────────────────────────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────────────────────
 task_f8a2b1     (corrupted)        0/5            2026-05-20 14:22     PayloadIntegrityError
 ```
 

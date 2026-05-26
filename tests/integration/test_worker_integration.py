@@ -141,6 +141,212 @@ class TestDecoratorViaApply:
         state = await asyncio.to_thread(call)
         assert state == "FAILURE"
 
+    async def test_named_task_uses_explicit_name(self, redis_client) -> None:
+        """@rl_task(name=...) registers the task under the explicit name, not module.func."""
+        from tests.integration.tasks import named_echo_task
+
+        assert named_echo_task.name == "tests.named_echo_task"
+
+    async def test_named_task_executes_end_to_end(self, redis_client) -> None:
+        """Task registered with explicit name executes and returns the correct result."""
+        from tests.integration.tasks import named_echo_task
+
+        def call():
+            return named_echo_task.apply(kwargs={"value": "hello"}).result
+
+        result = await asyncio.to_thread(call)
+        assert result == "echo:hello"
+
+
+# ===========================================================================
+# SchemaRegistry.validate() — startup gate
+# ===========================================================================
+
+
+class TestSchemaRegistryValidate:
+    """validate() surfaces misconfigured migrations at worker startup."""
+
+    @pytest.fixture(autouse=True)
+    def _reset_registry(self):
+        from relier.core.schema import SchemaRegistry
+
+        original_version = SchemaRegistry.CURRENT_VERSION
+        original_migrations = dict(SchemaRegistry._migrations)
+        SchemaRegistry.CURRENT_VERSION = 1
+        SchemaRegistry._migrations = {}
+        yield
+        SchemaRegistry.CURRENT_VERSION = original_version
+        SchemaRegistry._migrations = original_migrations
+
+    async def test_validate_silent_for_all_integration_tasks(self, caplog) -> None:
+        """
+        All tasks registered in the integration test suite (tasks.py) use
+        explicit names and no migrations — validate() must be a no-op.
+        This catches any accidental misconfiguration introduced in tasks.py.
+        """
+        import logging
+
+        import tests.integration.tasks  # noqa: F401 — ensure tasks are registered
+        from relier.core.schema import SchemaRegistry
+
+        with caplog.at_level(logging.CRITICAL, logger="relier.core.schema"):
+            SchemaRegistry.validate()
+
+        assert not any(r.levelno == logging.CRITICAL for r in caplog.records)
+
+    async def test_validate_catches_misconfigured_migration(self, caplog) -> None:
+        """
+        validate() logs CRITICAL when a migration is registered without
+        CURRENT_VERSION being bumped — exercises the full detection path
+        against real module state.
+        """
+        import logging
+
+        from relier.core.schema import SchemaRegistry
+
+        # Simulate the exact mistake: register without bumping CURRENT_VERSION.
+        @SchemaRegistry.register_migration("integ.bad_migration_task", from_version=1)
+        def bad_migration(args, kwargs):
+            return args, kwargs
+
+        with caplog.at_level(logging.CRITICAL, logger="relier.core.schema"):
+            SchemaRegistry.validate()
+
+        assert any(
+            "integ.bad_migration_task" in r.message
+            for r in caplog.records
+            if r.levelno == logging.CRITICAL
+        )
+
+    async def test_validate_clean_after_version_bump(self, caplog) -> None:
+        """
+        After bumping CURRENT_VERSION, the same migration passes validation.
+        """
+        import logging
+
+        from relier.core.schema import SchemaRegistry
+
+        SchemaRegistry.CURRENT_VERSION = 2
+
+        @SchemaRegistry.register_migration("integ.good_migration_task", from_version=1)
+        def good_migration(args, kwargs):
+            return args, kwargs
+
+        with caplog.at_level(logging.CRITICAL, logger="relier.core.schema"):
+            SchemaRegistry.validate()
+
+        assert not any(
+            "integ.good_migration_task" in r.message
+            for r in caplog.records
+            if r.levelno == logging.CRITICAL
+        )
+
+
+# ===========================================================================
+# Schema migration — end-to-end with real envelope construction
+# ===========================================================================
+
+
+class TestSchemaMigrationE2E:
+    """Migration runs on the worker side when a v1 envelope reaches a v2 task."""
+
+    @pytest.fixture(autouse=True)
+    def _reset_registry(self):
+        from relier.core.schema import SchemaRegistry
+
+        original_version = SchemaRegistry.CURRENT_VERSION
+        original_migrations = dict(SchemaRegistry._migrations)
+        SchemaRegistry.CURRENT_VERSION = 1
+        SchemaRegistry._migrations = {}
+        yield
+        SchemaRegistry.CURRENT_VERSION = original_version
+        SchemaRegistry._migrations = original_migrations
+
+    async def test_v1_payload_migrated_to_v2_on_worker_pickup(
+        self, redis_client
+    ) -> None:
+        """
+        A payload enqueued without `region` (v1 signature) is upgraded by the
+        migration handler before the task function runs. The task completes
+        successfully and returns the migrated `region` value.
+        """
+        from relier.core.schema import SchemaRegistry
+        from tests.integration.tasks import migration_target_task
+
+        # Simulate a rolling deploy: bump CURRENT_VERSION and register the migration
+        # that upgrades old payloads (missing `region`) to the new signature.
+        SchemaRegistry.CURRENT_VERSION = 2
+
+        @SchemaRegistry.register_migration(
+            "tests.migration_target_task", from_version=1
+        )
+        def add_region(args, kwargs):
+            kwargs.setdefault("region", "global")
+            return args, kwargs
+
+        task_id = uuid.uuid4().hex[:32]
+
+        # Build a v1 envelope — no `region` kwarg, schema_version=1.
+        v1_payload = {"args": [], "kwargs": {"order_id": "INV-001"}}
+        v1_envelope = {
+            "task_id": task_id,
+            "schema_version": 1,
+            "payload": v1_payload,
+            "enqueued_at": "2026-01-01T00:00:00+00:00",
+            "checksum": SchemaRegistry._generate_checksum(v1_payload),
+        }
+
+        def call():
+            return migration_target_task.apply(args=(v1_envelope,)).result
+
+        result = await asyncio.to_thread(call)
+
+        assert result["order_id"] == "INV-001"
+        assert result["region"] == "global"  # migration added the default
+
+    async def test_named_task_migration_key_survives_refactor(
+        self, redis_client
+    ) -> None:
+        """
+        Migration registered against the explicit name ('tests.migration_target_task')
+        still fires even though the Python function is named 'migration_target_task'.
+        This proves @rl_task(name=...) decouples the migration key from the import path.
+        """
+        from relier.core.schema import SchemaRegistry
+        from tests.integration.tasks import migration_target_task
+
+        assert migration_target_task.name == "tests.migration_target_task"
+
+        SchemaRegistry.CURRENT_VERSION = 2
+
+        applied = []
+
+        @SchemaRegistry.register_migration(
+            "tests.migration_target_task", from_version=1
+        )
+        def track_migration(args, kwargs):
+            applied.append(True)
+            kwargs.setdefault("region", "eu-west")
+            return args, kwargs
+
+        task_id = uuid.uuid4().hex[:32]
+        v1_payload = {"args": [], "kwargs": {"order_id": "INV-002"}}
+        v1_envelope = {
+            "task_id": task_id,
+            "schema_version": 1,
+            "payload": v1_payload,
+            "enqueued_at": "2026-01-01T00:00:00+00:00",
+            "checksum": SchemaRegistry._generate_checksum(v1_payload),
+        }
+
+        def call():
+            return migration_target_task.apply(args=(v1_envelope,)).result
+
+        result = await asyncio.to_thread(call)
+
+        assert applied, "Migration handler was never called"
+        assert result["region"] == "eu-west"
+
 
 # ===========================================================================
 # App bootstrap — presence loop, cleanup loop, bridge setup, worker init

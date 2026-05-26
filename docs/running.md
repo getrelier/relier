@@ -9,13 +9,19 @@ There is exactly one hard dependency: **a reachable Redis**, the same way
 Celery needs a broker. Relier preflight-checks Redis at startup and refuses to
 start with a clear error if it is unreachable, nothing comes up half-working.
 
+## pip install vs. cloned repo
+
+The `make` targets (`make worker`, `make dev`, `make prod`) are **only available if you've cloned the Relier repo**. They require the project's `Makefile`, virtualenv, and config files.
+
+If you installed Relier via `pip install relier` into your own project, skip the `make` targets and run the Celery worker and resurrector directly — see [Tier 1 below](#tier-1-bare-metal-no-docker).
+
 ## The three ways to run it
 
 | Tier | Redis | How | Use for |
 |------|-------|-----|---------|
-| Bare metal | You provide one | `make worker` / `make resurrector` | Local development, tests, CI |
-| Dev (Docker) | Single node, AOF+RDB | `make dev` | A full local cluster mirroring prod shape |
-| Prod (Docker) | HA: master + replicas + Sentinel | `make prod` | Production |
+| Bare metal | You provide one | `celery` + `rl` commands (or `make worker` / `make resurrector` in the cloned repo) | Local development, tests, CI |
+| Dev (Docker) | Single node, AOF+RDB | `make dev` (cloned repo only) | A full local cluster mirroring prod shape |
+| Prod (Docker) | HA: master + replicas + Sentinel | `make prod` (cloned repo only) | Production |
 
 Relier always runs the same two process types: **Celery workers** and the
 **Phoenix resurrector**. Only the surrounding infrastructure changes per tier.
@@ -28,6 +34,37 @@ Relier always runs the same two process types: **Celery workers** and the
 (`brew install redis && redis-server`, a system package, or any remote
 instance).
 
+### If you installed via pip
+
+Set the Redis URL in your shell (or in a `.env` file) and start the two processes directly. The `--include` flag tells the worker which module contains your `@rl_task` functions — without it the worker boots but ignores incoming tasks.
+
+=== "macOS / Linux"
+
+    ```sh
+    export RELIER_REDIS_URL=redis://localhost:6379/0
+
+    # terminal 1 — Celery worker (replace 'tasks' with your task module name)
+    celery -A relier.tasks.app worker -l info -Q high_priority,default,low_priority,re-queue --include=tasks
+
+    # terminal 2 — Phoenix resurrector
+    rl run-resurrector
+    ```
+
+=== "Windows (PowerShell)"
+
+    ```powershell
+    $env:RELIER_REDIS_URL = "redis://localhost:6379/0"
+
+    # terminal 1 — Celery worker (replace 'tasks' with your task module name)
+    # --pool=solo is required on Windows; prefork's named-pipe IPC crashes under spawn
+    celery -A relier.tasks.app worker -l info -Q high_priority,default,low_priority,re-queue --include=tasks --pool=solo
+
+    # terminal 2 — Phoenix resurrector
+    rl run-resurrector
+    ```
+
+### If you cloned the repo (contributing / dev)
+
 ```sh
 make setup                       # create the venv and install Relier
 export RELIER_REDIS_URL=redis://localhost:6379/0   # the default; override as needed
@@ -36,12 +73,7 @@ make worker                      # terminal 1 — a Celery worker
 make resurrector                 # terminal 2 — the Phoenix resurrector
 ```
 
-That is the whole setup. The raw commands behind the targets:
-
-```sh
-celery -A relier.tasks.app worker -l info -Q high_priority,default,low_priority,re-queue
-rl run-resurrector
-```
+The `make worker` target runs the same `celery -A relier.tasks.app worker` command without `--include` — this is intentional. In the cloned repo there are no user task modules to discover; the worker only needs to run Relier's infrastructure (heartbeats, Phoenix, shutdown). The bench suite has its own entry point (`bench.worker_app`) that imports its tasks explicitly in the module body.
 
 If Redis is not running, both processes exit immediately with:
 
@@ -66,6 +98,8 @@ make dev-down     # stop
 ```
 
 Defined in `docker-compose.yml`.
+
+The Docker dev stack also unlocks the full **chaos suite** (`rl chaos worker-kill`, `rl chaos network-partition`, etc.). Those commands use `docker kill` internally and only work when the stack is running here — bare-metal workers can run the non-Docker scenarios (`load-spike`, `slow-task`, `task-corrupt`) but not the kill-based ones. See the [Chaos Guide](chaos-guide.md).
 
 ---
 

@@ -59,3 +59,15 @@ async def checkpoint_task(steps: int, marker: str) -> str:
 async def failing_task() -> None:
     """Always raises; exercises the DLQ and failure path."""
     raise ValueError("Intentional test failure")
+
+
+@rl_task(name="tests.named_echo_task")
+async def named_echo_task(value: str) -> str:
+    """Task registered under an explicit stable name; exercises @rl_task(name=...)."""
+    return f"echo:{value}"
+
+
+@rl_task(name="tests.migration_target_task")
+async def migration_target_task(order_id: str, region: str = "global") -> dict:
+    """Task used by schema-migration e2e tests. v2 signature adds `region`."""
+    return {"order_id": order_id, "region": region}
