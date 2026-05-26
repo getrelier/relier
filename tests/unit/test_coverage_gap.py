@@ -25,7 +25,7 @@ class TestCoverageGap:
         """Hit missing lines in idempotency.py."""
         # if not self._key: return
         res = IdempotencyResult(already_executed=False)
-        await res.record_result({"foo": "bar"})
+        await res._record_result({"foo": "bar"})
         assert idempotency_manager.settings is not None
 
     async def test_schema_edge_cases(self) -> None:

@@ -242,7 +242,7 @@ class TestIdempotencyIntegration:
         key = "integ-idem-2"
         result = await idempotency_manager.check_or_claim(key, ttl=60)
         assert not result.already_executed
-        await result.record_result({"answer": 42})
+        await result._record_result({"answer": 42})
 
         result2 = await idempotency_manager.check_or_claim(key, ttl=60)
         assert result2.already_executed is True
@@ -255,7 +255,7 @@ class TestIdempotencyIntegration:
         key = "integ-lock-1"
         async with idempotency_lock(key, ttl=60) as res:
             assert not res.already_executed
-            await res.record_result("committed")
+            res.set_result("committed")
 
         async with idempotency_lock(key, ttl=60) as res2:
             assert res2.already_executed
@@ -289,7 +289,7 @@ class TestIdempotencyIntegration:
             await idempotency_manager.check_or_claim(key, ttl=60)
 
         # After recording, a third claim gets the cached result
-        await first.record_result("result")
+        await first._record_result("result")
         third = await idempotency_manager.check_or_claim(key, ttl=60)
         assert third.already_executed
 
