@@ -243,7 +243,7 @@ class PhoenixRegistry:
         await pipe.execute()
 
     @classmethod
-    async def is_active(cls, task_id: str) -> bool:
+    async def _is_active(cls, task_id: str) -> bool:
         """Return whether a live Phoenix heartbeat exists for the task."""
         redis = await get_relier_redis()
         return bool(await redis.exists(RedisKeys.heartbeat(task_id)))
@@ -872,12 +872,8 @@ class PhoenixRegistry:
         return True
 
     @classmethod
-    async def wait_for_resurrection(cls, timeout: float = 5.0) -> None:
-        """
-        Wait for all pending resurrection dispatches to complete.
-        Useful in tests to ensure tasks are actually in the queue
-        before starting new workers.
-        """
+    async def _wait_for_resurrection(cls, timeout: float = 5.0) -> None:
+        """Wait for all pending resurrection dispatches to complete. Test helper only."""
         if not cls._active_resurrections:
             return
 

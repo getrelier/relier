@@ -95,10 +95,10 @@ async def test_phoenix_is_active() -> None:
         mock_get_redis.return_value = mock_redis
 
         mock_redis.exists.return_value = True
-        assert await PhoenixRegistry.is_active("test-task") is True
+        assert await PhoenixRegistry._is_active("test-task") is True
 
         mock_redis.exists.return_value = False
-        assert await PhoenixRegistry.is_active("test-task") is False
+        assert await PhoenixRegistry._is_active("test-task") is False
 
 
 @pytest.mark.asyncio

@@ -52,10 +52,10 @@ class TestPhoenixRegistryIntegration:
         payload = {"task_name": "t", "args": [], "kwargs": {}, "queue": "default"}
 
         await PhoenixRegistry.register(task_id, "w1", payload)
-        assert await PhoenixRegistry.is_active(task_id) is True
+        assert await PhoenixRegistry._is_active(task_id) is True
 
         await PhoenixRegistry.complete(task_id)
-        assert await PhoenixRegistry.is_active(task_id) is False
+        assert await PhoenixRegistry._is_active(task_id) is False
 
     async def test_complete_removes_all_phoenix_keys(self, redis_client) -> None:
         """complete() deletes heartbeat, phoenix hash, and expiry-index entry."""
@@ -95,7 +95,7 @@ class TestPhoenixRegistryIntegration:
         """is_active() returns False for a task that was never registered."""
         from relier.core.phoenix import PhoenixRegistry
 
-        assert await PhoenixRegistry.is_active("never-registered-task") is False
+        assert await PhoenixRegistry._is_active("never-registered-task") is False
 
 
 # ===========================================================================

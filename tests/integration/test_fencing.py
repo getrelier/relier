@@ -77,7 +77,7 @@ async def test_stale_worker_commit_rejected_after_resurrection(
         redis_client, dlq, celery_app
     )
     assert resurrected == 1, "Expected one resurrection"
-    await PhoenixRegistry.wait_for_resurrection(timeout=2.0)
+    await PhoenixRegistry._wait_for_resurrection(timeout=2.0)
 
     # --- The fence token in Redis is now the NEW token (different from stale) ---
     new_token = await redis_client.get(fence_key)
@@ -129,7 +129,7 @@ async def test_fence_token_rotates_on_each_resurrection(redis_client) -> None:
         await redis_client.zadd(RedisKeys.phoenix_expiry_index(), {task_id: 0})
         dlq = DeadLetterQueue()
         await PhoenixRegistry._scan_and_resurrect(redis_client, dlq, celery_app)
-        await PhoenixRegistry.wait_for_resurrection(timeout=2.0)
+        await PhoenixRegistry._wait_for_resurrection(timeout=2.0)
         token = await redis_client.get(fence_key)
         return (token.decode() if isinstance(token, bytes) else token) or ""
 
