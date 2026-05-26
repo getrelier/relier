@@ -272,13 +272,13 @@ need to `await` each one if you only need fire-and-forget.
 
 ```python
 @rl_task()
-async def import_all_users():
+async def import_all_users() -> None:
     user_ids = await fetch_all_user_ids()
     for user_id in user_ids:
         import_user.push(user_id)        # sync convenience inside worker
 
 @rl_task(idempotent=True)
-async def import_user(user_id: str):
+async def import_user(user_id: str) -> None:
     ...
 ```
 

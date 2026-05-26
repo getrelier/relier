@@ -211,7 +211,7 @@ The `name` value must also be used in `register_migration`:
 
 ```python
 @SchemaRegistry.register_migration("myapp.process_order", from_version=1)
-def migrate_v1_to_v2(args, kwargs):
+def migrate_v1_to_v2(args: tuple, kwargs: dict) -> tuple[tuple, dict]:
     kwargs.setdefault("region", "global")
     return args, kwargs
 ```
@@ -782,7 +782,7 @@ SchemaRegistry.CURRENT_VERSION = 2   # was 1
 
 ```python
 @SchemaRegistry.register_migration("myapp.process_order", from_version=1)
-def migrate_v1_to_v2(args, kwargs):
+def migrate_v1_to_v2(args: tuple, kwargs: dict) -> tuple[tuple, dict]:
     # Old signature: process_order(order_id)
     # New signature: process_order(order_id, region="global")
     kwargs.setdefault("region", "global")
@@ -816,7 +816,7 @@ The decorated function receives `(args: tuple, kwargs: dict)` and must return
 
 ```python
 @SchemaRegistry.register_migration("myapp.process_order", from_version=1)
-def migrate_v1_to_v2(args, kwargs):
+def migrate_v1_to_v2(args: tuple, kwargs: dict) -> tuple[tuple, dict]:
     kwargs.setdefault("region", "global")
     return args, kwargs
 ```

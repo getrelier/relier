@@ -54,7 +54,7 @@ With Relier, you decorate with `@rl_task` instead, and dispatch with `.apush()`
 from relier.tasks.decorator import rl_task
 
 @rl_task()
-async def send_email(to: str, subject: str):
+async def send_email(to: str, subject: str) -> None:
     await smtp.send(to, subject, ...)
 
 # Async context (FastAPI):
@@ -157,7 +157,7 @@ charge_customer.delay("cus_abc", 5000)
     soft_timeout=8,            # warning at 8s, cleanup hook can fire
     hard_timeout=10,           # killed at 10s
 )
-async def charge_customer(customer_id: str, amount_cents: int):
+async def charge_customer(customer_id: str, amount_cents: int) -> dict:
     return await stripe.charge(customer_id, amount_cents)
 
 await charge_customer.apush("cus_abc", 5000)
