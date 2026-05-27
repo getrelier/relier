@@ -806,7 +806,7 @@ Sensitive values (passwords, secrets, URLs) are masked with `********`.
 
 Validate the current configuration and Redis setup. Checks:
 
-- Redis `maxmemory-policy noeviction` (critical — required for zero-job-loss)
+- Redis `maxmemory-policy noeviction` (critical: required for zero-job-loss)
 - Connection pool pressure (`RELIER_REDIS_MAX_CONNECTIONS` vs. worker concurrency)
 - All `RELIER_*` environment variables
 

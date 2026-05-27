@@ -15,6 +15,109 @@ intended for adopters who need a single place to read migration impact.
 
 
 
+## [0.1.3] — 2026-05-27
+
+Patch release focused on observability fixes, Redis Cluster preparation, and a
+substantial bench-suite expansion that surfaces the real per-task scaling story.
+
+### Bug fixes
+
+- **Idempotency cache hits now log at INFO instead of DEBUG.** Workers run at
+  INFO by default, so deduplication was previously invisible in standard
+  operations — operators could not confirm idempotency was working without
+  flipping log level. Promoted with a clearer message so every duplicate
+  dispatch is observable. (`src/relier/core/idempotency.py`)
+
+- **Resurrector logs now render structured `extra=` fields.** `rl
+  run-resurrector` configures `RichHandler` with `format="%(message)s"`, which
+  silently dropped every `extra={}` attribute attached to phoenix log records
+  (task_id, ghost_worker, attempt count, has_checkpoint, etc). A new
+  `_StructuredRichFormatter` appends those fields to the rendered message so
+  operators can see which task was resurrected, which worker died, and how
+  many attempts remain without flipping to DEBUG. (`src/relier/cli/main.py`)
+
+- **Cold-start grace period for "never claimed" resurrection warnings.**
+  `_monitor_resurrected_tasks` previously fired "never claimed" on the very
+  next pass after a re-queue (~2s), but a cold Celery worker takes 10–20s
+  before its first queue poll. The monitor value now encodes the re-queue
+  timestamp as `"state:ts"` and a new `resurrection_claim_grace_period`
+  setting (default 30s) gates the warning. Parse falls open on missing
+  timestamp to preserve old behaviour for stray monitor entries.
+  (`src/relier/config.py`, `src/relier/core/phoenix.py`,
+  `src/relier/cli/chaos.py`)
+
+- **Embedded resurrection scanner log demoted to DEBUG.** Every Celery worker
+  embeds a Phoenix scanner alongside the dedicated `rl run-resurrector`
+  process (distributed locks make multiple scanners safe). The INFO-level
+  "Phoenix resurrector started" log appeared on every worker boot, making
+  users think they had accidentally launched a standalone resurrector. The
+  scanner now logs at DEBUG with a comment clarifying the embedded-design.
+  The dedicated `rl run-resurrector` process still prints its own startup
+  banner. (`src/relier/core/phoenix.py`)
+
+### Reliability and Redis Cluster preparation
+
+- **Per-task and worker-scoped Redis keys now use hash tags.** Keys for one
+  task (`hb`, `phoenix`, `lease`, `fence`, `resurrections`, `lock:resurrect`)
+  wrap the task_id in `{...}` so Redis Cluster hashes only the task segment
+  and colocates every key for one task on a single shard. Worker-scoped keys
+  (`inflight`, `presence`, `m:w`) are tagged on `worker_id` for the same
+  reason. Without this, `RESURRECT_LUA` and `VALIDATE_LUA` would fail with
+  `CROSSSLOT` under Cluster because their two `KEYS` arguments would hash to
+  different slots. Singletons (`workers`, `monitoring`, `phoenix:expiry_index`,
+  `dlq`, etc.) stay untagged. (`src/relier/core/keys.py`)
+
+### Benchmark suite
+
+The bench gained four new measurements and a third comparison column, producing
+the data backing the new "Scaling ceiling" section of `docs/benchmarks.md`.
+
+- **Test 5 third column: vanilla Celery with `task_acks_late=True`.** The
+  most obvious objection to Relier — "why not just flip the flag?" — is now
+  answered in the bench. Result: flipping `task_acks_late=True` recovers
+  about half the lost tasks (96.2% vs 92.0% default) but cannot match
+  Relier's 100% because the Redis broker's `visibility_timeout` default
+  (~1 hour) gates redelivery long after most completions would have
+  happened. The third column also tracks per-task execution counts so
+  duplicates are reported when redelivery does fire.
+  (`bench/vanilla_acks_late_app.py`, `bench/bench.py`)
+
+- **Test 7 sub-test: steady-state Redis ops/sec.** Runs a fleet of solo-pool
+  workers, takes an idle-worker baseline, then measures with N tasks
+  inflight. The delta is the per-task steady-state coordination cost. The
+  finding: per-task steady-state Redis traffic is below measurement noise.
+  Long-running tasks are effectively free at the coordination level.
+  Capacity scales with task **turnover rate**, not inflight count.
+  (`bench/bench.py`, `bench/config.py`)
+
+- **Test 8: cold-start to first-task latency.** Measures wall-clock from
+  worker process start to first task completion. Three trials; reports
+  avg / p50 / p99. Matters for serverless and scale-to-zero deployments.
+
+- **Test 9: resurrection under load.** Spawns N solo-pool workers each
+  holding one inflight task, then SIGKILLs them all at once (fleet-wide OOM
+  scenario). Measures wall-clock from kill to each orphan being re-picked-up
+  by a replacement. Reports p50 / p99 / first / last.
+
+- **Grafana dashboard refresh.** Four new panels in
+  `bench/grafana/dashboards/bench-overview.json`: steady-state ops/sec
+  breakdown, resurrection-under-load task pickups, cold-start p50, and
+  cold-start p99.
+
+### Documentation
+
+- **Benchmarks page refreshed end-to-end.** All numbers regenerated from the
+  v0.1.3 bench run (2026-05-27). New "Scaling ceiling and per-task
+  coordination cost" section explains the per-task cost breakdown, the
+  workload-shape capacity table, and the three paths past single-master
+  Redis (vertical, Cluster, RabbitMQ broker).
+
+- **README scaling section added.** Honest capacity numbers — Relier
+  comfortably handles workloads up to ~1,000 tasks/sec end-to-end on
+  single-master Redis (covering 100M tasks/day at 1 s average task duration).
+
+---
+
 ## [0.1.2] — 2026-05-26
 
 Patch release: eight bug fixes, two developer-experience improvements to the

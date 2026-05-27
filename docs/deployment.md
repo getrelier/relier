@@ -61,8 +61,8 @@ redis-server`, a system package, a remote instance anything). Set
 make setup                       # create the venv and install Relier
 export RELIER_REDIS_URL=redis://localhost:6379/0
 
-make worker                      # terminal 1 — a Celery worker
-make resurrector                 # terminal 2 — the Phoenix resurrector
+make worker                      # terminal 1: a Celery worker
+make resurrector                 # terminal 2: the Phoenix resurrector
 ```
 
 The `make worker` target consumes every public Relier queue plus the internal
@@ -211,8 +211,8 @@ ships when you run `make prod`.
 ### Bring it up
 
 ```sh
-export REDIS_PASSWORD=...      # required — Redis data-node password
-export SENTINEL_PASSWORD=...   # required — Sentinel password
+export REDIS_PASSWORD=...      # required: Redis data-node password
+export SENTINEL_PASSWORD=...   # required: Sentinel password
 export GRAFANA_ADMIN_PASSWORD=... # optional, defaults to 'admin'
 
 make prod        # builds + starts detached
@@ -528,11 +528,11 @@ measured in tens of minutes, not seconds.
 
 Two settings look tempting but cost more than they save:
 
-- **`no-appendfsync-on-rewrite yes`** — skips fsyncs while a rewrite is running.
+- **`no-appendfsync-on-rewrite yes`**: skips fsyncs while a rewrite is running.
   Removes the latency spike, but silently extends the data-loss window to
   *every write since the rewrite began* if the process crashes mid-rewrite.
   Relier ships `no` on purpose; do not change it.
-- **`appendonly no` on the master** (with persistence delegated to replicas) —
+- **`appendonly no` on the master** (with persistence delegated to replicas):
   eliminates AOF I/O on the active node, at the cost of making async replication
   the only durability boundary. Async replication ACKs before it replicates,
   so a master crash + restart-loop, or a Sentinel-failover race window, will

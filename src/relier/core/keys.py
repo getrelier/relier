@@ -22,6 +22,24 @@ Design rules
 * Key builders are deterministic and side-effect free.
 * Dynamic identifiers are always appended in the final segment.
 * Storage topology changes should occur here first.
+
+Hash tags and Redis Cluster
+---------------------------
+Per-task keys (``hb``, ``phoenix``, ``lease``, ``fence``, ``resurrections``,
+``lock:resurrect``) wrap the task identifier in ``{...}`` so Redis Cluster
+hashes only the task ID and colocates every key for one task on a single
+shard. This is a strict requirement for the multi-key Lua scripts in
+``storage/lua/scripts.py`` — without hash tags, ``RESURRECT_LUA`` and
+``VALIDATE_LUA`` would fail with ``CROSSSLOT`` under Cluster because their
+two ``KEYS`` arguments would hash to different slots.
+
+Worker-scoped keys (``inflight``, ``presence``, ``m:w``) are tagged on
+``worker_id`` for the same reason: pipelined updates that touch multiple
+worker-scoped keys stay on one shard.
+
+Global singletons (``workers``, ``monitor``, ``dlq``, ``phoenix:expiry_index``,
+``task_durations``, ``m:global``, ``slo``) are not tagged — they are
+single keys whose placement on any one shard is fine.
 """
 
 import uuid
@@ -52,14 +70,14 @@ class RedisKeys:
 
         Presence indicates the task is actively owned by a live worker.
         """
-        return f"{cls.PREFIX}:hb:{task_id}"
+        return f"{cls.PREFIX}:hb:{{{task_id}}}"
 
     @classmethod
     def inflight(cls, worker_id: str) -> str:
         """
         Worker-local sorted-set tracking currently executing task IDs.
         """
-        return f"{cls.PREFIX}:inflight:{worker_id}"
+        return f"{cls.PREFIX}:inflight:{{{worker_id}}}"
 
     @classmethod
     def phoenix(cls, task_id: str) -> str:
@@ -68,7 +86,7 @@ class RedisKeys:
 
         Stores resurrection metadata, payload snapshots, and partial progress.
         """
-        return f"{cls.PREFIX}:phoenix:{task_id}"
+        return f"{cls.PREFIX}:phoenix:{{{task_id}}}"
 
     @classmethod
     def resurrection(cls, task_id: str) -> str:
@@ -77,7 +95,7 @@ class RedisKeys:
 
         Tracks how many times a task has been revived after worker failure.
         """
-        return f"{cls.PREFIX}:resurrections:{task_id}"
+        return f"{cls.PREFIX}:resurrections:{{{task_id}}}"
 
     @classmethod
     def resurrect_lock(cls, task_id: str) -> str:
@@ -87,17 +105,17 @@ class RedisKeys:
         Prevents multiple resurrector processes from re-queuing the same task
         concurrently.
         """
-        return f"{cls.PREFIX}:lock:resurrect:{task_id}"
+        return f"{cls.PREFIX}:lock:resurrect:{{{task_id}}}"
 
     @classmethod
     def lease(cls, task_id: str) -> str:
         """Short-lived lease: only one worker may own this resurrected task right now."""
-        return f"{cls.PREFIX}:lease:{task_id}"
+        return f"{cls.PREFIX}:lease:{{{task_id}}}"
 
     @classmethod
     def fence(cls, task_id: str) -> str:
         """Fencing token: tags this incarnation. Stale workers get rejected."""
-        return f"{cls.PREFIX}:fence:{task_id}"
+        return f"{cls.PREFIX}:fence:{{{task_id}}}"
 
     # =============================================================================
     # Global / singleton namespaces
@@ -162,7 +180,7 @@ class RedisKeys:
         """
         Ephemeral worker presence key.
         """
-        return f"{cls.PREFIX}:presence:{worker_id}"
+        return f"{cls.PREFIX}:presence:{{{worker_id}}}"
 
     # =============================================================================
     # Telemetry & Metrics
@@ -179,7 +197,7 @@ class RedisKeys:
         """
         Worker-scoped session counter for task outcomes.
         """
-        return f"{cls.PREFIX}:m:w:{worker_id}:{status}"
+        return f"{cls.PREFIX}:m:w:{{{worker_id}}}:{status}"
 
     @classmethod
     def slo_bucket(cls, status: str, bucket: int) -> str:

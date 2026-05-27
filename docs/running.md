@@ -1,8 +1,8 @@
 # Running Relier
 
 Relier is a plain Python library, not a service you have to containerize. The
-engine — the `@rl_task` decorator, the Phoenix resurrector, idempotency, the
-DLQ is pure Python. Like Celery, it runs as ordinary processes; Docker is a
+engine (the `@rl_task` decorator, the Phoenix resurrector, idempotency, the
+DLQ) is pure Python. Like Celery, it runs as ordinary processes; Docker is a
 convenience for dev and prod, not a requirement.
 
 There is exactly one hard dependency: **a reachable Redis**, the same way
@@ -13,7 +13,7 @@ start with a clear error if it is unreachable, nothing comes up half-working.
 
 The `make` targets (`make worker`, `make dev`, `make prod`) are **only available if you've cloned the Relier repo**. They require the project's `Makefile`, virtualenv, and config files.
 
-If you installed Relier via `pip install relier` into your own project, skip the `make` targets and run the Celery worker and resurrector directly — see [Tier 1 below](#tier-1-bare-metal-no-docker).
+If you installed Relier via `pip install relier` into your own project, skip the `make` targets and run the Celery worker and resurrector directly; see [Tier 1 below](#tier-1-bare-metal-no-docker).
 
 ## The three ways to run it
 
@@ -28,7 +28,7 @@ Relier always runs the same two process types: **Celery workers** and the
 
 ---
 
-## Tier 1 — Bare metal (no Docker)
+## Tier 1: Bare metal (no Docker)
 
 **Prerequisites:** Python 3.11+, and a Redis reachable from your machine
 (`brew install redis && redis-server`, a system package, or any remote
@@ -36,17 +36,17 @@ instance).
 
 ### If you installed via pip
 
-Set the Redis URL in your shell (or in a `.env` file) and start the two processes directly. The `--include` flag tells the worker which module contains your `@rl_task` functions — without it the worker boots but ignores incoming tasks.
+Set the Redis URL in your shell (or in a `.env` file) and start the two processes directly. The `--include` flag tells the worker which module contains your `@rl_task` functions; without it the worker boots but ignores incoming tasks.
 
 === "macOS / Linux"
 
     ```sh
     export RELIER_REDIS_URL=redis://localhost:6379/0
 
-    # terminal 1 — Celery worker (replace 'tasks' with your task module name)
+    # terminal 1: Celery worker (replace 'tasks' with your task module name)
     celery -A relier.tasks.app worker -l info -Q high_priority,default,low_priority,re-queue --include=tasks
 
-    # terminal 2 — Phoenix resurrector
+    # terminal 2: Phoenix resurrector
     rl run-resurrector
     ```
 
@@ -55,11 +55,11 @@ Set the Redis URL in your shell (or in a `.env` file) and start the two processe
     ```powershell
     $env:RELIER_REDIS_URL = "redis://localhost:6379/0"
 
-    # terminal 1 — Celery worker (replace 'tasks' with your task module name)
+    # terminal 1: Celery worker (replace 'tasks' with your task module name)
     # --pool=solo is required on Windows; prefork's named-pipe IPC crashes under spawn
     celery -A relier.tasks.app worker -l info -Q high_priority,default,low_priority,re-queue --include=tasks --pool=solo
 
-    # terminal 2 — Phoenix resurrector
+    # terminal 2: Phoenix resurrector
     rl run-resurrector
     ```
 
@@ -69,11 +69,11 @@ Set the Redis URL in your shell (or in a `.env` file) and start the two processe
 make setup                       # create the venv and install Relier
 export RELIER_REDIS_URL=redis://localhost:6379/0   # the default; override as needed
 
-make worker                      # terminal 1 — a Celery worker
-make resurrector                 # terminal 2 — the Phoenix resurrector
+make worker                      # terminal 1: a Celery worker
+make resurrector                 # terminal 2: the Phoenix resurrector
 ```
 
-The `make worker` target runs the same `celery -A relier.tasks.app worker` command without `--include` — this is intentional. In the cloned repo there are no user task modules to discover; the worker only needs to run Relier's infrastructure (heartbeats, Phoenix, shutdown). The bench suite has its own entry point (`bench.worker_app`) that imports its tasks explicitly in the module body.
+The `make worker` target runs the same `celery -A relier.tasks.app worker` command without `--include`, which is intentional. In the cloned repo there are no user task modules to discover; the worker only needs to run Relier's infrastructure (heartbeats, Phoenix, shutdown). The bench suite has its own entry point (`bench.worker_app`) that imports its tasks explicitly in the module body.
 
 If Redis is not running, both processes exit immediately with:
 
@@ -86,7 +86,7 @@ state.
 
 ---
 
-## Tier 2 — Dev (Docker)
+## Tier 2: Dev (Docker)
 
 A full local cluster: one Redis node (AOF + RDB persistence) plus the worker
 pool and the resurrector. Mirrors the production *shape* without the HA weight.
@@ -99,13 +99,13 @@ make dev-down     # stop
 
 Defined in `docker-compose.yml`.
 
-The Docker dev stack also unlocks the full **chaos suite** (`rl chaos worker-kill`, `rl chaos network-partition`, etc.). Those commands use `docker kill` internally and only work when the stack is running here — bare-metal workers can run the non-Docker scenarios (`load-spike`, `slow-task`, `task-corrupt`) but not the kill-based ones. See the [Chaos Guide](chaos-guide.md).
+The Docker dev stack also unlocks the full **chaos suite** (`rl chaos worker-kill`, `rl chaos network-partition`, etc.). Those commands use `docker kill` internally and only work when the stack is running here; bare-metal workers can run the non-Docker scenarios (`load-spike`, `slow-task`, `task-corrupt`) but not the kill-based ones. See the [Chaos Guide](chaos-guide.md).
 
 ---
 
-## Tier 3 — Production (Docker)
+## Tier 3: Production (Docker)
 
-The HA topology — Redis master + 2 replicas + 3 Sentinels + a backup sidecar,
+The HA topology (Redis master + 2 replicas + 3 Sentinels + a backup sidecar)
 defined in `docker-compose.prod.yml`. Sentinel-aware client wiring turns on via
 environment variables (see below).
 
@@ -116,7 +116,7 @@ make prod
 make prod-down
 ```
 
-The same manifest runs locally if you want to exercise failover — see
+The same manifest runs locally if you want to exercise failover; see
 `scripts/redis/README.md`.
 
 ---
@@ -130,7 +130,7 @@ All settings are environment variables with the `RELIER_` prefix (full list in
 |----------|---------|---------|
 | `RELIER_REDIS_URL` | `redis://localhost:6379/0` | Redis endpoint (bare-metal / dev) |
 | `RELIER_REDIS_USE_SENTINEL` | `false` | Route through Sentinel for HA |
-| `RELIER_REDIS_SENTINEL_NODES` | — | `host:port,host:port,...` when Sentinel is on |
+| `RELIER_REDIS_SENTINEL_NODES` | none | `host:port,host:port,...` when Sentinel is on |
 | `RELIER_REDIS_SENTINEL_MASTER_NAME` | `relier-master` | Monitored master group name |
 | `RELIER_CHECKPOINT_BACKEND` | `inline` | `inline` \| `filesystem` for large checkpoints |
 

@@ -1,6 +1,6 @@
 # Core Concepts
 
-This page explains the key ideas behind Relier. You don't need to read it before getting started the [Quickstart](quickstart.md) covers that. But understanding these concepts will help you make better decisions about how to use Relier in production.
+This page explains the key ideas behind Relier. You don't need to read it before getting started; the [Quickstart](quickstart.md) covers that. But understanding these concepts will help you make better decisions about how to use Relier in production.
 
 ---
 
@@ -8,11 +8,11 @@ This page explains the key ideas behind Relier. You don't need to read it before
 
 Getting this right up front saves a lot of confusion.
 
-**Relier is a thin wrapper around Celery, not a replacement for it.** Your workers are still plain Celery workers. Your Redis is still the broker. Your tasks still look like Celery tasks. Relier adds a lifecycle layer heartbeat tracking, crash detection, resurrection, idempotency enforcement, timeouts, graceful shutdown without changing your function bodies or your infrastructure.
+**Relier is a thin wrapper around Celery, not a replacement for it.** Your workers are still plain Celery workers. Your Redis is still the broker. Your tasks still look like Celery tasks. Relier adds a lifecycle layer: heartbeat tracking, crash detection, resurrection, idempotency enforcement, timeouts, graceful shutdown, without changing your function bodies or your infrastructure.
 
 ### Not a workflow engine
 
-[Temporal](https://temporal.io) and [Hatchet](https://hatchet.run) are *workflow engines*. They model multi-step processes with deterministic replay, durable execution across restarts, and saga-style compensation. That's a different problem and a different programming model, you restructure your code around their execution model and deploy their server.
+[Temporal](https://temporal.io) and [Hatchet](https://hatchet.run) are *workflow engines*. They model multi-step processes with deterministic replay, durable execution across restarts, and saga-style compensation. That is a different problem and a different programming model: you restructure your code around their execution model and deploy their server.
 
 Relier is not that. It handles individual task reliability, not workflow orchestration. The choice isn't "Relier vs. Temporal", it's "naked Celery vs. Relier + Celery." If you need multi-step workflows spanning hours or approval gates, reach for Temporal or Hatchet. If you have Celery tasks and want them to stop disappearing, that's Relier.
 
@@ -86,7 +86,7 @@ Knowing this flow makes every other piece of the docs click into place.
 
 ```mermaid
 flowchart TD
-    subgraph Producer["Producer — FastAPI · Flask · script"]
+    subgraph Producer["Producer: FastAPI · Flask · script"]
         A["1 · await task.apush(arg)"]
         A --> B{"Admission check\natomic Lua INCR"}
         B -- "FAIL (over limit)" --> C["AdmissionRejectedError\n→ caller returns 429"]
@@ -96,11 +96,11 @@ flowchart TD
         D2 --> D
     end
 
-    subgraph Broker["Broker — Redis"]
+    subgraph Broker["Broker: Redis"]
         F["Envelope queued\nuntil a worker pops it"]
     end
 
-    subgraph Worker["Worker — relier.tasks.app"]
+    subgraph Worker["Worker: relier.tasks.app"]
         G["2 · Celery pops envelope\n→ wrapper(self, envelope)"]
         G --> H["3 · Async bridge\nschedule onto persistent\nworker event loop"]
         H --> I{"4 · Schema validation\n+ checksum verify"}
@@ -129,7 +129,7 @@ rest of this page explains the *why* behind each mechanism.
     celery -A relier.tasks.app worker ...
     ```
 
-    If you create your own `Celery()` instance and start workers with `-A your_app`, the worker will run the task but bypass the entire lifecycle — no heartbeating, no Phoenix registration, no idempotency enforcement, no graceful shutdown. The `@rl_task` decorator will still run, but only the dispatch-side features (admission control, signed envelope) work outside the managed worker. When in doubt, use `rl worker start` which wires everything correctly.
+    If you create your own `Celery()` instance and start workers with `-A your_app`, the worker will run the task but bypass the entire lifecycle: no heartbeating, no Phoenix registration, no idempotency enforcement, no graceful shutdown. The `@rl_task` decorator will still run, but only the dispatch-side features (admission control, signed envelope) work outside the managed worker. When in doubt, use `rl worker start` which wires everything correctly.
 
 ---
 
@@ -139,7 +139,7 @@ This is Relier's core guarantee: **no task is silently lost when a worker dies**
 
 ### The problem
 
-Imagine a worker is halfway through processing a payment when it's OOM-killed by the OS. In most default Celery setups, a worker crash during execution leaves the task orphaned — it disappears from the queue without completing, with no error and no trace. The payment never completes.
+Imagine a worker is halfway through processing a payment when it's OOM-killed by the OS. In most default Celery setups, a worker crash during execution leaves the task orphaned: it disappears from the queue without completing, with no error and no trace. The payment never completes.
 
 ### How Phoenix works
 
@@ -247,7 +247,7 @@ async def process_webhook(event_id: str, payload: dict) -> dict:
         if lock.already_executed:
             return lock.cached_result
         result = await handle_webhook(payload)
-        lock.set_result(result)    # sync — committed automatically on exit
+        lock.set_result(result)    # sync: committed automatically on exit
         return result
 ```
 
@@ -265,7 +265,7 @@ The soft timeout is a **warning**. When it fires, your cleanup hook gets called.
 
 The hard timeout is **unconditional**. When it fires, the task coroutine is cancelled immediately, regardless of what it's doing.
 
-!!! warning "Always set `hard_timeout` — omitting it does not mean no timeout"
+!!! warning "Always set `hard_timeout`: omitting it does not mean no timeout"
     When `hard_timeout` is not set, Relier's internal async bridge applies a **300-second fallback** deadline. After 300 s the bridge raises `TimeoutError` and Celery marks the task failed, but the coroutine may still be running in the background until its next `await` checkpoint. Always set `hard_timeout` to match your task's expected worst-case duration. See [API reference → `hard_timeout`](api-reference.md#hard_timeout) and [Troubleshooting → Async bridge timeout](troubleshooting.md) for details.
 
 ```python
@@ -278,7 +278,7 @@ async def save_progress(ctx: TaskContext) -> None:
     progress = ctx.metadata.get("progress")
     if progress is not None:
         await ctx.set_partial(progress)
-    await release_your_lock(ctx.args[0])   # your own cleanup — not a Relier API
+    await release_your_lock(ctx.args[0])   # your own cleanup, not a Relier API
 
 @rl_task(
     soft_timeout=25,
@@ -297,14 +297,14 @@ async def process_large_file(file_id: str, ctx: TaskContext = None) -> dict:
 
 The soft/hard gap (`hard - soft`, in this case 5 seconds) is the window your cleanup hook has to finish. Design it to complete well within that window.
 
-!!! info "`ctx.metadata` vs `ctx.partial_result` — two different things"
-    **`ctx.metadata`** is a plain in-memory `dict` that lives only for the duration of the current execution. It is never written to Redis. Use it to pass transient runtime state between the task body and the soft-timeout hook — e.g. recording a loop cursor so the hook knows what to checkpoint.
+!!! info "`ctx.metadata` vs `ctx.partial_result`: two different things"
+    **`ctx.metadata`** is a plain in-memory `dict` that lives only for the duration of the current execution. It is never written to Redis. Use it to pass transient runtime state between the task body and the soft-timeout hook, e.g. recording a loop cursor so the hook knows what to checkpoint.
 
     **`ctx.partial_result`** is the value previously written by `await ctx.set_partial(...)`. It is persisted to Redis (and carried with the task through resurrection), and injected back into the task on the next run. Use it to resume from where the last incarnation left off.
 
     Typical flow: the task body writes progress into `ctx.metadata` → at soft timeout, the hook reads `ctx.metadata` and calls `await ctx.set_partial(...)` → next incarnation starts with `ctx.partial_result` set.
 
-    Note: `ctx.set_partial` is `async def` — it must be `await`ed.
+    Note: `ctx.set_partial` is `async def` and must be `await`ed.
 
 !!! info "The hook doesn't magically know what to save"
     Relier can't introspect your task to figure out where the loop got to. The task body must record its progress somewhere the hook can read, `ctx.metadata` is the standard place, or the task can call `ctx.set_partial(...)` directly as it runs. Three concrete patterns (inline, hook-only, hybrid) are in [Patterns → Pattern 3](patterns.md#pattern-3).
@@ -378,7 +378,7 @@ Checkpoints have a size budget because Redis is shared infrastructure. Relier ra
     | Checkpoint size | Default behaviour | Configurable via |
     |---|---|---|
     | ≤ 256 KB | Stored inline in the Phoenix Redis hash. | `RELIER_CHECKPOINT_MAX_INLINE_BYTES` |
-    | > 256 KB, **no** filesystem backend | **`CheckpointTooLargeError` raised** — `set_partial` fails loudly. | default, must opt in to spillover |
+    | > 256 KB, **no** filesystem backend | **`CheckpointTooLargeError` raised**: `set_partial` fails loudly. | default, must opt in to spillover |
     | > 256 KB, filesystem backend enabled | Gzipped, written to a shared volume. Only a tiny reference envelope stays in Redis. | `RELIER_CHECKPOINT_BACKEND=filesystem` + `RELIER_CHECKPOINT_DIR` |
 
     The "rejected by default" behaviour is deliberate: silent bloat is worse than a loud error. When you need bigger checkpoints, enable the filesystem backend and point it at storage that *every* worker and the resurrector can see. A checkpoint written by `worker-high` may later be read by `worker-recovery` when Phoenix resurrects the task on a different process. The bundled `docker-compose.prod.yml` handles this with a shared named volume.
@@ -487,7 +487,7 @@ Relier wraps every task payload in a **versioned envelope**:
 }
 ```
 
-If you change a task's signature in a breaking way, register a **migration**. This requires two steps — both are required:
+If you change a task's signature in a breaking way, register a **migration**. This requires two steps (both are required):
 
 ```python
 from relier.core.schema import SchemaRegistry
@@ -506,7 +506,7 @@ def migrate_v1_to_v2(args, kwargs):
 ```
 
 !!! warning "Bump `CURRENT_VERSION` before registering the migration"
-    The migration loop runs as `while payload_version < CURRENT_VERSION`. If you register a migration but don't bump `CURRENT_VERSION`, the loop never runs and old payloads reach your function with the old signature — causing a `TypeError`. Relier logs a warning at startup if this misconfiguration is detected.
+    The migration loop runs as `while payload_version < CURRENT_VERSION`. If you register a migration but don't bump `CURRENT_VERSION`, the loop never runs and old payloads reach your function with the old signature, causing a `TypeError`. Relier logs a warning at startup if this misconfiguration is detected.
 
 Old payloads in the queue are automatically migrated when picked up. No failed tasks, no manual intervention, no deploy window restrictions. Full reference: [API → `SchemaRegistry`](api-reference.md#schemaregistry).
 

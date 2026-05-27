@@ -250,8 +250,8 @@ class TestPhoenixGaps:
     async def test_monitor_lost_transition(self, mock_redis) -> None:
         """state=0 + no heartbeat + payload exists re-adds task to expiry index."""
         task_id = "lost_task"
-        # State 0: dispatched for resurrection, waiting for worker to claim
-        await mock_redis.hset(RedisKeys.monitor(), task_id, "0")
+        # State 0 with an ancient timestamp (grace period already elapsed).
+        await mock_redis.hset(RedisKeys.monitor(), task_id, "0:0")
         # Payload exists but NO heartbeat (worker crashed before registering)
         await mock_redis.hset(RedisKeys.phoenix(task_id), "payload", "{}")
 
@@ -262,6 +262,25 @@ class TestPhoenixGaps:
         # Task re-added to expiry index
         members = await mock_redis.zrange(RedisKeys.phoenix_expiry_index(), 0, -1)
         assert task_id in members
+
+    async def test_monitor_grace_period_suppresses_lost_transition(
+        self, mock_redis
+    ) -> None:
+        """A recent resurrection within the grace period is NOT released to scan."""
+        import time as _time
+
+        task_id = "cold_start_task"
+        # State 0 with a fresh timestamp — worker is still in cold-start window.
+        await mock_redis.hset(RedisKeys.monitor(), task_id, f"0:{int(_time.time())}")
+        await mock_redis.hset(RedisKeys.phoenix(task_id), "payload", "{}")
+
+        await PhoenixRegistry._monitor_resurrected_tasks(mock_redis)
+
+        # Monitor entry stays — the warning must not fire yet.
+        assert await mock_redis.hexists(RedisKeys.monitor(), task_id) == 1
+        # And the task must NOT have been re-added to the expiry index.
+        members = await mock_redis.zrange(RedisKeys.phoenix_expiry_index(), 0, -1)
+        assert task_id not in members
 
 
 class TestPhoenixResurrectionEdgeCases:

@@ -58,7 +58,7 @@ services:
     container_name: bench-redis-exporter
     command:
       - "--redis.addr=redis://bench-redis:6379"
-      - "--check-keys=default,high_priority,low_priority,re-queue,vanilla,rl:m:global:success,rl:m:global:failed,rl:m:global:resurrected,bench:relier:embed_exec,bench:relier:noop_exec,bench:relier:summary_exec,bench:relier:delivery_done,bench:relier:oom_done,bench:relier:oom_exec,bench:vanilla:embed_exec,bench:vanilla:noop_exec,bench:vanilla:delivery_done,bench:vanilla:oom_done"
+      - "--check-keys=default,high_priority,low_priority,re-queue,vanilla,vanilla_acks_late,rl:m:global:success,rl:m:global:failed,rl:m:global:resurrected,bench:relier:embed_exec,bench:relier:noop_exec,bench:relier:summary_exec,bench:relier:delivery_done,bench:relier:oom_done,bench:relier:oom_exec,bench:vanilla:embed_exec,bench:vanilla:noop_exec,bench:vanilla:delivery_done,bench:vanilla:oom_done,bench:vanilla_acks_late:delivery_done,bench:vanilla_acks_late:total_exec,bench:relier:phoenix_load_started,bench:relier:phoenix_load_done,bench:cold_start:p50_ms,bench:cold_start:p99_ms"
     ports:
       - "9121:9121"
     depends_on:

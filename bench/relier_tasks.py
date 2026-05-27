@@ -138,3 +138,16 @@ async def oom_probe(task_key: str, target_s: float = 50.0) -> dict:
     _r.incr(f"{BENCH_NS}:relier:oom_exec")
     _r.rpush(f"{BENCH_NS}:relier:oom_done", task_key)
     return {"task_key": task_key, "elapsed_s": elapsed}
+
+
+# ── 7. Phoenix-load probe (resurrection-under-load + steady-state ops tests) ─
+@rl_task(queue="default")
+async def phoenix_load_probe(task_key: str, target_s: float = 50.0) -> dict:
+    """Long-running probe used by Test 7 (ops/sec) and Test 9 (resurrection under load)."""
+    _r.rpush(f"{BENCH_NS}:relier:phoenix_load_started", task_key)
+    elapsed = 0
+    while elapsed < target_s:
+        await asyncio.sleep(1)
+        elapsed += 1
+    _r.rpush(f"{BENCH_NS}:relier:phoenix_load_done", task_key)
+    return {"task_key": task_key, "elapsed_s": elapsed}

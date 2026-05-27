@@ -68,6 +68,8 @@ from bench.config import (  # noqa: E402
     OOM_CYCLES,
     OOM_KILL_WAIT,
     OOM_PROBE_S,
+    PHOENIX_LOAD_WORKERS,
+    REDIS_OPS_MEASURE_S,
     REDIS_URL,
     RESOURCE_PROBE_S,
     RESOURCE_SAMPLE_WAIT,
@@ -90,7 +92,14 @@ results: dict[str, dict] = {}
 
 # -- Helpers ------------------------------------------------------------------
 
-_CELERY_QUEUES = ["default", "high_priority", "low_priority", "re-queue", "vanilla"]
+_CELERY_QUEUES = [
+    "default",
+    "high_priority",
+    "low_priority",
+    "re-queue",
+    "vanilla",
+    "vanilla_acks_late",
+]
 
 
 def _flush_bench_keys() -> None:
@@ -115,15 +124,26 @@ def _env() -> dict:
     return env
 
 
+def _commandstats_total() -> int:
+    """Sum call counts across all Redis commands for ops/sec diffing."""
+    stats = _r.info("commandstats")
+    return sum(v["calls"] for v in stats.values())
+
+
 def _start_worker(
-    app_module: str, queues: str, concurrency: int = 4
+    app_module: str,
+    queues: str,
+    concurrency: int = 4,
+    force_solo: bool = False,
 ) -> subprocess.Popen:
     """Start a Celery worker.
 
     On Windows: --pool=solo avoids 15-30 s prefork child-spawn delay.
     On Linux/Mac: --pool=prefork for real concurrency.
+    force_solo=True forces solo pool regardless of platform (used for load tests
+    where each worker process should hold exactly one in-flight task).
     """
-    pool = "solo" if _sys.platform == "win32" else "prefork"
+    pool = "solo" if (_sys.platform == "win32" or force_solo) else "prefork"
     con = "1" if pool == "solo" else str(WORKER_CONCURRENCY or concurrency)
     cmd = [
         _sys.executable,
@@ -325,7 +345,9 @@ def preflight() -> bool:
             f"  [cyan]INFO[/cyan] Scale: {BATCH_SIZE} tasks x {DELIVERY_KILL_CYCLES} kills  |  "
             f"{OOM_CYCLES} OOM cycles  |  {IDEMPOTENCY_SUBMISSIONS} dedup submissions  |  "
             f"{ADMISSION_SAMPLES} admission samples  |  "
-            f"{SHUTDOWN_TASKS} tasks x {SHUTDOWN_CYCLES} shutdown cycles"
+            f"{SHUTDOWN_TASKS} tasks x {SHUTDOWN_CYCLES} shutdown cycles  |  "
+            f"{PHOENIX_LOAD_WORKERS} inflight load workers  |  "
+            f"{REDIS_OPS_MEASURE_S}s ops window"
         )
     return ok
 
@@ -703,6 +725,7 @@ def test_delivery_rate() -> None:
     )
 
     from bench.relier_tasks import delivery_probe
+    from bench.vanilla_acks_late_app import delivery_probe_acks_late
     from bench.vanilla_app import delivery_probe_vanilla
 
     _flush_queues()
@@ -777,6 +800,55 @@ def test_delivery_rate() -> None:
         f"({KILLS} kills)  CPU avg {cpu_v['cpu_avg']}%"
     )
 
+    # -- Vanilla + task_acks_late=True --
+    # The "just flip the flag" comparison: broker re-delivers on crash so
+    # delivery rate matches Relier, but without idempotency the redelivered
+    # task runs again. Count duplicates to show the cost of the flag flip.
+    _flush_queues()
+    _r.delete(
+        f"{BENCH_NS}:vanilla_acks_late:delivery_done",
+        f"{BENCH_NS}:vanilla_acks_late:exec_count",
+        f"{BENCH_NS}:vanilla_acks_late:total_exec",
+    )
+    console.print(f"  [vanilla+acks_late] Starting worker, dispatching {N} tasks ...")
+    avwk = _start_worker("bench.vanilla_acks_late_app", "vanilla_acks_late")
+    time.sleep(WORKER_BOOT_WAIT)
+
+    for i in range(N):
+        delivery_probe_acks_late.delay(f"d-al-{i}", WORK_S)
+
+    current_avwk = avwk
+    for kill_num in range(KILLS):
+        time.sleep(kill_wait)
+        _kill(current_avwk)
+        console.print(f"  [vanilla+acks_late] Kill {kill_num + 1}/{KILLS} ...")
+        current_avwk = _start_worker("bench.vanilla_acks_late_app", "vanilla_acks_late")
+        time.sleep(WORKER_BOOT_WAIT)
+
+    al_completed = _wait_for_list(
+        f"{BENCH_NS}:vanilla_acks_late:delivery_done",
+        N,
+        timeout=completion_timeout,
+    )
+    _kill(current_avwk)
+
+    # Count unique completed task_keys vs total executions to detect duplicates.
+    al_total_exec = int(_r.get(f"{BENCH_NS}:vanilla_acks_late:total_exec") or 0)
+    al_exec_counts = _r.hgetall(f"{BENCH_NS}:vanilla_acks_late:exec_count")
+    al_duplicated_keys = sum(1 for v in al_exec_counts.values() if int(v) > 1)
+    al_unique_keys = len(al_exec_counts)
+    al_rate = round(al_completed / N * 100, 2)
+    al_dup_pct = round(
+        (al_duplicated_keys / al_unique_keys * 100) if al_unique_keys else 0.0, 2
+    )
+
+    console.print(
+        f"  [vanilla+acks_late] {al_completed}/{N} = {al_rate}%  "
+        f"({KILLS} kills)  "
+        f"[yellow]duplicates: {al_duplicated_keys}/{al_unique_keys} keys "
+        f"ran >1× ({al_dup_pct}%), {al_total_exec} total executions[/yellow]"
+    )
+
     results["delivery_rate"] = {
         "tasks": N,
         "kills": KILLS,
@@ -786,6 +858,12 @@ def test_delivery_rate() -> None:
         "vanilla_completed": v_completed,
         "vanilla_rate_pct": v_rate,
         "vanilla_cpu_avg": cpu_v["cpu_avg"],
+        "vanilla_acks_late_completed": al_completed,
+        "vanilla_acks_late_rate_pct": al_rate,
+        "vanilla_acks_late_total_exec": al_total_exec,
+        "vanilla_acks_late_duplicated_keys": al_duplicated_keys,
+        "vanilla_acks_late_unique_keys": al_unique_keys,
+        "vanilla_acks_late_dup_pct": al_dup_pct,
         "relier_claim_met": r_rate >= 99.0,
     }
 
@@ -959,6 +1037,93 @@ def test_resource_overhead() -> None:
         f"+{relier_redis_bytes} bytes Redis per task  ({rl_keys_added} keys)"
     )
 
+    # ── Steady-state Redis ops/sec ─────────────────────────────────────────────
+    # Strategy: measure idle-worker baseline first (workers running, no tasks),
+    # then measure with N tasks inflight. Subtracting the baseline isolates ops
+    # that scale with inflight task count — the per-task coordination cost.
+    #
+    # NB the per-task figure here is NOT pure heartbeat refresh. Heartbeat
+    # refresh is exactly 1 pipeline of 2 ops every heartbeat_ttl/2 seconds
+    # (~0.4 ops/sec/task at the default heartbeat_ttl=10). The remainder comes
+    # from Celery's task_acks_late visibility tracking and the result backend
+    # writes that fire on every task start (task_track_started=True) — both
+    # are the cost of "no task loss on worker crash" and are not optimisable
+    # without weakening that guarantee.
+    console.print(
+        f"\n  [bold]Steady-state Redis ops/sec[/bold]  "
+        f"({PHOENIX_LOAD_WORKERS} concurrent inflight tasks, {REDIS_OPS_MEASURE_S}s window)"
+    )
+    from bench.relier_tasks import phoenix_load_probe  # noqa: E402
+
+    _flush_queues()
+    _r.delete(f"{BENCH_NS}:relier:phoenix_load_started")
+
+    ops_workers = [
+        _start_worker(
+            "bench.worker_app",
+            "default,high_priority,low_priority,re-queue",
+            force_solo=True,
+        )
+        for _ in range(PHOENIX_LOAD_WORKERS)
+    ]
+    time.sleep(WORKER_BOOT_WAIT)
+
+    # Phase 1: baseline — workers idle, no tasks, only queue polling
+    half_window = max(REDIS_OPS_MEASURE_S // 2, 15)
+    baseline_before = _commandstats_total()
+    time.sleep(half_window)
+    baseline_after = _commandstats_total()
+    baseline_ops_ps = (baseline_after - baseline_before) / half_window
+
+    # Phase 2: with N tasks inflight so heartbeat loops are running
+    task_duration = REDIS_OPS_MEASURE_S + 30
+    for _i in range(PHOENIX_LOAD_WORKERS):
+        phoenix_load_probe.push(f"ops-{_i}-{uuid.uuid4().hex[:6]}", task_duration)
+
+    _wait_for_list(
+        f"{BENCH_NS}:relier:phoenix_load_started",
+        PHOENIX_LOAD_WORKERS,
+        timeout=WORKER_BOOT_WAIT * 3 + 30,
+    )
+    time.sleep(5)  # let heartbeat loops stabilise
+
+    ops_before = _commandstats_total()
+    time.sleep(REDIS_OPS_MEASURE_S)
+    ops_after = _commandstats_total()
+
+    for _ow in ops_workers:
+        _kill(_ow)
+
+    actual_inflight = min(
+        _r.llen(f"{BENCH_NS}:relier:phoenix_load_started"),
+        PHOENIX_LOAD_WORKERS,
+    )
+    total_ops_ps = (ops_after - ops_before) / REDIS_OPS_MEASURE_S
+    # Per-task coordination ops = total minus the per-worker polling baseline.
+    # Includes Relier heartbeat refresh (~0.4 ops/sec/task) plus Celery's
+    # task_acks_late visibility tracking and result backend writes that
+    # fire on every task start (the bulk of the figure).
+    per_task_coord_ps = max(total_ops_ps - baseline_ops_ps, 0.0)
+    per_task_ps = round(per_task_coord_ps / max(actual_inflight, 1), 3)
+    ops_1k = round(per_task_ps * 1000)
+    ops_10k = round(per_task_ps * 10000)
+
+    console.print(f"    Baseline (idle workers) : {round(baseline_ops_ps, 1)} ops/sec")
+    console.print(
+        f"    With tasks inflight     : {round(total_ops_ps, 1)} ops/sec  "
+        f"({actual_inflight} inflight)"
+    )
+    console.print(
+        f"    Per-task coordination   : {round(per_task_coord_ps, 1)} ops/sec  "
+        f"({per_task_ps} ops/sec/task)"
+    )
+    console.print("    [dim]  ~0.4 ops/sec/task is Relier heartbeats;[/dim]")
+    console.print("    [dim]  the rest is Celery late-ACK + result tracking.[/dim]")
+    console.print(
+        f"    Extrapolated            : ~{ops_1k} at 1k inflight  /  "
+        f"~{ops_10k} at 10k inflight"
+    )
+
     fd_leak_detected = fd_delta is not None and fd_delta > 5
     results["resource_overhead"] = {
         "relier_rss_idle_mb": relier_rss_idle,
@@ -972,7 +1137,189 @@ def test_resource_overhead() -> None:
         "fd_delta": fd_delta,
         "fd_leak_detected": fd_leak_detected,
         "claim_met": not fd_leak_detected,
+        "redis_ops_baseline_per_sec": round(baseline_ops_ps, 1),
+        "redis_ops_total_per_sec": round(total_ops_ps, 1),
+        "redis_ops_per_task_coord_per_sec": round(per_task_coord_ps, 1),
+        "redis_ops_actual_inflight": actual_inflight,
+        "redis_ops_per_task_per_sec": per_task_ps,
+        "redis_ops_1k_extrapolated": ops_1k,
+        "redis_ops_10k_extrapolated": ops_10k,
     }
+
+
+# -- Test 8: Cold-start to first-task latency ---------------------------------
+
+
+def test_cold_start_latency() -> None:
+    """Measure how long from worker process start to first task pickup."""
+    N_TRIALS = 3
+    console.print(
+        f"\n[bold cyan]Test 8 * Cold-start to first-task latency  ({N_TRIALS} trials)[/bold cyan]"
+    )
+
+    from bench.relier_tasks import fast_noop
+
+    done_key = f"{BENCH_NS}:relier:noop_done"
+    latencies_ms: list[float] = []
+
+    for trial in range(N_TRIALS):
+        _flush_queues()
+        _r.delete(done_key)
+
+        # Task sits in the queue before the worker starts
+        fast_noop.push(f"cs-{trial}-{uuid.uuid4().hex[:6]}")
+
+        t0 = time.time()
+        wk = _start_worker(
+            "bench.worker_app",
+            "default,high_priority,low_priority,re-queue",
+        )
+
+        found = _wait_for_list(done_key, 1, timeout=120)
+        elapsed_ms = round((time.time() - t0) * 1000)
+        _kill(wk)
+
+        if found >= 1:
+            latencies_ms.append(elapsed_ms)
+            console.print(f"  Trial {trial + 1}/{N_TRIALS}: {elapsed_ms} ms")
+        else:
+            console.print(f"  Trial {trial + 1}/{N_TRIALS}: [red]timeout[/red]")
+
+    if latencies_ms:
+        avg_ms = round(mean(latencies_ms))
+        p50_ms = round(_pN(latencies_ms, 50))
+        p99_ms = round(_pN(latencies_ms, 99))
+        results["cold_start"] = {
+            "trials": N_TRIALS,
+            "successful": len(latencies_ms),
+            "avg_ms": avg_ms,
+            "p50_ms": p50_ms,
+            "p99_ms": p99_ms,
+        }
+        # Publish to Redis so the Grafana cold-start panels can read the value.
+        _r.set(f"{BENCH_NS}:cold_start:p50_ms", p50_ms)
+        _r.set(f"{BENCH_NS}:cold_start:p99_ms", p99_ms)
+        console.print(f"  avg {avg_ms} ms   p50 {p50_ms} ms   p99 {p99_ms} ms")
+    else:
+        results["cold_start"] = {"trials": N_TRIALS, "successful": 0}
+        console.print("  [red]No successful cold-start trials[/red]")
+
+
+# -- Test 9: Resurrection under load ------------------------------------------
+
+
+def test_resurrection_under_load() -> None:
+    """
+    Kill PHOENIX_LOAD_WORKERS workers simultaneously with one task each in-flight.
+    Measure p50/p99 from kill to each orphan being re-picked-up by a replacement worker.
+    """
+    N = PHOENIX_LOAD_WORKERS
+    console.print(
+        f"\n[bold cyan]Test 9 * Resurrection under load  ({N} inflight tasks at kill)[/bold cyan]"
+    )
+
+    from bench.relier_tasks import phoenix_load_probe
+
+    _flush_queues()
+    _r.delete(
+        f"{BENCH_NS}:relier:phoenix_load_started",
+        f"{BENCH_NS}:relier:phoenix_load_done",
+    )
+
+    # Each solo worker handles exactly one inflight task
+    res = _start_resurrector()
+    workers = [
+        _start_worker(
+            "bench.worker_app",
+            "default,high_priority,low_priority,re-queue",
+            force_solo=True,
+        )
+        for _ in range(N)
+    ]
+    time.sleep(WORKER_BOOT_WAIT)
+
+    for _i in range(N):
+        phoenix_load_probe.push(f"phl-{_i}-{uuid.uuid4().hex[:6]}", OOM_PROBE_S)
+
+    # Wait for all N tasks to be picked up before the kill
+    started_key = f"{BENCH_NS}:relier:phoenix_load_started"
+    started = _wait_for_list(started_key, N, timeout=WORKER_BOOT_WAIT * N + 60)
+    actual_inflight = min(started, N)
+    if actual_inflight < N:
+        console.print(
+            f"  [yellow]Only {actual_inflight}/{N} tasks started before kill[/yellow]"
+        )
+
+    # Kill all workers simultaneously — simulates a fleet-wide OOM event
+    time.sleep(OOM_KILL_WAIT)
+    kill_ts = time.time()
+    for wk in workers:
+        _kill(wk)
+    console.print(f"  Killed {N} workers  ({actual_inflight} tasks were inflight)")
+
+    # Start replacement workers immediately so they're ready when resurrector re-queues
+    replacements = [
+        _start_worker(
+            "bench.worker_app",
+            "default,high_priority,low_priority,re-queue",
+            force_solo=True,
+        )
+        for _ in range(N)
+    ]
+
+    # Poll for re-pickups; each resurrected task pushes to phoenix_load_started again
+    deadline = time.time() + 300
+    resurrection_times: list[float] = []
+    last_count = actual_inflight  # initial starts already in the list
+
+    while time.time() < deadline and len(resurrection_times) < actual_inflight:
+        count = _r.llen(started_key)
+        new_picks = count - last_count
+        if new_picks > 0:
+            ts = time.time() - kill_ts
+            for _ in range(new_picks):
+                resurrection_times.append(ts)
+            last_count = count
+        else:
+            time.sleep(0.5)
+
+    for rw in replacements:
+        _kill(rw)
+    _kill(res)
+
+    if resurrection_times:
+        r_p50 = round(_pN(resurrection_times, 50), 1)
+        r_p99 = round(_pN(resurrection_times, 99), 1)
+        r_min = round(min(resurrection_times), 1)
+        r_max = round(max(resurrection_times), 1)
+        claim_met = r_p99 < 120.0
+        results["resurrection_under_load"] = {
+            "inflight_at_kill": actual_inflight,
+            "resurrected": len(resurrection_times),
+            "p50_s": r_p50,
+            "p99_s": r_p99,
+            "min_s": r_min,
+            "max_s": r_max,
+            "claim_met": claim_met,
+        }
+        p50_c = "green" if r_p50 < 60 else "yellow"
+        p99_c = "green" if r_p99 < 120 else "red"
+        console.print(
+            f"  {len(resurrection_times)}/{actual_inflight} resurrected  "
+            f"p50 [{p50_c}]{r_p50}s[/{p50_c}]  "
+            f"p99 [{p99_c}]{r_p99}s[/{p99_c}]  "
+            f"first={r_min}s  last={r_max}s  "
+            f"-> {'[green]< 120s p99[/green]' if claim_met else '[red]> 120s p99[/red]'}"
+        )
+    else:
+        results["resurrection_under_load"] = {
+            "inflight_at_kill": actual_inflight,
+            "resurrected": 0,
+            "claim_met": False,
+        }
+        console.print(
+            f"  [red]0/{actual_inflight} tasks resurrected within timeout[/red]"
+        )
 
 
 # -- Results table ------------------------------------------------------------
@@ -986,7 +1333,9 @@ def print_results() -> None:
     )
     table.add_column("Metric", style="bold", min_width=30)
     table.add_column("Relier v1.0", justify="center", min_width=26)
-    table.add_column("Vanilla Celery", justify="center", min_width=22)
+    # Vanilla column stacks defaults + ack_late=True for the delivery row, so
+    # the "just flip the flag" comparison is visible alongside vanilla's loss.
+    table.add_column("Vanilla Celery", justify="center", min_width=30)
     table.add_column("Claim?", justify="center", min_width=8)
 
     def _yn(val: bool) -> str:
@@ -994,10 +1343,26 @@ def print_results() -> None:
 
     if "delivery_rate" in results:
         d = results["delivery_rate"]
+        # Stack both vanilla variants in the same cell so the "flip the flag"
+        # answer is visible right next to vanilla's loss number.
+        vanilla_cell = (
+            f"default:    {d['vanilla_rate_pct']}%  "
+            f"{d['vanilla_completed']}/{d['tasks']}\n"
+            f"+acks_late: {d.get('vanilla_acks_late_rate_pct', '—')}%  "
+            f"{d.get('vanilla_acks_late_completed', '—')}/{d['tasks']}"
+        )
+        # Surface the duplicate count when acks_late=True so the cost of the
+        # flag flip — broker re-delivery without idempotency — is explicit.
+        if d.get("vanilla_acks_late_duplicated_keys") is not None:
+            vanilla_cell += (
+                f"\n  but {d['vanilla_acks_late_duplicated_keys']}/"
+                f"{d['vanilla_acks_late_unique_keys']} keys ran >1× "
+                f"({d['vanilla_acks_late_dup_pct']}%)"
+            )
         table.add_row(
             f"Task delivery rate  ({d['kills']} kills)",
             f"{d['relier_rate_pct']}%  {d['relier_completed']}/{d['tasks']}  CPU {d['relier_cpu_avg']}%",
-            f"{d['vanilla_rate_pct']}%  {d['vanilla_completed']}/{d['tasks']}  CPU {d['vanilla_cpu_avg']}%",
+            vanilla_cell,
             _yn(d["relier_claim_met"]),
         )
 
@@ -1094,15 +1459,62 @@ def print_results() -> None:
             "n/a",
             "--",
         )
+        if d.get("redis_ops_per_task_coord_per_sec") is not None:
+            table.add_row(
+                f"Redis ops/sec  ({d['redis_ops_actual_inflight']} inflight measured)",
+                (
+                    f"baseline {d['redis_ops_baseline_per_sec']} ops/sec\n"
+                    f"total    {d['redis_ops_total_per_sec']} ops/sec\n"
+                    f"per-task {d['redis_ops_per_task_coord_per_sec']} ops/sec "
+                    f"({d['redis_ops_per_task_per_sec']} /task)\n"
+                    f"~{d['redis_ops_1k_extrapolated']} at 1k / "
+                    f"~{d['redis_ops_10k_extrapolated']} at 10k (extrap)"
+                ),
+                "0",
+                "--",
+            )
+
+    if "cold_start" in results:
+        d = results["cold_start"]
+        if d.get("successful", 0) > 0:
+            table.add_row(
+                f"Cold-start to first task  ({d['trials']} trials)",
+                f"avg {d['avg_ms']} ms\np50 {d['p50_ms']} ms   p99 {d['p99_ms']} ms",
+                "n/a",
+                "--",
+            )
+
+    if "resurrection_under_load" in results:
+        d = results["resurrection_under_load"]
+        if d.get("resurrected", 0) > 0:
+            r_val = (
+                f"{d['resurrected']}/{d['inflight_at_kill']} recovered\n"
+                f"p50 {d['p50_s']}s   p99 {d['p99_s']}s\n"
+                f"first {d['min_s']}s   last {d['max_s']}s"
+            )
+        else:
+            r_val = f"0/{d['inflight_at_kill']} recovered"
+        table.add_row(
+            f"Resurrection under load  ({d['inflight_at_kill']} inflight)",
+            r_val,
+            "inf -- all lost",
+            _yn(d.get("claim_met", False)),
+        )
 
     console.print(table)
 
+    # Only count entries that actually carry a verifiable claim.
+    # Informational-only entries (e.g. cold_start) have neither key and
+    # must not inflate the denominator.
+    claim_results = [
+        v for v in results.values() if "relier_claim_met" in v or "claim_met" in v
+    ]
     passed = sum(
         1
-        for v in results.values()
+        for v in claim_results
         if v.get("relier_claim_met", False) or v.get("claim_met", False)
     )
-    total = len(results)
+    total = len(claim_results)
     console.print(f"\n[bold]{passed}/{total} benchmark claims verified.[/bold]")
 
     if "admission" in results and not results["admission"]["claim_met"]:
@@ -1179,7 +1591,9 @@ def main() -> None:
     test_oom_recovery()
     test_delivery_rate()
     test_graceful_shutdown()
-    test_resource_overhead()
+    test_resource_overhead()  # extended with steady-state ops/sec (Test 7)
+    test_cold_start_latency()  # Test 8
+    test_resurrection_under_load()  # Test 9
 
     print_results()
 

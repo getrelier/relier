@@ -2,7 +2,7 @@
 
 **Reliability layer for Celery. Zero job loss.**
 
-!!! warning "Pre-1.0 — public API may change"
+!!! warning "Pre-1.0: public API may change"
     Relier is currently `v0.x.y`. The **core engine** (Phoenix resurrector,
     idempotency, schema envelope, admission control, fence-token protocol)
     is production-grade and has been validated against the first-party
@@ -160,14 +160,14 @@ That's it. No GPU, no native extensions, no database required. Just Python + Red
 Relier follows [Semantic Versioning](https://semver.org), with one
 explicit caveat for the pre-1.0 series:
 
-- **`0.PATCH.x`** — bug fixes, doc updates, internal refactors.
+- **`0.PATCH.x`**: bug fixes, doc updates, internal refactors.
   Always safe to upgrade.
-- **`0.MINOR.0`** — feature additions **and** potentially breaking
+- **`0.MINOR.0`**: feature additions **and** potentially breaking
   changes to the public API surface (`@rl_task` options, dispatch
   helpers, CLI command shapes, `relier.config.Settings` field names).
   Read the [CHANGELOG](https://github.com/getrelier/relier/blob/main/CHANGELOG.md)
   before bumping.
-- **`1.0.0`** — locks the public API. From that point on, breaking
+- **`1.0.0`**: locks the public API. From that point on, breaking
   changes require a major-version bump per standard SemVer.
 
 The **core engine** (Redis key layout, Lua scripts, fence-token

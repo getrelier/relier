@@ -1,4 +1,4 @@
-# Configuration
+﻿# Configuration
 
 All Relier settings are read from environment variables with the `RELIER_`
 prefix. The recommended approach is a `.env` file in your project root, Relier
@@ -40,7 +40,7 @@ RELIER_OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
 | `RELIER_REDIS_URL` | `str` | `redis://localhost:6379/0` | Direct Redis connection URL. Ignored if `RELIER_REDIS_USE_SENTINEL=true`. |
-| `RELIER_REDIS_PASSWORD` | `str` | — | Redis `requirepass` value. Sensitive, never commit to version control. |
+| `RELIER_REDIS_PASSWORD` | `str` | none | Redis `requirepass` value. Sensitive, never commit to version control. |
 | `RELIER_REDIS_MAX_CONNECTIONS` | `int` | `20` | Connection pool size per worker process. Total connections = workers × this value. |
 | `RELIER_REDIS_SOCKET_TIMEOUT` | `float` | `5.0` | Socket read timeout in seconds. |
 | `RELIER_REDIS_CONNECT_TIMEOUT` | `float` | `2.0` | Connection establishment timeout in seconds. |
@@ -65,9 +65,9 @@ For production deployments that need Redis HA without manual failover:
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
 | `RELIER_REDIS_USE_SENTINEL` | `bool` | `false` | Route connections through Redis Sentinel instead of a direct URL. |
-| `RELIER_REDIS_SENTINEL_NODES` | `str` | — | Comma-separated `host:port` list. Example: `sentinel-1:26379,sentinel-2:26379,sentinel-3:26379` |
+| `RELIER_REDIS_SENTINEL_NODES` | `str` | none | Comma-separated `host:port` list. Example: `sentinel-1:26379,sentinel-2:26379,sentinel-3:26379` |
 | `RELIER_REDIS_SENTINEL_MASTER_NAME` | `str` | `relier-master` | Sentinel master group name. |
-| `RELIER_REDIS_SENTINEL_PASSWORD` | `str` | — | Sentinel `requirepass` value (if set). |
+| `RELIER_REDIS_SENTINEL_PASSWORD` | `str` | none | Sentinel `requirepass` value (if set). |
 
 ```bash
 RELIER_REDIS_USE_SENTINEL=true

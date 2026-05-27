@@ -194,11 +194,11 @@ Before a deploy that changes any task signature:
 A simpler approach is to write a new task with a different name:
 
 ```python
-# v1 — keep around
+# v1: keep around
 @rl_task()
 async def send_invoice(invoice_id: str): ...
 
-# v2 — new name
+# v2: new name
 @rl_task()
 async def send_invoice_v2(invoice_id: str, region: str): ...
 ```

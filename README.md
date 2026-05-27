@@ -17,9 +17,9 @@ Redis broker.
 Every task either completes, hands off to another worker, or lands in the Dead
 Letter Queue with a traceable reason. **Nothing silently disappears.**
 
-→ [Landing page](https://getrelier.github.io/relier/landing/) &nbsp;·&nbsp;
-[Docs](https://getrelier.github.io/relier/) &nbsp;·&nbsp;
-[Quickstart](https://getrelier.github.io/relier/quickstart/)
+→ [Docs](https://getrelier.github.io/relier/) &nbsp;·&nbsp;
+[Quickstart](https://getrelier.github.io/relier/quickstart/) &nbsp;·&nbsp;
+[Benchmarks](https://getrelier.github.io/relier/benchmarks/)
 
 ---
 
@@ -115,7 +115,7 @@ operate. Same Redis you already have.
 **Relier is not a DAG runner.**
 
 [Prefect](https://prefect.io), [Airflow](https://airflow.apache.org),
-[Dagster](https://dagster.io), [Luigi](https://github.com/spotify/luigi)  these
+[Dagster](https://dagster.io), [Luigi](https://github.com/spotify/luigi): these
 schedule and orchestrate pipelines of dependent tasks. They have UIs, schedulers,
 and retry policies baked into a pipeline definition. Relier has none of that.
 
@@ -124,7 +124,7 @@ and how they depend on each other is still your problem and Celery's.
 
 ---
 
-**vs. building it yourself.** Most teams write some subset of this an
+**vs. building it yourself.** Most teams write some subset of this: an
 idempotency table, sometimes a heartbeat-based resurrector, occasionally a DLQ.
 The pieces are individually well-understood. Composing them correctly (fence tokens
 for the GC-pause-victim case, AOF + `noeviction` preflight checks, thundering-herd
@@ -207,40 +207,57 @@ Full guide: [docs/chaos-guide.md](https://getrelier.github.io/relier/chaos-guide
 
 Measured by the built-in bench suite (`docker compose -f docker-compose.bench.yml up --build`) on Linux with prefork workers and synthetic 0.5 s tasks. All claims verified end-to-end not microbenchmarks against a mock.
 
-_Numbers below: Relier `v0.1.0`, captured 2026-05-25 against commit `41884c5`. Re-run with `make bench-docker` to compare on your hardware._
+_Numbers below: Relier `v0.1.3`, captured 2026-05-27. Re-run with `make bench-docker` to compare on your hardware._
 
 ```
 Linux (Docker, python:3.11-slim, prefork=4) | Redis 7.2 AOF | 500 tasks × 5 kills
 
-Metric                              Relier 0.1         Vanilla Celery
-----------------------------------------------------------------------
-Task delivery rate (5 SIGKILL)      100%               92.0%
-OOM recovery avg / p99              7.3 s / 9.4 s      ∞ lost
-Dual-OOM (2 concurrent tasks)       2/2 · 7.5 s        both lost
-Idempotency (50 submissions)        1 execution        50 executions
-Admission control p99 / max         0.763 ms / 1.72 ms n/a
-Graceful shutdown (3 cycles)        100%               0%
-Dispatch overhead (net avg)         +2.28 ms           —
-File descriptor leak                Δ 0 (stable)       n/a
-----------------------------------------------------------------------
+Metric                              Relier 0.1.3       Vanilla Celery     Vanilla +acks_late
+----------------------------------------------------------------------------------------------
+Task delivery rate (5 SIGKILL)      100%   500/500     92.0%  460/500     96.2%  481/500  (0 dup)
+OOM recovery avg / p99              7.5 s / 8.0 s      ∞ lost             partial (visibility)
+Dual-OOM (2 concurrent tasks)       2/2 · 7.5 s        both lost          partial (visibility)
+Idempotency (50 submissions)        1 execution        50 executions      50 executions
+Admission control p99 / max         0.772 ms / 2.4 ms  n/a                n/a
+Graceful shutdown (3 cycles)        100%               0%                 0%
+Dispatch overhead (net avg)         +1.77 ms           n/a                n/a
+Cold-start to first task            4.07 s avg         n/a                n/a
+Resurrection under load (5 kill)    5/5 · 7.6 s p99    all lost           partial (visibility)
+File descriptor leak                Δ 0 (stable)       n/a                n/a
+----------------------------------------------------------------------------------------------
 ```
 
-**+2.28 ms per dispatch** pays for: atomic admission check, SHA-256-signed envelope wrap, heartbeat registration. On any task that does real work (a DB query, an HTTP call, an AI inference), this is invisible.
+**+1.77 ms per dispatch** pays for: atomic admission check, SHA-256-signed envelope wrap, heartbeat registration. On any task that does real work (a DB query, an HTTP call, an AI inference), this is invisible.
 
-At 3.1 ms average per dispatch, **a single async producer sustains ~320 `apush()` calls/second** per thread. FastAPI producers fan out well past 1,000/second.
+At 2.80 ms average per dispatch, **a single async producer sustains ~350 `apush()` calls/second** per thread. FastAPI producers fan out well past 1,000/second.
 
-The admission control Lua script stays under 1 ms at p99 (0.763 ms), meaning the tail-latency cost of the admission check is bounded for the vast majority of requests.
+The admission control Lua script stays under 1 ms at p99 (0.772 ms), meaning the tail-latency cost of the admission check is bounded for the vast majority of requests. The "Vanilla +acks_late" column shows what flipping `task_acks_late=True` actually buys you: partial recovery (96.2% vs 92.0%) but not Relier's 100%, because the Redis broker's `visibility_timeout` default (~1 hour) gates redelivery long after most completions would have happened.
 
 ![Bench dashboard end of run](docs/assets/images/screenshot-2.png)
 
 Full methodology, per-test breakdowns, and Docker Compose instructions: [docs/benchmarks.md](docs/benchmarks.md).
+
+### Scaling
+
+Test 7 in the bench measures Redis ops/sec with N tasks inflight vs the same workers idle. The per-task steady-state delta came in **below measurement noise**; idle workers actually issue slightly more Redis traffic (BRPOP polling) than busy workers do.
+
+The real Redis cost is per-task **lifecycle ops** (dispatch + register + complete), about ~13–16 ops per task end-to-end. Capacity scales with **task turnover rate**, not inflight count:
+
+| Workload | Tasks/sec | Redis ops/sec | Single-master Redis |
+|---|---:|---:|---|
+| 1M tasks/day | ~12 | ~180 | trivial |
+| 10M tasks/day | ~120 | ~1,800 | trivial |
+| 100M tasks/day | ~1,200 | ~18,000 | comfortable |
+| 1B tasks/day | ~12,000 | ~180,000 | needs sharding |
+
+Long-running tasks are effectively free at the steady-state level; you can have tens of thousands of concurrent ETL jobs holding inflight without saturating Redis. Single-master Redis tops out around 1,000 tasks/sec end-to-end; past that, the path is vertical Redis, Redis Cluster (v0.1.3 ships hash-tagged keys for this), or a RabbitMQ broker. Full breakdown: [docs/benchmarks.md § Scaling ceiling](docs/benchmarks.md#scaling-ceiling-and-per-task-coordination-cost).
 
 ---
 
 ## What's in the box
 
 - **Zero job loss (Phoenix Pattern)**: heartbeat-based crash detection, atomic re-queue with lease + fence tokens.
-- **Exactly-once via idempotency**: atomic Redis Lua, claim/in-flight/completed states. `@rl_task(idempotent=True)` for automatic keying; `idempotency_lock(key, ttl)` for manual control with `lock.set_result(value)` — result committed automatically on context exit, lock released automatically on exception.
+- **Exactly-once via idempotency**: atomic Redis Lua, claim/in-flight/completed states. `@rl_task(idempotent=True)` for automatic keying; `idempotency_lock(key, ttl)` for manual control with `lock.set_result(value)`; result is committed automatically on context exit, lock released automatically on exception.
 - **Two-tier timeouts**: soft (cleanup hook) + hard (asyncio cancellation), enforced on async tasks.
 - **Checkpointing**: `ctx.set_partial(state)` in the soft-timeout hook saves progress to Redis; the next resurrection resumes from that state instead of starting over.
 - **Graceful shutdown**: SIGTERM drain phase, handoff to Phoenix for tasks that won't finish in time.
@@ -280,7 +297,7 @@ Full feature reference: [docs/](https://getrelier.github.io/relier/).
 
 ## Recent fixes (v0.1.2)
 
-- **`idempotency_lock` auto-commit**: `set_result(value)` stages the result synchronously; `__aexit__` commits it. Forgetting the call no longer silently breaks idempotency — a `None` sentinel is committed and future duplicates are still blocked.
+- **`idempotency_lock` auto-commit**: `set_result(value)` stages the result synchronously; `__aexit__` commits it. Forgetting the call no longer silently breaks idempotency; a `None` sentinel is committed and future duplicates are still blocked.
 - **`RedisConnectionError` on dispatch**: `apush`/`push` now raises `RedisConnectionError` with the configured Redis URL and a `docker run` command when Redis is unreachable, instead of a 60-line Celery traceback.
 - **`rl chaos worker-kill` result reporting**: prints "Worker terminated." only when a container was actually killed; prints a clear "no containers found" warning otherwise.
 
@@ -327,10 +344,10 @@ Open a PR against `main`. Quality gates: `make lint check test` must pass; `make
 
 ## Community
 
-- **Issues** — bugs, feature requests, questions via the issue templates above
-- **Discussions** — [github.com/getrelier/relier/discussions](https://github.com/getrelier/relier/discussions)  ideas, integrations, show and tell
-- **X / Twitter** — [@relierdev](https://x.com/relierdev)  release announcements and short-form updates
-- **Releases** — watch this repo for new releases; the changelog is in each GitHub Release
+- **Issues**: bugs, feature requests, questions via the issue templates above
+- **Discussions**: [github.com/getrelier/relier/discussions](https://github.com/getrelier/relier/discussions)  ideas, integrations, show and tell
+- **X / Twitter**: [@relierdev](https://x.com/relierdev)  release announcements and short-form updates
+- **Releases**: watch this repo for new releases; the changelog is in each GitHub Release
 
 ---
 
@@ -346,5 +363,5 @@ Built on Celery, Redis, asyncio, and OpenTelemetry. The Phoenix Pattern owes
 its name to the obvious metaphor; the fence-token approach is borrowed from
 Martin Kleppmann's writeups on distributed locking. The explicit-checkpoint
 philosophy is shared with Faust, Temporal (despite their different model),
-and AWS Step Functions when production systems converge on a design choice,
+and AWS Step Functions. When production systems converge on a design choice,
 it's worth noticing.

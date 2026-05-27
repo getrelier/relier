@@ -65,9 +65,13 @@ async def _stream_resurrection_events(duration: int) -> None:
             if prev == state:
                 continue
             seen_state[tid] = state
-            if state == "0":
+            # Monitor values are "<state>" for alive and "<state>:<ts>" for
+            # the awaiting-pickup phase; only the leading digit identifies
+            # the lifecycle bucket here.
+            bucket = state.partition(":")[0]
+            if bucket == "0":
                 label = "[yellow]RESURRECTED[/yellow] (awaiting pickup)"
-            elif state == "1":
+            elif bucket == "1":
                 label = "[green]ALIVE[/green] (revived by replacement worker)"
             else:
                 label = f"state={state}"

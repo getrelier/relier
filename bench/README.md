@@ -1,18 +1,21 @@
 # Relier Benchmark
 
 Validates every claim in `docs/benchmarks.md` using **real AI workloads** (Ollama) or fast
-synthetic sleep tasks.  
+synthetic sleep tasks.
 
 ## What it tests
 
 | Metric | Relier claim | Vanilla Celery |
 |--------|-------------|----------------|
 | Task delivery rate | 100% | ~92% |
-| Worker OOM recovery | 9.4 s p99 | ∞ (lost) |
+| Worker OOM recovery | < 10 s p99 | ∞ (lost) |
 | Duplicate prevention | 100% | 0% |
 | Admission control p99 | < 1 ms | n/a |
-| Graceful shutdown | 100% | ~60% |
-| Overhead per task | +2.28 ms net | 0.85 ms baseline |
+| Graceful shutdown | 100% | 0% |
+| Overhead per task | < 10 ms net | baseline |
+| Cold-start to first task | informational | n/a |
+| Resurrection under load (N=5) | < 120 s p99 | ∞ (lost) |
+| Redis ops/sec (steady-state) | informational | n/a |
 
 CPU% is recorded for every test that runs workers.
 
@@ -116,6 +119,23 @@ Vanilla terminates immediately. Repeated 1 cycle (Ollama) or 3 cycles (synthetic
 Measures idle worker RSS and the number of Redis keys + bytes written per in-flight Relier
 task. Also checks for file-descriptor leaks (open fds before vs after a task completes).
 
+Sub-test: **steady-state Redis ops/sec.** Runs `PHOENIX_LOAD_WORKERS` solo-pool workers,
+measures a 30 s idle baseline (workers running, no tasks), then a 60 s window with N tasks
+inflight. The delta is the per-task steady-state coordination cost. In practice this comes
+out below measurement noise — see `docs/benchmarks.md` § "Scaling ceiling and per-task
+coordination cost" for the interpretation.
+
+### Test 8 · Cold-start to first-task latency
+Dispatches a task while the worker is *not* running, starts a fresh worker, and measures
+wall-clock from process start to task completion. Repeated 3 times. Reports avg / p50 / p99.
+Matters for serverless and scale-to-zero deployments.
+
+### Test 9 · Resurrection under load
+Spawns `PHOENIX_LOAD_WORKERS` solo-pool workers, each holding one inflight task, then
+SIGKILLs them all at once (fleet-wide OOM scenario). Replacement workers are running in
+parallel. Measures wall-clock from kill to each orphaned task being re-picked-up by a
+replacement worker, reports p50 / p99 / first / last. Claim: p99 < 120 s.
+
 ## Customise
 
 | Env var | Default | Description |
@@ -125,5 +145,7 @@ task. Also checks for file-descriptor leaks (open fds before vs after a task com
 | `BENCH_BATCH_SIZE` | `30` (Ollama) / `500` (synthetic) | Tasks for delivery-rate test |
 | `BENCH_WORKER_CONCURRENCY` | `4` | Worker concurrency (Linux/Mac prefork) |
 | `BENCH_SYNTHETIC_SLEEP` | `0.5` | Task sleep duration in synthetic mode (seconds) |
+| `BENCH_OPS_MEASURE_S` | `60` | Test 7 steady-state ops measurement window |
+| `BENCH_PHOENIX_LOAD_WORKERS` | `5` (synthetic) / `20` (Ollama) | Concurrent inflight tasks for Tests 7 and 9 |
 
 Edit `bench/config.py` to change any constant directly.

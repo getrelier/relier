@@ -195,7 +195,9 @@ class IdempotencyManager:
 
                 raise IdempotencyInFlightError(key=full_key)
 
-            logger.debug("Returning cached idempotent task result.", extra={"key": key})
+            logger.info(
+                "Idempotency cache hit — returning cached result.", extra={"key": key}
+            )
             try:
                 cached = json.loads(raw_val)
             except (json.JSONDecodeError, TypeError):

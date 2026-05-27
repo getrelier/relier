@@ -1,4 +1,4 @@
-# Chaos Guide
+﻿# Chaos Guide
 
 Chaos engineering is the practice of deliberately breaking things to confirm your system can survive them. Relier ships a built-in chaos suite, a set of scenarios that trigger real failures against your running cluster so you can verify that the guarantees hold before you find out in production.
 
@@ -91,12 +91,12 @@ celery -A relier.tasks.app worker -l info \
   --include=relier.chaos.tasks
 ```
 
-Note that even with chaos tasks registered, **the kill step will still not work on bare metal** — only the scenarios that do not rely on Docker (`load-spike`, `slow-task`, `task-corrupt`) work without the Docker dev stack.
+Note that even with chaos tasks registered, **the kill step will still not work on bare metal**; only the scenarios that do not rely on Docker (`load-spike`, `slow-task`, `task-corrupt`) work without the Docker dev stack.
 
 | Scenario | Works on bare metal? |
 |----------|---------------------|
-| `worker-kill` | No — requires Docker |
-| `network-partition` | No — requires Docker |
+| `worker-kill` | No: requires Docker |
+| `network-partition` | No: requires Docker |
 | `load-spike` | Yes |
 | `slow-task` | Yes |
 | `task-corrupt` | Yes |
@@ -327,13 +327,13 @@ These commands are useful to run alongside chaos scenarios:
 # Live view of running tasks (refreshes every 2s)
 rl tasks inflight --follow
 
-# SLO burn rate — goes up during chaos
+# SLO burn rate: goes up during chaos
 rl slo status
 
-# DLQ — tasks that didn't survive
+# DLQ: tasks that didn't survive
 rl dlq list
 
-# Worker status — which workers are alive
+# Worker status: which workers are alive
 rl worker status
 
 # Admission control pressure
