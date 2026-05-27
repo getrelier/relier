@@ -55,7 +55,7 @@ async def process_webhook(event_id: str, payload: dict) -> dict:
         if lock.already_executed:
             return lock.cached_result          # short-circuit on duplicate
         result = await handle_event(payload)
-        lock.set_result(result)                # sync — committed automatically on exit
+        lock.set_result(result)                # sync: committed automatically on exit
         return result
 ```
 
@@ -251,10 +251,10 @@ async def regenerate_thumbnails(...): ...
 Then run two worker pools:
 
 ```bash
-# Pool A — only fast work
+# Pool A: only fast work
 celery -A relier.tasks.app worker --concurrency=4 -Q high_priority --hostname=worker-fast@%h
 
-# Pool B — bulk + default work
+# Pool B: bulk + default work
 celery -A relier.tasks.app worker --concurrency=16 -Q default,low_priority --hostname=worker-bulk@%h
 ```
 

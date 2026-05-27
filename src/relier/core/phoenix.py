@@ -278,8 +278,14 @@ class PhoenixRegistry:
         # Fail fast: the resurrector cannot coordinate anything without Redis.
         await validate_redis_reachable(redis, settings)
 
-        logger.info(
-            "Phoenix resurrector started",
+        # Every Celery worker embeds this scanner alongside the dedicated
+        # `rl run-resurrector` process. Logged at DEBUG so a regular
+        # `celery -A` boot doesn't show two "resurrector started" lines
+        # (the dedicated process prints its own banner via the CLI).
+        # Distributed locks make multiple scanners safe; a worker seeing
+        # this in DEBUG output is expected behaviour, not a stray launch.
+        logger.debug(
+            "Phoenix resurrection scanner started",
             extra={
                 "check_interval": settings.resurrection_check_interval,
                 "max_resurrections": settings.max_resurrections,

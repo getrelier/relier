@@ -11,7 +11,7 @@ pip install relier
 ```
 
 !!! note "pip install vs. contributing from source"
-    This guide covers the **pip install** path — the right choice for adding Relier to your own project. If you're contributing to Relier itself, clone the repo and run `make setup` instead. The `make worker` / `make dev` shortcuts only exist in the cloned repo; pip users start workers with the `celery` command directly (shown in [Step 6](#6-start-the-worker)).
+    This guide covers the **pip install** path, which is the right choice for adding Relier to your own project. If you're contributing to Relier itself, clone the repo and run `make setup` instead. The `make worker` / `make dev` shortcuts only exist in the cloned repo; pip users start workers with the `celery` command directly (shown in [Step 6](#6-start-the-worker)).
 
 ## 2. Start Redis
 
@@ -61,16 +61,16 @@ from relier.tasks.decorator import rl_task
     hard_timeout=30,           # forcefully terminates runaway execution at 30s
 )
 async def send_invoice(invoice_id: str) -> dict:
-    """Send an invoice — safe to retry, never double-charges."""
+    """Send an invoice: safe to retry, never double-charges."""
     await asyncio.sleep(1)   # ← replace with your actual work: Stripe, DB write, email
     return {"charged": True, "invoice_id": invoice_id}
 ```
 
-!!! tip "This example runs immediately — no external services needed"
+!!! tip "This example runs immediately: no external services needed"
     `asyncio.sleep(1)` is a stand-in. Replace it with your actual logic once the worker is running. For ready-to-copy real-world shapes (Stripe, database writes, HTTP calls) see the [Integration Recipes](integrations.md).
 
 !!! tip "New to async?"
-    Relier tasks are `async def` functions. If your existing Celery tasks are regular `def` functions, Relier supports those too — just drop the `async` keyword. The async bridge is handled for you either way.
+    Relier tasks are `async def` functions. If your existing Celery tasks are regular `def` functions, Relier supports those too: just drop the `async` keyword. The async bridge is handled for you either way.
 
 ### Returning results
 
@@ -84,7 +84,7 @@ async def send_invoice(invoice_id: str) -> dict:
 
 When `idempotent=True`, Relier automatically caches that return value. If the same `invoice_id` arrives again (retry, webhook re-delivery, duplicate dispatch), the cached result is returned immediately without re-running the function.
 
-**Most users never need to manage results manually.** Manual result control with `idempotency_lock` is only needed when the key Relier would derive from arguments isn't the right one — for example, when a webhook `event_id` is more stable than the full payload hash. See [Patterns Cookbook → Pattern 2](patterns.md#pattern-2).
+**Most users never need to manage results manually.** Manual result control with `idempotency_lock` is only needed when the key Relier would derive from arguments isn't the right one, for example, when a webhook `event_id` is more stable than the full payload hash. See [Patterns Cookbook → Pattern 2](patterns.md#pattern-2).
 
 ## 5. Dispatch tasks
 
@@ -133,7 +133,7 @@ the task).
 
 Open two terminals. Start these in the directory that contains your `tasks.py`.
 
-**Terminal 1 — Celery worker:**
+**Terminal 1: Celery worker:**
 
 === "macOS / Linux"
 
@@ -149,17 +149,17 @@ Open two terminals. Start these in the directory that contains your `tasks.py`.
 
     `--pool=solo` is required on Windows. Celery's default `prefork` pool uses named pipes for IPC that are unreliable under Windows' `spawn`-based multiprocessing, causing workers to crash with `OSError: [WinError 6]` on task receipt. `solo` runs everything in the main process and works correctly with Relier's async task execution.
 
-**Terminal 2 — Phoenix resurrector:**
+**Terminal 2: Phoenix resurrector:**
 
 ```bash
 rl run-resurrector
 ```
 
 !!! note "Why two processes?"
-    The Celery worker executes tasks. The Phoenix resurrector is a separate recovery service responsible for heartbeat monitoring, orphan detection, and re-queuing tasks after a worker crash. Keeping recovery isolated from workers means that a cascading worker failure cannot disable the recovery logic at the same time — the resurrector keeps running and draining the orphan backlog even as workers restart.
+    The Celery worker executes tasks. The Phoenix resurrector is a separate recovery service responsible for heartbeat monitoring, orphan detection, and re-queuing tasks after a worker crash. Keeping recovery isolated from workers means that a cascading worker failure cannot disable the recovery logic at the same time; the resurrector keeps running and draining the orphan backlog even as workers restart.
 
 !!! warning "Workers must import your task modules"
-    **Relier wraps Celery's worker entry system — it does not replace it.** You must provide a module that imports your task definitions so Celery registers them at startup.
+    **Relier wraps Celery's worker entry system: it does not replace it.** You must provide a module that imports your task definitions so Celery registers them at startup.
 
     The simplest way is `--include`:
 
@@ -179,14 +179,14 @@ rl run-resurrector
 
     Then run: `celery -A worker_app worker -l info -Q ...` (no `--include` needed).
 
-    What `celery -A relier.tasks.app` means: *"start a worker using Relier's Celery app"*. Relier's app is what wires up Phoenix, DLQ, idempotency, and the async bridge. Do not substitute a custom `Celery(...)` instance — Relier's guarantees only work through its own app.
+    What `celery -A relier.tasks.app` means: *"start a worker using Relier's Celery app"*. Relier's app is what wires up Phoenix, DLQ, idempotency, and the async bridge. Do not substitute a custom `Celery(...)` instance; Relier's guarantees only work through its own app.
 
 !!! warning "Module name, not file path"
     Celery's `-A` flag takes a **Python module name**, not a file path:
 
     ```bash
     celery -A worker_app worker ...   # ✓ module name
-    celery -A worker_app.py worker ... # ✗ file path — raises "module not found"
+    celery -A worker_app.py worker ... # ✗ file path: raises "module not found"
     ```
 
 !!! note "Avoid running `python tasks.py` directly"
@@ -194,7 +194,7 @@ rl run-resurrector
 
 ### Cloned from source (contributing / dev)
 
-`make worker` starts the Relier infrastructure (heartbeats, Phoenix, graceful shutdown) against the library itself — there are no user task modules to import in this context. It runs the same `celery -A relier.tasks.app worker` command without `--include`, which is correct for the repo's own use.
+`make worker` starts the Relier infrastructure (heartbeats, Phoenix, graceful shutdown) against the library itself; there are no user task modules to import in this context. It runs the same `celery -A relier.tasks.app worker` command without `--include`, which is correct for the repo's own use.
 
 ```bash
 make worker         # terminal 1: Celery worker
@@ -289,7 +289,7 @@ To verify the full failure surface (network partitions, load spikes, payload
 corruption), the repo ships a first-party chaos suite:
 
 !!! info "Chaos requires the Docker dev stack"
-    `rl chaos` commands use `docker kill` to terminate worker containers. They only work when the stack is running via `make dev` in the cloned repo. `pip install` users can still run scenarios that don't need Docker kills (`load-spike`, `slow-task`, `task-corrupt`) — see the [Chaos Guide](chaos-guide.md) for the breakdown.
+    `rl chaos` commands use `docker kill` to terminate worker containers. They only work when the stack is running via `make dev` in the cloned repo. `pip install` users can still run scenarios that don't need Docker kills (`load-spike`, `slow-task`, `task-corrupt`); see the [Chaos Guide](chaos-guide.md) for the breakdown.
 
 ```bash
 rl chaos worker-kill --seed --watch --watch-duration 60
@@ -307,7 +307,7 @@ their own cluster. See the [Chaos Guide](chaos-guide.md) for the full setup.
   five minutes.
 - **[Core Concepts](concepts.md)**: understand *why* Relier works the way it does.
 - **[Integration Recipes](integrations.md)**: FastAPI, Flask, Django, scripts.
-- **[Patterns Cookbook](patterns.md)**: copy-paste shapes for common cases — including
+- **[Patterns Cookbook](patterns.md)**: copy-paste shapes for common cases, including
   manual idempotency control with `idempotency_lock` when you need a custom key.
 - **[Troubleshooting & FAQ](troubleshooting.md)**: first place to look when
   something breaks.

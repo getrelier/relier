@@ -227,8 +227,8 @@ they all look the same.
 Resurrection is coordinated through a Redis lease (a key with a short TTL):
 
 ```
-rl:lease:{task_id}    — 180 s TTL — fence token of the current incarnation
-rl:fence:{task_id}    — 600 s TTL — same token, longer-lived for commit checks
+rl:lease:{task_id}    (180 s TTL) fence token of the current incarnation
+rl:fence:{task_id}    (600 s TTL) same token, longer-lived for commit checks
 ```
 
 When the resurrector decides a task needs to be replayed, it runs an atomic
@@ -251,7 +251,7 @@ through a scenario:
 2. A's heartbeat expires. The resurrector mints fence token `abc` and dispatches
    T to Worker B.
 3. Worker B runs T to completion under fence token `abc`. B's commit Lua script
-   verifies `rl:fence:{T} == "abc"`, yes — so the result is recorded, the
+   verifies `rl:fence:{T} == "abc"`, yes: the result is recorded, the
    lease released.
 4. Worker A wakes up from its pause and tries to commit *its* result for T.
 
@@ -405,13 +405,13 @@ upstream proxies.
 When a real incident happens, watch:
 
 ```
-# Recovery queue depth — brake 2 keeps this bounded
+# Recovery queue depth: brake 2 keeps this bounded
 redis-cli LLEN re-queue
 
-# How far behind the expiry index is — should drain across passes
+# How far behind the expiry index is: should drain across passes
 redis-cli ZCARD rl:phoenix:expiry_index
 
-# Per-task resurrection counts — if any approach max_resurrections,
+# Per-task resurrection counts: if any approach max_resurrections,
 # poison-pill quarantines are coming
 rl tasks inspect <task_id>
 ```
@@ -439,7 +439,7 @@ index growing, which means workers aren't pulling fast enough.
 | Schema-version skew during rolling deploy | Registered migration runs first; if no migration exists, task DLQ's with `SchemaMigrationError`. |
 | Mass failure floods resurrector | Batch size + recovery-queue depth + send semaphore + requeue delay all cap throughput. |
 | Producer flood | Admission control rejects with `Retry-After`. |
-| Checkpoint too large to store inline | `CheckpointTooLargeError` — loud, not silent. Configure filesystem backend if you need bigger checkpoints. |
+| Checkpoint too large to store inline | `CheckpointTooLargeError`: loud, not silent. Configure filesystem backend if you need bigger checkpoints. |
 
 ---
 
