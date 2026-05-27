@@ -62,3 +62,6 @@ worker_*.log
 # Docs build output
 site/
 FIXES.md
+launch.md
+draftpost.md
+docs/reliability.md
