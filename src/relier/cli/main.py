@@ -9,6 +9,7 @@ import logging
 
 import typer
 from rich.logging import RichHandler
+from rich.markup import escape as _markup_escape
 
 from relier import __version__
 
@@ -27,6 +28,33 @@ from relier.cli import (
 from relier.cli.base import app, console
 from relier.cli.utils import PRIMARY_COLOR, coro
 from relier.storage.redis import redis_manager  # noqa: F401
+
+# Attributes present on every LogRecord plus the ones added by Formatter.format().
+_RECORD_ATTRS: frozenset[str] = frozenset(
+    logging.LogRecord("", 0, "", 0, "", (), None).__dict__
+) | frozenset({"message", "asctime"})
+
+_PRIMARY = "#6366F1"  # Relier brand purple
+
+
+class _StructuredRichFormatter(logging.Formatter):
+    """Append extra= fields to the Rich terminal message so they are visible."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        msg = _markup_escape(super().format(record))
+        extras = {
+            k: v
+            for k, v in record.__dict__.items()
+            if k not in _RECORD_ATTRS and not k.startswith("_")
+        }
+        if extras:
+            parts = "  ".join(
+                f"[{_PRIMARY}]{k}[/{_PRIMARY}]={_markup_escape(repr(v))}"
+                for k, v in extras.items()
+            )
+            msg = f"{msg}  {parts}"
+        return msg
+
 
 app.add_typer(tasks.tasks_app, name="tasks")
 app.add_typer(cluster.app, name="cluster")
@@ -103,11 +131,12 @@ async def _run_resurrector_impl(loglevel: str, interval: int | None) -> None:
     numeric_level = getattr(logging, loglevel.upper(), logging.INFO)
 
     # Use Rich logging for beautiful terminal logs in development.
+    handler = RichHandler(rich_tracebacks=True, show_path=False, markup=True)
+    handler.setFormatter(_StructuredRichFormatter(fmt="%(message)s", datefmt="[%X]"))
     logging.basicConfig(
         level=numeric_level,
-        format="%(message)s",
         datefmt="[%X]",
-        handlers=[RichHandler(rich_tracebacks=True, show_path=False)],
+        handlers=[handler],
     )
 
     from relier.core.phoenix import PhoenixRegistry

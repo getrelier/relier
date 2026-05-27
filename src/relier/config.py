@@ -281,6 +281,17 @@ class Settings(BaseSettings):
             "preventing it from outrunning workers draining the queue."
         ),
     )
+    resurrection_claim_grace_period: int = Field(
+        default=30,
+        gt=0,
+        description=(
+            "Seconds to wait after re-queuing a resurrected task before "
+            "declaring it 'never claimed' and releasing it back to the expiry "
+            "index.  Must outlast a cold Celery worker startup (mingle phase, "
+            "Redis validation), otherwise the warning fires as a false "
+            "positive during normal cold starts."
+        ),
+    )
 
     # =========================================================================
     # Idempotency

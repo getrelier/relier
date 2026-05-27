@@ -181,7 +181,10 @@ class FakeRedis:
                 for h in list(self.hdata.keys()):
                     h_s = h.decode() if isinstance(h, bytes) else str(h)
                     if h_s.startswith("rl:phoenix:"):
-                        task_id = h_s.split("rl:phoenix:", 1)[1]
+                        # Phoenix keys are hash-tagged: ``rl:phoenix:{task_id}``.
+                        # Strip the wrapping braces so the extracted member
+                        # matches the task IDs used elsewhere in the test.
+                        task_id = h_s.split("rl:phoenix:", 1)[1].strip("{}")
                         members.append(task_id)
 
                     full = members

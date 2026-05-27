@@ -352,6 +352,7 @@ class PhoenixRegistry:
         """
         monitor_key = RedisKeys.monitor()
         expiry_index_key = RedisKeys.phoenix_expiry_index()
+        settings = cls._get_settings()
 
         # Page through the registry instead of loading it entirely; it can
         # grow large during mass-failure resurrection bursts.
@@ -389,7 +390,15 @@ class PhoenixRegistry:
         for i, t_id in enumerate(task_ids):
             hb_exists = bool(results[i * 2])
             payload_exists = bool(results[i * 2 + 1])
-            state = int(monitoring_data[t_id])
+
+            # Monitor values are written as "<state>:<resurrected_at>". The
+            # timestamp gates the "never claimed" warning so it cannot fire
+            # within the cold-start window. A missing timestamp (corrupted
+            # write or pre-existing test fixture) defaults to 0.0, which
+            # makes the grace check pass immediately.
+            state_str, _, ts_str = monitoring_data[t_id].partition(":")
+            state = int(state_str)
+            resurrected_at = float(ts_str) if ts_str else 0.0
 
             if state == 0 and hb_exists:
                 # A healthy worker reclaimed execution ownership.
@@ -410,10 +419,14 @@ class PhoenixRegistry:
 
             elif state == 0 and not hb_exists and payload_exists:
                 # Dispatched for resurrection but no worker ever registered a
-                # heartbeat (broker drop, or worker crash before
-                # registration). It is NOT in the expiry index, so re-add it
-                # explicitly. The resurrection lease prevents a duplicate
-                # dispatch until it expires.
+                # heartbeat. Hold off until the cold-start grace period
+                # elapses, otherwise a worker mid-startup looks identical to
+                # a broker drop and the warning fires as a false positive.
+                if now - resurrected_at < settings.resurrection_claim_grace_period:
+                    continue
+                # Grace expired: treat as a genuine miss. The task is NOT in
+                # the expiry index, so re-add it explicitly. The resurrection
+                # lease prevents a duplicate dispatch until it expires.
                 writes.hdel(monitor_key, t_id)
                 writes.zadd(expiry_index_key, {t_id: now})
                 transitions["lost"] += 1
@@ -756,7 +769,11 @@ class PhoenixRegistry:
             # instead of silently losing it.
             redis = await get_relier_redis()
             pipe = redis.pipeline()
-            pipe.hset(RedisKeys.monitor(), task_id, "0")
+            # Encode the re-queue timestamp alongside the state so the monitor
+            # can apply a grace period before declaring the task "never
+            # claimed" — a cold worker can take 10-20s before its first poll,
+            # and without this gate the warning fires on the very next pass.
+            pipe.hset(RedisKeys.monitor(), task_id, f"0:{int(time.time())}")
             pipe.incr(RedisKeys.resurrection(task_id))
             pipe.incr(RedisKeys.metric_global("resurrected"))
             pipe.zrem(RedisKeys.phoenix_expiry_index(), task_id)
