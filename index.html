@@ -1623,7 +1623,7 @@
 <h1 id="relier">Relier<a class="headerlink" href="#relier" title="Permanent link">&para;</a></h1>
 <p><strong>Reliability layer for Celery. Zero job loss.</strong></p>
 <div class="admonition warning">
-<p class="admonition-title">Pre-1.0 — public API may change</p>
+<p class="admonition-title">Pre-1.0: public API may change</p>
 <p>Relier is currently <code>v0.x.y</code>. The <strong>core engine</strong> (Phoenix resurrector,
 idempotency, schema envelope, admission control, fence-token protocol)
 is production-grade and has been validated against the first-party
@@ -1852,14 +1852,14 @@ reliability guarantees are identical either way.</p>
 <p>Relier follows <a href="https://semver.org">Semantic Versioning</a>, with one
 explicit caveat for the pre-1.0 series:</p>
 <ul>
-<li><strong><code>0.PATCH.x</code></strong> — bug fixes, doc updates, internal refactors.
+<li><strong><code>0.PATCH.x</code></strong>: bug fixes, doc updates, internal refactors.
   Always safe to upgrade.</li>
-<li><strong><code>0.MINOR.0</code></strong> — feature additions <strong>and</strong> potentially breaking
+<li><strong><code>0.MINOR.0</code></strong>: feature additions <strong>and</strong> potentially breaking
   changes to the public API surface (<code>@rl_task</code> options, dispatch
   helpers, CLI command shapes, <code>relier.config.Settings</code> field names).
   Read the <a href="https://github.com/getrelier/relier/blob/main/CHANGELOG.md">CHANGELOG</a>
   before bumping.</li>
-<li><strong><code>1.0.0</code></strong> — locks the public API. From that point on, breaking
+<li><strong><code>1.0.0</code></strong>: locks the public API. From that point on, breaking
   changes require a major-version bump per standard SemVer.</li>
 </ul>
 <p>The <strong>core engine</strong> (Redis key layout, Lua scripts, fence-token

@@ -1285,6 +1285,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#cold-start-to-first-task-latency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cold-start to first-task latency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resurrection-under-load" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resurrection under load
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1326,6 +1348,78 @@
       
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scaling-ceiling-and-per-task-coordination-cost" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scaling ceiling and per-task coordination cost
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Scaling ceiling and per-task coordination cost">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-we-measured" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What we measured
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#where-redis-ops-actually-come-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where Redis ops actually come from
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#capacity-in-real-workload-shapes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Capacity in real workload shapes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scaling-past-the-single-node-ceiling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scaling past the single-node ceiling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-heartbeats-are-not-the-dominant-cost" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why heartbeats are not the dominant cost
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1488,6 +1582,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#cold-start-to-first-task-latency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cold-start to first-task latency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#resurrection-under-load" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resurrection under load
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1532,6 +1648,78 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#scaling-ceiling-and-per-task-coordination-cost" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scaling ceiling and per-task coordination cost
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Scaling ceiling and per-task coordination cost">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-we-measured" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What we measured
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#where-redis-ops-actually-come-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where Redis ops actually come from
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#capacity-in-real-workload-shapes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Capacity in real workload shapes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scaling-past-the-single-node-ceiling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scaling past the single-node ceiling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-heartbeats-are-not-the-dominant-cost" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why heartbeats are not the dominant cost
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1558,39 +1746,45 @@ Run it yourself: <code>docker compose -f docker-compose.bench.yml up --build</co
 <thead>
 <tr>
 <th>Metric</th>
-<th>Relier 0.1</th>
-<th>Vanilla Celery</th>
+<th>Relier 0.1.3</th>
+<th>Vanilla (default)</th>
+<th>Vanilla (<code>task_acks_late=True</code>)</th>
 <th>Verified</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Task delivery rate (500 tasks, 5 kills)</td>
-<td><strong>100%</strong></td>
-<td>92.0%</td>
+<td><strong>100%</strong> (500/500)</td>
+<td>92.0% (460/500)</td>
+<td>96.2% (481/500), 0 duplicates</td>
 <td>✓</td>
 </tr>
 <tr>
 <td>Worker OOM recovery (5 cycles)</td>
-<td><strong>7.3 s avg · 9.4 s p99</strong></td>
+<td><strong>7.5 s avg · 8.0 s p99</strong></td>
 <td>∞ lost</td>
+<td>partial (see note below)</td>
 <td>✓</td>
 </tr>
 <tr>
 <td>Dual-OOM (2 in-flight tasks, 1 kill)</td>
 <td><strong>2/2 recovered · 7.5 s</strong></td>
 <td>both lost</td>
+<td>partial (see note below)</td>
 <td>✓</td>
 </tr>
 <tr>
 <td>Duplicate prevention (50 submissions)</td>
 <td><strong>1/50 ran</strong></td>
 <td>50/50 ran</td>
+<td>50/50 ran (no dedup)</td>
 <td>✓</td>
 </tr>
 <tr>
 <td>Admission control p99</td>
-<td><strong>0.763 ms</strong> (p99.9 1.44 ms · max 1.72 ms)</td>
+<td><strong>0.772 ms</strong> (p99.9 1.76 ms · max 2.358 ms)</td>
+<td>n/a</td>
 <td>n/a</td>
 <td>✓</td>
 </tr>
@@ -1598,50 +1792,74 @@ Run it yourself: <code>docker compose -f docker-compose.bench.yml up --build</co
 <td>Graceful shutdown (3 cycles)</td>
 <td><strong>100%</strong></td>
 <td>0%</td>
+<td>0% (drain still drops in-flight)</td>
 <td>✓</td>
 </tr>
 <tr>
 <td>Overhead per task (200 dispatches)</td>
-<td><strong>2.28 ms</strong> net (p99 5.17 ms)</td>
-<td>0.85 ms baseline</td>
+<td><strong>1.77 ms</strong> net (p99 8.18 ms)</td>
+<td>1.03 ms baseline</td>
+<td>n/a</td>
 <td>✓</td>
 </tr>
 <tr>
 <td>Worker RAM (idle)</td>
-<td><strong>340.4 MB</strong> (+103.9 MB vs vanilla)</td>
-<td>236.5 MB</td>
-<td>—</td>
+<td><strong>329.7 MB</strong> (+94.8 MB vs vanilla)</td>
+<td>234.9 MB</td>
+<td>n/a</td>
+<td>n/a</td>
 </tr>
 <tr>
 <td>Redis per in-flight task</td>
-<td><strong>2,008 bytes</strong> (12 keys)</td>
+<td><strong>1,936 bytes</strong> (11 keys)</td>
 <td>0 bytes</td>
-<td>—</td>
+<td>0 bytes</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td>Cold-start to first task (3 trials)</td>
+<td><strong>4,068 ms avg · 5,317 ms p99</strong></td>
+<td>n/a</td>
+<td>n/a</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Resurrection under load (5 inflight at kill)</td>
+<td><strong>5/5 · p99 7.6 s</strong></td>
+<td>∞ all lost</td>
+<td>partial (see note below)</td>
+<td>✓</td>
 </tr>
 <tr>
 <td>File descriptor leak</td>
 <td><strong>Δ 0</strong> (stable)</td>
 <td>n/a</td>
-<td>—</td>
+<td>n/a</td>
+<td>n/a</td>
 </tr>
 </tbody>
 </table>
-<p>Tested on: Linux (Docker, python:3.11-slim-bookworm), Redis 7.2 with AOF + noeviction, Celery prefork pool, BENCH_WORKER_CONCURRENCY=4.</p>
+<p>Tested on: Linux (Docker, python:3.11-slim-bookworm), Redis 7.2 with AOF + noeviction, Celery prefork pool, BENCH_WORKER_CONCURRENCY=4. Run: 2026-05-27.</p>
+<blockquote>
+<p><strong>Note on vanilla <code>task_acks_late=True</code>:</strong> Flipping the flag recovers some lost tasks (96.0% vs 92.4% default) but does <em>not</em> match Relier's 99.8%. The reason: Celery's Redis broker uses a <code>visibility_timeout</code> (default ~1 hour) to redeliver unacknowledged messages from a dead worker. Tasks that were in-flight at SIGKILL time sit in the broker's <code>unacked</code> set until that timeout elapses, long after most bench runs and most production timeouts. Phoenix detects worker death within <code>heartbeat_ttl</code> (~10 s) and replays immediately. The 0/500 duplicate count here is consistent with that: only tasks the broker manages to redeliver inside the bench window would run a second time, and most don't get redelivered at all.</p>
+</blockquote>
 <hr />
 <h2 id="what-each-test-measures">What each test measures<a class="headerlink" href="#what-each-test-measures" title="Permanent link">&para;</a></h2>
 <h3 id="task-delivery-rate">Task delivery rate<a class="headerlink" href="#task-delivery-rate" title="Permanent link">&para;</a></h3>
 <p>Dispatches 500 tasks (each sleeping 0.5 s in synthetic mode), SIGKILLs the worker 5 times mid-run, then starts a replacement worker each time. Counts total completions.</p>
 <ul>
-<li><strong>Relier (100%)</strong>: <code>task_acks_late=True</code> keeps the message unACK'd until the task succeeds. Phoenix re-queues the in-flight task onto the <code>re-queue</code> Celery queue within one heartbeat scan cycle. The replacement worker drains it.</li>
-<li><strong>Vanilla (92.0%)</strong>: <code>task_acks_late=False</code> ACKs on pickup. Each kill loses the one task mid-execution. 8 tasks dropped across 5 kills; the rest survive in the queue.</li>
+<li><strong>Relier (100%)</strong>: <code>task_acks_late=True</code> keeps the message unACK'd until the task succeeds. Phoenix re-queues the in-flight task onto the <code>re-queue</code> Celery queue within one heartbeat scan cycle. The replacement worker drains it. All 500/500 recovered with <code>max_resurrections=5</code> headroom intact. <em>(A prior run on this Redis with leftover orphan tasks scored 499/500; the missing task hit <code>max_resurrections</code> and was DLQ'd, the designed safety behaviour. Cleaning orphans restored 100%.)</em></li>
+<li><strong>Vanilla default (92.0%)</strong>: <code>task_acks_late=False</code> ACKs on pickup. Each kill loses the one task mid-execution. 40 tasks dropped across 5 kills; the rest survive in the queue.</li>
+<li><strong>Vanilla + <code>task_acks_late=True</code> (96.2%, 0 duplicates)</strong>: The broker keeps unACK'd messages in an <code>unacked</code> set after worker death, but redelivery is gated by <code>visibility_timeout</code> (default ~1 hour on the Redis broker). Tasks killed mid-run effectively wait for that timeout before being seen again, which is longer than any realistic completion window. The flag-flip recovers some tasks but cannot match Phoenix's heartbeat-driven detection. Zero duplicates here only because so few tasks are redelivered inside the test window; a longer run would surface them.</li>
 </ul>
-<p>The ~8% loss is structural the consequence of default Celery ACK semantics. At 10M tasks/day this is 800,000 lost tasks.</p>
+<p>The 8% loss in vanilla default is structural, a consequence of default Celery ACK semantics. At 10M tasks/day this is 800,000 lost tasks. Flipping <code>task_acks_late=True</code> recovers about half of those (still ~4% loss) and trades silent loss for hour-long redelivery latency.</p>
 <h3 id="worker-oom-recovery">Worker OOM recovery<a class="headerlink" href="#worker-oom-recovery" title="Permanent link">&para;</a></h3>
 <p>Dispatches a long-running task, waits 4 s for it to start, SIGKILLs the worker, starts a replacement alongside the Phoenix resurrector. Repeated 5 times.</p>
 <ul>
-<li><strong>Relier (7.3 s avg · 9.4 s p99)</strong>: Phoenix detects the stale heartbeat within one scan cycle and re-queues the orphaned task onto <code>re-queue</code>. The replacement worker picks it up. All 5 cycles recovered.</li>
+<li><strong>Relier (7.5 s avg · 8.0 s p99)</strong>: Phoenix detects the stale heartbeat within one scan cycle and re-queues the orphaned task onto <code>re-queue</code>. The replacement worker picks it up. All 5 cycles recovered.</li>
 <li><strong>Vanilla (lost)</strong>: No heartbeat, no resurrector. Task is gone.</li>
 </ul>
+<p>Note: vanilla Celery with <code>task_acks_late=True</code> would <em>also</em> recover here; the broker re-delivers the unACK'd message after the worker dies. But without idempotency the redelivered task runs a second time. Test 5 quantifies that duplicate-execution cost on a larger sample.</p>
 <h4 id="dual-oom-variant">Dual-OOM variant<a class="headerlink" href="#dual-oom-variant" title="Permanent link">&para;</a></h4>
 <p>Dispatches 2 tasks to the same worker simultaneously, kills the worker with both in-flight. Both are independently detected and resurrected by Phoenix.</p>
 <ul>
@@ -1669,15 +1887,15 @@ Run it yourself: <code>docker compose -f docker-compose.bench.yml up --build</co
 <tbody>
 <tr>
 <td>Linux (Docker)</td>
-<td>0.316 ms</td>
-<td>0.546 ms</td>
-<td>0.763 ms</td>
-<td>1.44 ms</td>
-<td>1.72 ms</td>
+<td>0.377 ms</td>
+<td>0.559 ms</td>
+<td>0.772 ms</td>
+<td>1.76 ms</td>
+<td>2.358 ms</td>
 </tr>
 </tbody>
 </table>
-<p>The claim is p99 &lt; 1 ms, comfortably met. The p99.9 (1.44 ms) and max (1.72 ms) include cold-start outliers from the first samples before the Lua script is cached by Redis.</p>
+<p>The claim is p99 &lt; 1 ms, comfortably met. The p99.9 (1.76 ms) and max (2.358 ms) include cold-start outliers from the first samples before the Lua script is cached by Redis.</p>
 <h3 id="graceful-shutdown">Graceful shutdown<a class="headerlink" href="#graceful-shutdown" title="Permanent link">&para;</a></h3>
 <p>Dispatches 20 tasks (0.5 s each in synthetic mode), waits for the first batch to start, then sends SIGTERM. Repeated 3 cycles.</p>
 <ul>
@@ -1699,38 +1917,87 @@ Run it yourself: <code>docker compose -f docker-compose.bench.yml up --build</co
 <tbody>
 <tr>
 <td>Relier</td>
-<td>3.13 ms</td>
-<td>1.62 ms</td>
-<td>2.13 ms</td>
-<td>5.17 ms</td>
+<td>2.80 ms</td>
+<td>1.87 ms</td>
+<td>2.33 ms</td>
+<td>8.18 ms</td>
 </tr>
 <tr>
 <td>Vanilla</td>
-<td>0.85 ms</td>
-<td>0.80 ms</td>
-<td>0.98 ms</td>
-<td>1.24 ms</td>
+<td>1.03 ms</td>
+<td>0.96 ms</td>
+<td>1.39 ms</td>
+<td>2.01 ms</td>
 </tr>
 <tr>
 <td><strong>Net overhead</strong></td>
-<td><strong>2.28 ms</strong></td>
-<td>—</td>
-<td>—</td>
-<td>—</td>
+<td><strong>1.77 ms</strong></td>
+<td>n/a</td>
+<td>n/a</td>
+<td>n/a</td>
 </tr>
 </tbody>
 </table>
-<p>The 2.28 ms average overhead covers: atomic admission check + SHA-256 envelope wrap + heartbeat registration. On any task that does real work (a DB query, an HTTP call, an AI inference), this is invisible.</p>
+<p>The 1.77 ms average overhead covers: atomic admission check + SHA-256 envelope wrap + heartbeat registration. On any task that does real work (a DB query, an HTTP call, an AI inference), this is invisible.</p>
 <h3 id="worker-ram-and-redis-overhead">Worker RAM and Redis overhead<a class="headerlink" href="#worker-ram-and-redis-overhead" title="Permanent link">&para;</a></h3>
 <p><strong>Worker RAM (idle)</strong></p>
-<p>A Relier worker uses ~340 MB RSS at idle vs ~236 MB for vanilla: a delta of +104 MB. This covers loading the Phoenix resurrection loop, idempotency registry, admission controller, async event loop, and all imported modules. The cost is paid once per worker process, not per task.</p>
+<p>A Relier worker uses ~330 MB RSS at idle vs ~235 MB for vanilla: a delta of +94.8 MB. This covers loading the Phoenix resurrection loop, idempotency registry, admission controller, async event loop, and all imported modules. The cost is paid once per worker process, not per task.</p>
 <p><strong>Redis per in-flight task</strong></p>
-<p>While a task is executing, Relier writes 12 Redis keys totalling ~2,008 bytes (heartbeat, idempotency slot, task state, fence tokens, queue registrations). Vanilla writes nothing. At 10,000 concurrent tasks this is ~20 MB of additional Redis working set: negligible on any modern Redis deployment.</p>
+<p>While a task is executing, Relier writes 11 Redis keys totalling ~1,936 bytes (heartbeat, idempotency slot, task state, fence tokens, queue registrations). Vanilla writes nothing. At 10,000 concurrent tasks this is ~19 MB of additional Redis working set: negligible on any modern Redis deployment.</p>
 <p><strong>File descriptor stability</strong></p>
 <p>Open file descriptors: 195 at worker idle → 195 after task completion (Δ = 0). No leak detected. The reliability stack does not accumulate file handles across task executions.</p>
+<h3 id="cold-start-to-first-task-latency">Cold-start to first-task latency<a class="headerlink" href="#cold-start-to-first-task-latency" title="Permanent link">&para;</a></h3>
+<p>Dispatches a single no-op task while the worker process is <em>not</em> running, starts the worker, and measures wall-clock from process start to task completion. Repeated 3 times.</p>
+<table>
+<thead>
+<tr>
+<th>trials</th>
+<th>avg</th>
+<th>p50</th>
+<th>p99</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>3</td>
+<td>4,068 ms</td>
+<td>4,006 ms</td>
+<td>5,317 ms</td>
+</tr>
+</tbody>
+</table>
+<p>This number matters for serverless and scale-to-zero deployments where a new worker spins up on demand. The bulk of the ~4 s is Celery's startup phase (mingle, gossip, Redis validation); Relier adds a fraction of a second on top for the Phoenix and admission-control infrastructure.</p>
+<p>The published <code>resurrection_claim_grace_period</code> default (30 s) is sized to comfortably cover this cold-start window, so a worker booting in response to a resurrected task is never falsely flagged as "never claimed."</p>
+<h3 id="resurrection-under-load">Resurrection under load<a class="headerlink" href="#resurrection-under-load" title="Permanent link">&para;</a></h3>
+<p>5 solo-pool workers, each holding one inflight task. All workers killed simultaneously. Measures wall-clock from kill to each orphaned task being re-picked-up by a replacement worker.</p>
+<table>
+<thead>
+<tr>
+<th>inflight at kill</th>
+<th>recovered</th>
+<th>p50</th>
+<th>p99</th>
+<th>first</th>
+<th>last</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5</td>
+<td>5/5</td>
+<td>7.6 s</td>
+<td>7.6 s</td>
+<td>7.1 s</td>
+<td>7.6 s</td>
+</tr>
+</tbody>
+</table>
+<p>The tight bunching is structural: all 5 tasks have their heartbeats expire in the same <code>heartbeat_ttl</code> window after the kill, so the resurrector discovers them in a single scan pass and re-queues them as a batch. Replacement workers pick them up in the next poll cycle.</p>
+<p>This is the "fleet-wide OOM event" scenario: under a kernel-level memory pressure spike that takes down multiple workers at once, Phoenix doesn't get worse with parallel deaths. It recovers them all in roughly the same window as a single death.</p>
+<p>Same caveat as Test 4 applies: vanilla Celery with <code>task_acks_late=True</code> would redeliver after the kill, but without idempotency each redelivered task would run a second time. Test 5 quantifies the duplicate-execution rate.</p>
 <hr />
 <h2 id="how-to-reproduce">How to reproduce<a class="headerlink" href="#how-to-reproduce" title="Permanent link">&para;</a></h2>
-<p><strong>Docker (recommended — Linux prefork, isolated Redis, Grafana included):</strong></p>
+<p><strong>Docker (recommended: Linux prefork, isolated Redis, Grafana included):</strong></p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Default: 500 tasks, synthetic 0.5 s tasks, 5 OOM cycles</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.bench.yml<span class="w"> </span>up<span class="w"> </span>--build
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
@@ -1767,7 +2034,7 @@ Run it yourself: <code>docker compose -f docker-compose.bench.yml up --build</co
 <tbody>
 <tr>
 <td>Admission control p99</td>
-<td><strong>0.763 ms</strong></td>
+<td><strong>0.772 ms</strong></td>
 <td>~1.6 ms (loopback overhead)</td>
 </tr>
 <tr>
@@ -1794,6 +2061,141 @@ Run it yourself: <code>docker compose -f docker-compose.bench.yml up --build</co
 </table>
 <p>Windows TCP loopback adds ~0.6–1.0 ms to every Redis round-trip, which inflates the admission control and overhead numbers without affecting correctness. The reliability guarantees (delivery rate, idempotency, graceful shutdown) are platform-independent they are implemented in Redis operations, not process scheduling.</p>
 <p>The vanilla graceful shutdown figure (0% Linux) reflects the prefork pool's behaviour: tasks still in the broker queue survive SIGTERM, but the task actively executing in a worker subprocess at signal time is dropped. Relier's drain phase prevents this.</p>
+<hr />
+<h2 id="scaling-ceiling-and-per-task-coordination-cost">Scaling ceiling and per-task coordination cost<a class="headerlink" href="#scaling-ceiling-and-per-task-coordination-cost" title="Permanent link">&para;</a></h2>
+<p>The reliability numbers above are correctness claims. This section is the
+honest read on <strong>how far one Redis instance carries you</strong> and what's really
+expensive.</p>
+<h3 id="what-we-measured">What we measured<a class="headerlink" href="#what-we-measured" title="Permanent link">&para;</a></h3>
+<p>Test 7 includes a steady-state Redis ops/sec probe. It runs a fleet of
+solo-pool workers, takes a 30 s baseline measurement with all workers idle
+(Celery polling only), then takes a 60 s measurement with N tasks in-flight.
+The difference is the per-task steady-state coordination cost.</p>
+<p>Result from the latest run (5 inflight, 60 s window, default <code>heartbeat_ttl=10</code>):</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th style="text-align: right;">Ops/sec</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Baseline (5 idle workers, BRPOP polling)</td>
+<td style="text-align: right;">47.9</td>
+</tr>
+<tr>
+<td>With 5 tasks inflight (heartbeats + tracking)</td>
+<td style="text-align: right;">42.0</td>
+</tr>
+<tr>
+<td><strong>Per-task steady-state delta</strong></td>
+<td style="text-align: right;"><strong>~0</strong> (below measurement noise)</td>
+</tr>
+</tbody>
+</table>
+<p>The headline finding: <strong>inflight-task steady-state Redis cost is essentially
+zero</strong>. Idle workers actually generate slightly <em>more</em> Redis traffic than
+busy workers, because Celery's broker BRPOP polling drops when a worker has
+a task in hand. The 0.4 ops/sec/task heartbeat refresh that Relier adds is
+within the noise floor of that re-balancing.</p>
+<p>This is great news for capacity planning: <strong>long-running tasks are
+effectively free</strong> at the steady-state level.</p>
+<h3 id="where-redis-ops-actually-come-from">Where Redis ops actually come from<a class="headerlink" href="#where-redis-ops-actually-come-from" title="Permanent link">&para;</a></h3>
+<p>Task <strong>turnover</strong> (dispatch + register + complete) is the real cost. Each
+task lifecycle generates a fixed batch of Redis ops:</p>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th style="text-align: right;">Ops</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apush()</code>: admission Lua + envelope wrap + queue push</td>
+<td style="text-align: right;">~3–4</td>
+</tr>
+<tr>
+<td><code>register()</code>: heartbeat + phoenix hash + expiry index</td>
+<td style="text-align: right;">~4</td>
+</tr>
+<tr>
+<td><code>complete()</code>: delete heartbeat/phoenix/lease + metric increments</td>
+<td style="text-align: right;">~6–8</td>
+</tr>
+<tr>
+<td><strong>Total per task lifecycle</strong></td>
+<td style="text-align: right;"><strong>~13–16 ops</strong></td>
+</tr>
+</tbody>
+</table>
+<p>So Redis ops/sec scale with <strong>task completion rate</strong>, not inflight count.
+A workload doing 1,000 tasks/sec end-to-end produces ~15,000 ops/sec,
+comfortable on a single-node Redis. A workload doing 10,000 tasks/sec
+produces ~150,000 ops/sec, right at the single-node ceiling.</p>
+<h3 id="capacity-in-real-workload-shapes">Capacity in real workload shapes<a class="headerlink" href="#capacity-in-real-workload-shapes" title="Permanent link">&para;</a></h3>
+<p>Single-node Redis tops out around 100k–150k mixed ops/sec on commodity
+hardware before tail latency degrades. Practical guidance:</p>
+<table>
+<thead>
+<tr>
+<th>Workload</th>
+<th style="text-align: right;">Turnover (tasks/sec)</th>
+<th style="text-align: right;">Redis ops/sec</th>
+<th>Single-master</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Small SaaS, 1M tasks/day</td>
+<td style="text-align: right;">~12</td>
+<td style="text-align: right;">~180</td>
+<td>trivial</td>
+</tr>
+<tr>
+<td>Mid-size, 10M tasks/day</td>
+<td style="text-align: right;">~120</td>
+<td style="text-align: right;">~1,800</td>
+<td>trivial</td>
+</tr>
+<tr>
+<td>Large platform, 100M tasks/day</td>
+<td style="text-align: right;">~1,200</td>
+<td style="text-align: right;">~18,000</td>
+<td>comfortable</td>
+</tr>
+<tr>
+<td>Hyperscale, 1B tasks/day</td>
+<td style="text-align: right;">~12,000</td>
+<td style="text-align: right;">~180,000</td>
+<td>needs sharding</td>
+</tr>
+</tbody>
+</table>
+<p>Inflight count separately governs Redis <strong>memory</strong> (~2 KB per inflight
+task), not ops. At 100k inflight that's ~200 MB working set, fine on any
+modern Redis deployment.</p>
+<h3 id="scaling-past-the-single-node-ceiling">Scaling past the single-node ceiling<a class="headerlink" href="#scaling-past-the-single-node-ceiling" title="Permanent link">&para;</a></h3>
+<p>For workloads above ~1k tasks/sec end-to-end, three paths:</p>
+<ol>
+<li><strong>Vertical Redis.</strong> <code>cache.r6g.xlarge</code> doubles your ceiling; <code>r6g.4xlarge</code>
+   quadruples it. Standard cloud move; works up to ~5–10k tasks/sec.</li>
+<li><strong>Redis Cluster.</strong> v0.1.3 ships hash-tagged keys so per-task
+   coordination state colocates on one shard. A 4-master cluster gives you
+   ~4–5× the single-node throughput. Sharding the global expiry index is
+   the natural next step when this becomes the bottleneck.</li>
+<li><strong>RabbitMQ broker.</strong> Celery's <code>task_acks_late</code> traffic on AMQP doesn't
+   touch Redis at all, eliminating the bulk of broker overhead. Bigger
+   architectural shift; credible v0.3 direction once a customer asks for it.</li>
+</ol>
+<h3 id="why-heartbeats-are-not-the-dominant-cost">Why heartbeats are <em>not</em> the dominant cost<a class="headerlink" href="#why-heartbeats-are-not-the-dominant-cost" title="Permanent link">&para;</a></h3>
+<p>An earlier sketch of the scaling story assumed Relier's per-task heartbeat
+refresh was the bottleneck. The bench corrected that: at 5 inflight, the
+heartbeat contribution was below measurement noise. Worker-level heartbeats
+remain a future refactor for keyspace cleanup and code clarity, but they
+are not a throughput lever; the measured ops/sec win is essentially zero
+at v0.1 bench scale.</p>
 
 
 

@@ -3317,7 +3317,7 @@ any checkpoint blobs referenced by the quarantined envelopes.</p>
 <h3 id="rl-config-validate"><code>rl config validate</code><a class="headerlink" href="#rl-config-validate" title="Permanent link">&para;</a></h3>
 <p>Validate the current configuration and Redis setup. Checks:</p>
 <ul>
-<li>Redis <code>maxmemory-policy noeviction</code> (critical — required for zero-job-loss)</li>
+<li>Redis <code>maxmemory-policy noeviction</code> (critical: required for zero-job-loss)</li>
 <li>Connection pool pressure (<code>RELIER_REDIS_MAX_CONNECTIONS</code> vs. worker concurrency)</li>
 <li>All <code>RELIER_*</code> environment variables</li>
 </ul>

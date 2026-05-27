@@ -1471,7 +1471,7 @@
 
 
 
-<h1 id="rl-relier-cli-manual">rl — Relier CLI Manual<a class="headerlink" href="#rl-relier-cli-manual" title="Permanent link">&para;</a></h1>
+<h1 id="rl-relier-cli-manual">rl: Relier CLI Manual<a class="headerlink" href="#rl-relier-cli-manual" title="Permanent link">&para;</a></h1>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p><code>rl</code> is the command-line interface for Relier, the reliability layer for Celery. It exposes subcommands for monitoring tasks, managing the Dead Letter Queue, operating the Phoenix resurrector, running chaos scenarios, and inspecting cluster health.</p>
 <h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
@@ -1479,54 +1479,54 @@
 </span></code></pre></div>
 <p>Global options:</p>
 <ul>
-<li><code>--version</code>, <code>-v</code> — Show the application's version and exit.</li>
-<li><code>rl man</code> — Print the local <code>rl</code> manual from <code>docs/rl.md</code>.</li>
+<li><code>--version</code>, <code>-v</code>: Show the application's version and exit.</li>
+<li><code>rl man</code>: Print the local <code>rl</code> manual from <code>docs/rl.md</code>.</li>
 </ul>
 <h2 id="task-management">Task Management<a class="headerlink" href="#task-management" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>rl tasks inflight [--follow]</code> — Show currently executing tasks across the cluster.</li>
-<li><code>rl tasks list</code> — Render the current inflight task table once.</li>
-<li><code>rl tasks inspect &lt;task_id&gt;</code> — Inspect a task's Phoenix registry payload, worker, and resurrection state.</li>
-<li><code>rl tasks top</code> — Show a top-like summary of active workers, queue depth, and latency.</li>
+<li><code>rl tasks inflight [--follow]</code>: Show currently executing tasks across the cluster.</li>
+<li><code>rl tasks list</code>: Render the current inflight task table once.</li>
+<li><code>rl tasks inspect &lt;task_id&gt;</code>: Inspect a task's Phoenix registry payload, worker, and resurrection state.</li>
+<li><code>rl tasks top</code>: Show a top-like summary of active workers, queue depth, and latency.</li>
 </ul>
 <h2 id="dead-letter-queue-dlq">Dead Letter Queue (DLQ)<a class="headerlink" href="#dead-letter-queue-dlq" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>rl dlq list</code> — List quarantined tasks in the DLQ.</li>
-<li><code>rl dlq inspect &lt;task_id&gt;</code> — View full DLQ payload and error context.</li>
-<li><code>rl dlq retry &lt;task_id&gt;</code> — Re-submit a quarantined task to its original queue.</li>
-<li><code>rl dlq purge --confirm</code> — Permanently delete all DLQ entries.</li>
+<li><code>rl dlq list</code>: List quarantined tasks in the DLQ.</li>
+<li><code>rl dlq inspect &lt;task_id&gt;</code>: View full DLQ payload and error context.</li>
+<li><code>rl dlq retry &lt;task_id&gt;</code>: Re-submit a quarantined task to its original queue.</li>
+<li><code>rl dlq purge --confirm</code>: Permanently delete all DLQ entries.</li>
 </ul>
 <h2 id="reliability-resurrector">Reliability &amp; Resurrector<a class="headerlink" href="#reliability-resurrector" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>rl resurrect [--interval &lt;seconds&gt;]</code> — Start the Phoenix resurrector loop.</li>
-<li><code>rl run-resurrector [--interval &lt;seconds&gt;]</code> — Alias for <code>rl resurrect</code>.</li>
-<li><code>rl doctor</code> — Check Redis, PostgreSQL, and cluster dependency health.</li>
-<li><code>rl bench</code> — Run a local benchmark to measure Relier overhead.</li>
+<li><code>rl resurrect [--interval &lt;seconds&gt;]</code>: Start the Phoenix resurrector loop.</li>
+<li><code>rl run-resurrector [--interval &lt;seconds&gt;]</code>: Alias for <code>rl resurrect</code>.</li>
+<li><code>rl doctor</code>: Check Redis, PostgreSQL, and cluster dependency health.</li>
+<li><code>rl bench</code>: Run a local benchmark to measure Relier overhead.</li>
 </ul>
 <h2 id="admission-control">Admission Control<a class="headerlink" href="#admission-control" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>rl admission status</code> — Show current admission control state and load-shedding status.</li>
+<li><code>rl admission status</code>: Show current admission control state and load-shedding status.</li>
 </ul>
 <h2 id="worker-cluster-operations">Worker &amp; Cluster Operations<a class="headerlink" href="#worker-cluster-operations" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>rl worker status</code> — Show registered worker nodes and in-flight task counts.</li>
-<li><code>rl cluster status</code> — Check Docker Compose infrastructure health.</li>
-<li><code>rl cluster scale &lt;workers&gt;</code> — Scale worker replicas to the requested count.</li>
+<li><code>rl worker status</code>: Show registered worker nodes and in-flight task counts.</li>
+<li><code>rl cluster status</code>: Check Docker Compose infrastructure health.</li>
+<li><code>rl cluster scale &lt;workers&gt;</code>: Scale worker replicas to the requested count.</li>
 </ul>
 <h2 id="administration">Administration<a class="headerlink" href="#administration" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>rl admin config</code> — Display active Relier configuration values.</li>
-<li><code>rl admin purge-locks</code> — Delete all idempotency locks from Redis.</li>
-<li><code>rl admin reset-admission</code> — Reset admission control counters.</li>
+<li><code>rl admin config</code>: Display active Relier configuration values.</li>
+<li><code>rl admin purge-locks</code>: Delete all idempotency locks from Redis.</li>
+<li><code>rl admin reset-admission</code>: Reset admission control counters.</li>
 </ul>
 <h2 id="chaos-engineering">Chaos Engineering<a class="headerlink" href="#chaos-engineering" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>rl chaos worker-kill [--worker-id &lt;id&gt;]</code> — Kill a worker process to simulate failure.</li>
-<li><code>rl chaos network-partition [--duration &lt;seconds&gt;]</code> — Simulate Redis outage.</li>
-<li><code>rl chaos load-spike [--rps &lt;n&gt;] [--duration &lt;seconds&gt;]</code> — Create a burst of task load.</li>
-<li><code>rl chaos task-corrupt</code> — Inject a malformed poison-pill task.</li>
-<li><code>rl chaos api-timeout [--delay &lt;seconds&gt;]</code> — Add latency to external API calls.</li>
-<li><code>rl chaos slow-task [--duration &lt;seconds&gt;]</code> — Force the next debug task to hang.</li>
+<li><code>rl chaos worker-kill [--worker-id &lt;id&gt;]</code>: Kill a worker process to simulate failure.</li>
+<li><code>rl chaos network-partition [--duration &lt;seconds&gt;]</code>: Simulate Redis outage.</li>
+<li><code>rl chaos load-spike [--rps &lt;n&gt;] [--duration &lt;seconds&gt;]</code>: Create a burst of task load.</li>
+<li><code>rl chaos task-corrupt</code>: Inject a malformed poison-pill task.</li>
+<li><code>rl chaos api-timeout [--delay &lt;seconds&gt;]</code>: Add latency to external API calls.</li>
+<li><code>rl chaos slow-task [--duration &lt;seconds&gt;]</code>: Force the next debug task to hang.</li>
 </ul>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <p>Tail inflight tasks live:</p>

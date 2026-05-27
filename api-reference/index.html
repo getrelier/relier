@@ -2458,7 +2458,7 @@ reliability stack.</p>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">soft_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">hard_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">on_soft_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>           <span class="c1"># optional stable override — see below</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>           <span class="c1"># optional stable override, see below</span>
 </span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">)</span>
 </span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">my_task</span><span class="p">(</span><span class="n">arg1</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">arg2</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
 </span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="o">...</span>
@@ -2549,7 +2549,7 @@ asyncio cancellation. The task is quarantined to the DLQ with
 <p>If only <code>hard_timeout</code> is set (no <code>soft_timeout</code>), there is no cleanup window,
 the task is cancelled immediately when it expires.</p>
 <div class="admonition warning">
-<p class="admonition-title">Always set <code>hard_timeout</code> — the default is not \"no timeout\"</p>
+<p class="admonition-title">Always set <code>hard_timeout</code>: the default is not \"no timeout\"</p>
 <p>When <code>hard_timeout=None</code>, Relier's async bridge applies a <strong>300-second
 fallback</strong> timeout on the thread-to-loop handoff. After 300 s the bridge
 raises <code>TimeoutError</code> and Celery marks the task failed, but the underlying
@@ -2576,7 +2576,7 @@ it to <code>async def</code> and <code>asyncio.to_thread()</code> the blocking c
 are visible in the hook. Has <code>hard_timeout - soft_timeout</code> seconds to complete
 before the hard timeout fires.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">checkpoint_progress</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="c1"># ctx.metadata is live — reflects what the task body wrote before the</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="c1"># ctx.metadata is live: reflects what the task body wrote before the</span>
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="c1"># soft timeout fired.</span>
 </span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">last</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;last_cursor&quot;</span><span class="p">)</span>
 </span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="k">if</span> <span class="n">last</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -2617,7 +2617,7 @@ breaking:</p>
 </span></code></pre></div>
 <div class="admonition tip">
 <p class="admonition-title">Convention</p>
-<p>Use <code>"&lt;app_name&gt;.&lt;task_function_name&gt;"</code> — it's stable, human-readable, and unique within a project. Avoid module paths (<code>myapp.tasks.payments.process_order</code>) since those encode your directory structure and force renames when you reorganise.</p>
+<p>Use <code>"&lt;app_name&gt;.&lt;task_function_name&gt;"</code>: it's stable, human-readable, and unique within a project. Avoid module paths (<code>myapp.tasks.payments.process_order</code>) since those encode your directory structure and force renames when you reorganise.</p>
 </div>
 <hr />
 <h3 id="dispatch-methods-apush-push-delay">Dispatch methods (<code>apush</code>, <code>push</code>, <code>delay</code>)<a class="headerlink" href="#dispatch-methods-apush-push-delay" title="Permanent link">&para;</a></h3>
@@ -2656,18 +2656,18 @@ own <code>.delay()</code>.</p>
 <div class="admonition warning">
 <p class="admonition-title">Calling <code>apush</code> without <code>await</code> silently does nothing</p>
 <p><code>apush</code> returns a coroutine. If you call it without <code>await</code>, the coroutine
-is created but never executed — <strong>no admission check runs, no envelope is
+is created but never executed: <strong>no admission check runs, no envelope is
 built, and no task reaches the broker.</strong> The task is silently dropped.</p>
 <p>Python will eventually emit <code>RuntimeWarning: coroutine 'apush' was never awaited</code>
 when the garbage collector cleans up, but by then the dispatch window has passed.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Wrong — task is never dispatched</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Wrong: task is never dispatched</span>
 </span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">send_invoice</span><span class="o">.</span><span class="n">apush</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">)</span>
 </span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
 </span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="c1"># Correct</span>
 </span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="k">await</span> <span class="n">send_invoice</span><span class="o">.</span><span class="n">apush</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">)</span>
 </span></code></pre></div>
 <p>If you are in a sync context (script, Django view, Flask route), use <code>push</code>
-instead — it handles the event loop bridging for you:</p>
+instead; it handles the event loop bridging for you:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">send_invoice</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">)</span>  <span class="c1"># sync, no await needed</span>
 </span></code></pre></div>
 </div>
@@ -2759,7 +2759,7 @@ function. Use it to read task identity, save checkpoints, or read a checkpoint
 that a previous incarnation wrote.</p>
 <h3 id="accessing-the-context-inside-a-task">Accessing the context inside a task<a class="headerlink" href="#accessing-the-context-inside-a-task" title="Permanent link">&para;</a></h3>
 <p>Two ways. Pick whichever fits the call site:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># 1. Inject via kwarg — Relier detects the `ctx` parameter and fills it in.</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># 1. Inject via kwarg: Relier detects the `ctx` parameter and fills it in.</span>
 </span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.context</span><span class="w"> </span><span class="kn">import</span> <span class="n">TaskContext</span>
 </span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
 </span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="nd">@rl_task</span><span class="p">()</span>
@@ -2768,7 +2768,7 @@ that a previous incarnation wrote.</p>
 </span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>    <span class="n">ctx</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;last_id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">item_id</span>
 </span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">item_id</span><span class="p">}</span>
 </span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>
-</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a><span class="c1"># 2. Read from the contextvar proxy — no parameter needed.</span>
+</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a><span class="c1"># 2. Read from the contextvar proxy: no parameter needed.</span>
 </span><span id="__span-13-11"><a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.context</span><span class="w"> </span><span class="kn">import</span> <span class="n">task_context</span>
 </span><span id="__span-13-12"><a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>
 </span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a><span class="nd">@rl_task</span><span class="p">()</span>
@@ -2782,7 +2782,7 @@ that a previous incarnation wrote.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.context</span><span class="w"> </span><span class="kn">import</span> <span class="n">task_context</span>
 </span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>
 </span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">save_progress</span><span class="p">(</span><span class="n">cursor</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Called from deep inside the task — no ctx parameter needed.&quot;&quot;&quot;</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Called from deep inside the task; no ctx parameter needed.&quot;&quot;&quot;</span>
 </span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>    <span class="n">task_context</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;cursor&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cursor</span>
 </span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>    <span class="k">await</span> <span class="n">task_context</span><span class="o">.</span><span class="n">set_partial</span><span class="p">({</span><span class="s2">&quot;cursor&quot;</span><span class="p">:</span> <span class="n">cursor</span><span class="p">})</span>
 </span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>
@@ -2798,10 +2798,10 @@ that a previous incarnation wrote.</p>
 </span><span id="__span-14-17"><a id="__codelineno-14-17" name="__codelineno-14-17" href="#__codelineno-14-17"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;done&quot;</span><span class="p">}</span>
 </span></code></pre></div>
 <p>Without the proxy, <code>save_progress</code> and <code>process_page</code> would both need <code>ctx</code> as a parameter even though they don't logically own it. The proxy keeps helper functions clean.</p>
-<p>The proxy is bound per task execution via Python's <code>contextvars</code> — each concurrent task has its own isolated view. Reads in one task never bleed into another.</p>
+<p>The proxy is bound per task execution via Python's <code>contextvars</code>; each concurrent task has its own isolated view. Reads in one task never bleed into another.</p>
 <p>The proxy raises <code>LookupError</code> if accessed outside a running <code>@rl_task</code> function, which catches accidental reads in tests or scripts early.</p>
 <h4 id="when-to-use-injection-ctx-taskcontext-none">When to use injection (<code>ctx: TaskContext = None</code>)<a class="headerlink" href="#when-to-use-injection-ctx-taskcontext-none" title="Permanent link">&para;</a></h4>
-<p>Prefer injection when the function <strong>is</strong> the task and the parameter makes the interface explicit — it's immediately visible in the signature that the function depends on the context. Both approaches give you the same object; it's a readability choice.</p>
+<p>Prefer injection when the function <strong>is</strong> the task and the parameter makes the interface explicit: it's immediately visible in the signature that the function depends on the context. Both approaches give you the same object; it's a readability choice.</p>
 <h3 id="fields">Fields<a class="headerlink" href="#fields" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -3018,7 +3018,7 @@ the S3 key):</p>
 custom key or conditional logic that the auto-keyed <code>idempotent=True</code> flag
 can't express.</p>
 <div class="admonition warning">
-<p class="admonition-title">Async only — sync tasks use <code>idempotent=True</code></p>
+<p class="admonition-title">Async only: sync tasks use <code>idempotent=True</code></p>
 <p><code>idempotency_lock</code> is an async context manager and requires <code>async with</code>.
 Using it with plain <code>with</code> will raise:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>AttributeError: __enter__
@@ -3039,7 +3039,7 @@ Using it with plain <code>with</code> will raise:</p>
 </span><span id="__span-22-7"><a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a>        <span class="k">if</span> <span class="n">lock</span><span class="o">.</span><span class="n">already_executed</span><span class="p">:</span>
 </span><span id="__span-22-8"><a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a>            <span class="k">return</span> <span class="n">lock</span><span class="o">.</span><span class="n">cached_result</span>
 </span><span id="__span-22-9"><a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a>        <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">process_event</span><span class="p">(</span><span class="n">event_type</span><span class="p">,</span> <span class="n">payload</span><span class="p">)</span>
-</span><span id="__span-22-10"><a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a>        <span class="n">lock</span><span class="o">.</span><span class="n">set_result</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>   <span class="c1"># sync — committed automatically on exit</span>
+</span><span id="__span-22-10"><a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a>        <span class="n">lock</span><span class="o">.</span><span class="n">set_result</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>   <span class="c1"># sync: committed automatically on exit</span>
 </span><span id="__span-22-11"><a id="__codelineno-22-11" name="__codelineno-22-11" href="#__codelineno-22-11"></a>        <span class="k">return</span> <span class="n">result</span>
 </span></code></pre></div>
 <h3 id="parameters_1">Parameters<a class="headerlink" href="#parameters_1" title="Permanent link">&para;</a></h3>
@@ -3070,14 +3070,14 @@ Using it with plain <code>with</code> will raise:</p>
 <h3 id="execution-contract">Execution contract<a class="headerlink" href="#execution-contract" title="Permanent link">&para;</a></h3>
 <p><code>idempotency_lock</code> is a <strong>3-step protocol</strong>, not just a duplicate check. Every step is required:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="k">async</span> <span class="k">with</span> <span class="n">idempotency_lock</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;webhook:</span><span class="si">{</span><span class="n">event_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">ttl</span><span class="o">=</span><span class="mi">86400</span><span class="p">)</span> <span class="k">as</span> <span class="n">lock</span><span class="p">:</span>
-</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>    <span class="c1"># Step 1 — check: was this already done?</span>
+</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>    <span class="c1"># Step 1: check: was this already done?</span>
 </span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>    <span class="k">if</span> <span class="n">lock</span><span class="o">.</span><span class="n">already_executed</span><span class="p">:</span>
 </span><span id="__span-23-4"><a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>        <span class="k">return</span> <span class="n">lock</span><span class="o">.</span><span class="n">cached_result</span>
 </span><span id="__span-23-5"><a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>
-</span><span id="__span-23-6"><a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>    <span class="c1"># Step 2 — execute: do the work</span>
+</span><span id="__span-23-6"><a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>    <span class="c1"># Step 2: execute: do the work</span>
 </span><span id="__span-23-7"><a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a>    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">process_event</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
 </span><span id="__span-23-8"><a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a>
-</span><span id="__span-23-9"><a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a>    <span class="c1"># Step 3 — stage the result (sync, no await)</span>
+</span><span id="__span-23-9"><a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a>    <span class="c1"># Step 3: stage the result (sync, no await)</span>
 </span><span id="__span-23-10"><a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a>    <span class="n">lock</span><span class="o">.</span><span class="n">set_result</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
 </span><span id="__span-23-11"><a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a>    <span class="k">return</span> <span class="n">result</span>
 </span><span id="__span-23-12"><a id="__codelineno-23-12" name="__codelineno-23-12" href="#__codelineno-23-12"></a>    <span class="c1"># Step 3 is committed automatically when the context exits cleanly.</span>
@@ -3111,18 +3111,18 @@ Using it with plain <code>with</code> will raise:</p>
 </table>
 <p>The key guarantee: <strong>even if you forget <code>set_result()</code>, the task will not run again</strong> on the next duplicate call. The context manager always commits on clean exit. The only case where the task can retry is an exception, which is intentional.</p>
 <p>For fire-and-forget tasks with no meaningful return value:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="n">lock</span><span class="o">.</span><span class="n">set_result</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>   <span class="c1"># explicit — suppresses the &quot;no staged result&quot; warning</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="n">lock</span><span class="o">.</span><span class="n">set_result</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>   <span class="c1"># explicit: suppresses the &quot;no staged result&quot; warning</span>
 </span></code></pre></div>
 <h3 id="releasing-a-committed-lock">Releasing a committed lock<a class="headerlink" href="#releasing-a-committed-lock" title="Permanent link">&para;</a></h3>
 <p>Once a clean exit commits a result (or a <code>None</code> sentinel), the key is permanent until its TTL expires. Future duplicate calls will always get <code>already_executed=True</code>.</p>
-<p><strong>If you need to allow the task to run again</strong> — for example, you caught a bug after a <code>None</code> sentinel was committed and want to force a fresh execution — delete the Redis key directly:</p>
+<p><strong>If you need to allow the task to run again</strong> (for example, you caught a bug after a <code>None</code> sentinel was committed and want to force a fresh execution), delete the Redis key directly:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="c1"># Replace &lt;your-key&gt; with the value you passed to key=</span>
 </span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>redis-cli<span class="w"> </span>DEL<span class="w"> </span>rl:idem:&lt;your-key&gt;
 </span></code></pre></div>
 <p>The <code>rl:idem:</code> prefix is Relier's internal namespace for idempotency keys. After deletion, the next call will see no existing entry and claim a fresh lock.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>Only delete the key after verifying that the original operation did not partially complete. Deleting the key on a task that already charged a payment, sent an email, or wrote to a database will not undo those side effects — it only allows the task to attempt them again.</p>
+<p>Only delete the key after verifying that the original operation did not partially complete. Deleting the key on a task that already charged a payment, sent an email, or wrote to a database will not undo those side effects; it only allows the task to attempt them again.</p>
 </div>
 <h3 id="lock-object">Lock object<a class="headerlink" href="#lock-object" title="Permanent link">&para;</a></h3>
 <table>
@@ -3146,44 +3146,44 @@ Using it with plain <code>with</code> will raise:</p>
 </tr>
 <tr>
 <td><code>lock.set_result(value)</code></td>
-<td>—</td>
-<td>Stage the result to be committed on clean context exit. Sync — no <code>await</code>. Call with <code>None</code> for fire-and-forget tasks.</td>
+<td></td>
+<td>Stage the result to be committed on clean context exit. Sync, no <code>await</code>. Call with <code>None</code> for fire-and-forget tasks.</td>
 </tr>
 <tr>
 <td><code>lock._record_result(value)</code></td>
-<td>—</td>
-<td><strong>Internal — do not call directly.</strong> Used by the <code>@rl_task</code> decorator to write results to Redis immediately. Use <code>set_result()</code> in your own code.</td>
+<td></td>
+<td><strong>Internal: do not call directly.</strong> Used by the <code>@rl_task</code> decorator to write results to Redis immediately. Use <code>set_result()</code> in your own code.</td>
 </tr>
 </tbody>
 </table>
 <h3 id="choosing-a-key">Choosing a key<a class="headerlink" href="#choosing-a-key" title="Permanent link">&para;</a></h3>
-<p>The key must be <strong>stable across retries and re-deliveries</strong> — it is the field your system will use to recognise "this is the same logical operation I already ran."</p>
+<p>The key must be <strong>stable across retries and re-deliveries</strong>: it is the field your system will use to recognise "this is the same logical operation I already ran."</p>
 <p><strong>Use stable, externally-assigned identifiers:</strong></p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1"># Good — event_id is assigned by the sender and never changes across retries</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1"># Good: event_id is assigned by the sender and never changes across retries</span>
 </span><span id="__span-26-2"><a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="k">async</span> <span class="k">with</span> <span class="n">idempotency_lock</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;webhook:</span><span class="si">{</span><span class="n">event_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">ttl</span><span class="o">=</span><span class="mi">86400</span><span class="p">)</span> <span class="k">as</span> <span class="n">lock</span><span class="p">:</span> <span class="o">...</span>
 </span><span id="__span-26-3"><a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>
-</span><span id="__span-26-4"><a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="c1"># Good — payment_id is assigned by Stripe, stable across retries</span>
+</span><span id="__span-26-4"><a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="c1"># Good: payment_id is assigned by Stripe, stable across retries</span>
 </span><span id="__span-26-5"><a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="k">async</span> <span class="k">with</span> <span class="n">idempotency_lock</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;charge:</span><span class="si">{</span><span class="n">payment_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">ttl</span><span class="o">=</span><span class="mi">3600</span><span class="p">)</span> <span class="k">as</span> <span class="n">lock</span><span class="p">:</span> <span class="o">...</span>
 </span><span id="__span-26-6"><a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a>
-</span><span id="__span-26-7"><a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a><span class="c1"># Good — compound key when the same resource can have multiple distinct operations</span>
+</span><span id="__span-26-7"><a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a><span class="c1"># Good: compound key when the same resource can have multiple distinct operations</span>
 </span><span id="__span-26-8"><a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a><span class="k">async</span> <span class="k">with</span> <span class="n">idempotency_lock</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;order:</span><span class="si">{</span><span class="n">order_id</span><span class="si">}</span><span class="s2">:refund&quot;</span><span class="p">,</span> <span class="n">ttl</span><span class="o">=</span><span class="mi">86400</span><span class="p">)</span> <span class="k">as</span> <span class="n">lock</span><span class="p">:</span> <span class="o">...</span>
 </span></code></pre></div>
 <p><strong>Avoid fields that change between retries:</strong></p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="c1"># Bad — timestamp is different on every retry</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="c1"># Bad: timestamp is different on every retry</span>
 </span><span id="__span-27-2"><a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="k">async</span> <span class="k">with</span> <span class="n">idempotency_lock</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;event:</span><span class="si">{</span><span class="n">received_at</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">ttl</span><span class="o">=</span><span class="mi">86400</span><span class="p">)</span> <span class="k">as</span> <span class="n">lock</span><span class="p">:</span> <span class="o">...</span>
 </span><span id="__span-27-3"><a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>
-</span><span id="__span-27-4"><a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="c1"># Bad — full payload hash changes if any field in the payload differs between deliveries</span>
+</span><span id="__span-27-4"><a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="c1"># Bad: full payload hash changes if any field in the payload differs between deliveries</span>
 </span><span id="__span-27-5"><a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="k">async</span> <span class="k">with</span> <span class="n">idempotency_lock</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">(),</span> <span class="o">...</span><span class="p">)</span> <span class="k">as</span> <span class="n">lock</span><span class="p">:</span> <span class="o">...</span>
 </span></code></pre></div>
 <p><strong>Always prefix with an operation name</strong> to avoid collisions between different task types that happen to share the same ID space:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="c1"># Risky — a payment and a webhook could share the same UUID</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="c1"># Risky: a payment and a webhook could share the same UUID</span>
 </span><span id="__span-28-2"><a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="k">async</span> <span class="k">with</span> <span class="n">idempotency_lock</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">event_id</span><span class="p">,</span> <span class="n">ttl</span><span class="o">=</span><span class="mi">86400</span><span class="p">)</span> <span class="k">as</span> <span class="n">lock</span><span class="p">:</span> <span class="o">...</span>
 </span><span id="__span-28-3"><a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a>
-</span><span id="__span-28-4"><a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="c1"># Safe — namespaced</span>
+</span><span id="__span-28-4"><a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="c1"># Safe: namespaced</span>
 </span><span id="__span-28-5"><a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a><span class="k">async</span> <span class="k">with</span> <span class="n">idempotency_lock</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;webhook.payment_received:</span><span class="si">{</span><span class="n">event_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">ttl</span><span class="o">=</span><span class="mi">86400</span><span class="p">)</span> <span class="k">as</span> <span class="n">lock</span><span class="p">:</span> <span class="o">...</span>
 </span></code></pre></div>
 <p><strong>When to use <code>idempotent=True</code> instead:</strong>
-If all your task arguments are stable across retries (no timestamps, no random IDs, no mutable payload fields), <code>@rl_task(idempotent=True)</code> is simpler — it derives the key automatically from a hash of the task name and arguments. Use <code>idempotency_lock</code> only when you need to choose which specific field is the stable identifier.</p>
+If all your task arguments are stable across retries (no timestamps, no random IDs, no mutable payload fields), <code>@rl_task(idempotent=True)</code> is simpler: it derives the key automatically from a hash of the task name and arguments. Use <code>idempotency_lock</code> only when you need to choose which specific field is the stable identifier.</p>
 <hr />
 <h2 id="schemaregistry"><code>SchemaRegistry</code><a class="headerlink" href="#schemaregistry" title="Permanent link">&para;</a></h2>
 <p>Registers payload migrations so workers running new code can safely process
@@ -3195,11 +3195,11 @@ payloads enqueued by older versions. Primarily used alongside <code>@rl_task(nam
 required arg, adding a required arg, removing one), you need to tell Relier how
 to upgrade old payloads that are already in the queue.</p>
 <p>The workflow is always two steps in order:</p>
-<p><strong>Step 1 — Bump <code>CURRENT_VERSION</code></strong> so new payloads are tagged at the new version
+<p><strong>Step 1: Bump <code>CURRENT_VERSION</code></strong> so new payloads are tagged at the new version
 and old payloads enter the migration loop when picked up:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-30-1"><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="n">SchemaRegistry</span><span class="o">.</span><span class="n">CURRENT_VERSION</span> <span class="o">=</span> <span class="mi">2</span>   <span class="c1"># was 1</span>
 </span></code></pre></div>
-<p><strong>Step 2 — Register the migration</strong> that transforms <code>v1 → v2</code> payloads:</p>
+<p><strong>Step 2: Register the migration</strong> that transforms <code>v1 → v2</code> payloads:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-31-1"><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a><span class="nd">@SchemaRegistry</span><span class="o">.</span><span class="n">register_migration</span><span class="p">(</span><span class="s2">&quot;myapp.process_order&quot;</span><span class="p">,</span> <span class="n">from_version</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 </span><span id="__span-31-2"><a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a><span class="k">def</span><span class="w"> </span><span class="nf">migrate_v1_to_v2</span><span class="p">(</span><span class="n">args</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
 </span><span id="__span-31-3"><a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a>    <span class="c1"># Old signature: process_order(order_id)</span>
@@ -3208,9 +3208,9 @@ and old payloads enter the migration loop when picked up:</p>
 </span><span id="__span-31-6"><a id="__codelineno-31-6" name="__codelineno-31-6" href="#__codelineno-31-6"></a>    <span class="k">return</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
 </span></code></pre></div>
 <div class="admonition warning">
-<p class="admonition-title">Step order matters — bump <code>CURRENT_VERSION</code> first</p>
+<p class="admonition-title">Step order matters: bump <code>CURRENT_VERSION</code> first</p>
 <p>If you register a migration without bumping <code>CURRENT_VERSION</code>, the migration
-loop runs as <code>while 1 &lt; 1:</code> — it never fires. Relier will log a warning at
+loop runs as <code>while 1 &lt; 1:</code> and never fires. Relier will log a warning at
 registration time:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-32-1"><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>Schema migration registered but will never run: from_version=1 &gt;= CURRENT_VERSION=1
 </span><span id="__span-32-2"><a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a>for task &#39;myapp.process_order&#39;. Bump SchemaRegistry.CURRENT_VERSION to 2 to activate.
@@ -3232,7 +3232,7 @@ before the <code>@register_migration</code> decorator.</p>
 <tr>
 <td><code>task_name</code></td>
 <td><code>str</code></td>
-<td>The task's stable name — must match <code>@rl_task(name=...)</code>.</td>
+<td>The task's stable name; must match <code>@rl_task(name=...)</code>.</td>
 </tr>
 <tr>
 <td><code>from_version</code></td>
@@ -3262,12 +3262,12 @@ have a custom worker bootstrap that doesn't use <code>relier.tasks.app</code>.</
 </span></code></pre></div>
 <p>For each migration where <code>from_version &gt;= CURRENT_VERSION</code>, it logs <code>CRITICAL</code>
 with the task name and the exact version to bump to:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-35-1"><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>CRITICAL  relier.core.schema — Misconfigured migration will never run:
+<div class="language-text highlight"><pre><span></span><code><span id="__span-35-1"><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>CRITICAL  relier.core.schema: Misconfigured migration will never run:
 </span><span id="__span-35-2"><a id="__codelineno-35-2" name="__codelineno-35-2" href="#__codelineno-35-2"></a>          task &#39;myapp.process_order&#39; has from_version=1 but CURRENT_VERSION=1.
 </span><span id="__span-35-3"><a id="__codelineno-35-3" name="__codelineno-35-3" href="#__codelineno-35-3"></a>          Bump SchemaRegistry.CURRENT_VERSION to 2 before this worker
 </span><span id="__span-35-4"><a id="__codelineno-35-4" name="__codelineno-35-4" href="#__codelineno-35-4"></a>          starts processing tasks.
 </span></code></pre></div>
-<p>The worker is not prevented from starting — <code>CRITICAL</code> is chosen so the
+<p>The worker is not prevented from starting; <code>CRITICAL</code> is chosen so the
 problem is immediately visible in logs and will page on-call in any standard
 log alerting setup.</p>
 <h3 id="structured-logs-emitted">Structured logs emitted<a class="headerlink" href="#structured-logs-emitted" title="Permanent link">&para;</a></h3>

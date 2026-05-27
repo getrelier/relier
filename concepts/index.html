@@ -1884,13 +1884,13 @@
 
 
 <h1 id="core-concepts">Core Concepts<a class="headerlink" href="#core-concepts" title="Permanent link">&para;</a></h1>
-<p>This page explains the key ideas behind Relier. You don't need to read it before getting started the <a href="../quickstart/">Quickstart</a> covers that. But understanding these concepts will help you make better decisions about how to use Relier in production.</p>
+<p>This page explains the key ideas behind Relier. You don't need to read it before getting started; the <a href="../quickstart/">Quickstart</a> covers that. But understanding these concepts will help you make better decisions about how to use Relier in production.</p>
 <hr />
 <h2 id="what-relier-is-and-is-not">What Relier is and is not<a class="headerlink" href="#what-relier-is-and-is-not" title="Permanent link">&para;</a></h2>
 <p>Getting this right up front saves a lot of confusion.</p>
-<p><strong>Relier is a thin wrapper around Celery, not a replacement for it.</strong> Your workers are still plain Celery workers. Your Redis is still the broker. Your tasks still look like Celery tasks. Relier adds a lifecycle layer heartbeat tracking, crash detection, resurrection, idempotency enforcement, timeouts, graceful shutdown without changing your function bodies or your infrastructure.</p>
+<p><strong>Relier is a thin wrapper around Celery, not a replacement for it.</strong> Your workers are still plain Celery workers. Your Redis is still the broker. Your tasks still look like Celery tasks. Relier adds a lifecycle layer: heartbeat tracking, crash detection, resurrection, idempotency enforcement, timeouts, graceful shutdown, without changing your function bodies or your infrastructure.</p>
 <h3 id="not-a-workflow-engine">Not a workflow engine<a class="headerlink" href="#not-a-workflow-engine" title="Permanent link">&para;</a></h3>
-<p><a href="https://temporal.io">Temporal</a> and <a href="https://hatchet.run">Hatchet</a> are <em>workflow engines</em>. They model multi-step processes with deterministic replay, durable execution across restarts, and saga-style compensation. That's a different problem and a different programming model, you restructure your code around their execution model and deploy their server.</p>
+<p><a href="https://temporal.io">Temporal</a> and <a href="https://hatchet.run">Hatchet</a> are <em>workflow engines</em>. They model multi-step processes with deterministic replay, durable execution across restarts, and saga-style compensation. That is a different problem and a different programming model: you restructure your code around their execution model and deploy their server.</p>
 <p>Relier is not that. It handles individual task reliability, not workflow orchestration. The choice isn't "Relier vs. Temporal", it's "naked Celery vs. Relier + Celery." If you need multi-step workflows spanning hours or approval gates, reach for Temporal or Hatchet. If you have Celery tasks and want them to stop disappearing, that's Relier.</p>
 <h3 id="not-a-dag-runner">Not a DAG runner<a class="headerlink" href="#not-a-dag-runner" title="Permanent link">&para;</a></h3>
 <p><a href="https://prefect.io">Prefect</a>, <a href="https://airflow.apache.org">Airflow</a>, <a href="https://dagster.io">Dagster</a> schedule and orchestrate pipelines of <em>dependent</em> tasks. They have schedulers, UIs, backfill, and pipeline-level retry. Relier has none of that. It makes individual tasks reliable; what those tasks do and when they run is still Celery's responsibility.</p>
@@ -1958,7 +1958,7 @@ dedicated <a href="../celery-primer/">Celery Primer</a>.</p>
 <p>End-to-end, from <code>await task.apush(...)</code> returning to the cache being filled.
 Knowing this flow makes every other piece of the docs click into place.</p>
 <pre class="mermaid"><code>flowchart TD
-    subgraph Producer["Producer — FastAPI · Flask · script"]
+    subgraph Producer["Producer: FastAPI · Flask · script"]
         A["1 · await task.apush(arg)"]
         A --&gt; B{"Admission check\natomic Lua INCR"}
         B -- "FAIL (over limit)" --&gt; C["AdmissionRejectedError\n→ caller returns 429"]
@@ -1968,11 +1968,11 @@ Knowing this flow makes every other piece of the docs click into place.</p>
         D2 --&gt; D
     end
 
-    subgraph Broker["Broker — Redis"]
+    subgraph Broker["Broker: Redis"]
         F["Envelope queued\nuntil a worker pops it"]
     end
 
-    subgraph Worker["Worker — relier.tasks.app"]
+    subgraph Worker["Worker: relier.tasks.app"]
         G["2 · Celery pops envelope\n→ wrapper(self, envelope)"]
         G --&gt; H["3 · Async bridge\nschedule onto persistent\nworker event loop"]
         H --&gt; I{"4 · Schema validation\n+ checksum verify"}
@@ -1996,13 +1996,13 @@ rest of this page explains the <em>why</em> behind each mechanism.</p>
 <p>Steps 2–8 above only happen when your workers are started with <strong>Relier's Celery app</strong> (<code>relier.tasks.app</code>):</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>celery<span class="w"> </span>-A<span class="w"> </span>relier.tasks.app<span class="w"> </span>worker<span class="w"> </span>...
 </span></code></pre></div>
-<p>If you create your own <code>Celery()</code> instance and start workers with <code>-A your_app</code>, the worker will run the task but bypass the entire lifecycle — no heartbeating, no Phoenix registration, no idempotency enforcement, no graceful shutdown. The <code>@rl_task</code> decorator will still run, but only the dispatch-side features (admission control, signed envelope) work outside the managed worker. When in doubt, use <code>rl worker start</code> which wires everything correctly.</p>
+<p>If you create your own <code>Celery()</code> instance and start workers with <code>-A your_app</code>, the worker will run the task but bypass the entire lifecycle: no heartbeating, no Phoenix registration, no idempotency enforcement, no graceful shutdown. The <code>@rl_task</code> decorator will still run, but only the dispatch-side features (admission control, signed envelope) work outside the managed worker. When in doubt, use <code>rl worker start</code> which wires everything correctly.</p>
 </div>
 <hr />
 <h2 id="the-phoenix-pattern-zero-job-loss">The Phoenix Pattern (Zero-Job-Loss)<a class="headerlink" href="#the-phoenix-pattern-zero-job-loss" title="Permanent link">&para;</a></h2>
 <p>This is Relier's core guarantee: <strong>no task is silently lost when a worker dies</strong>.</p>
 <h3 id="the-problem">The problem<a class="headerlink" href="#the-problem" title="Permanent link">&para;</a></h3>
-<p>Imagine a worker is halfway through processing a payment when it's OOM-killed by the OS. In most default Celery setups, a worker crash during execution leaves the task orphaned — it disappears from the queue without completing, with no error and no trace. The payment never completes.</p>
+<p>Imagine a worker is halfway through processing a payment when it's OOM-killed by the OS. In most default Celery setups, a worker crash during execution leaves the task orphaned: it disappears from the queue without completing, with no error and no trace. The payment never completes.</p>
 <h3 id="how-phoenix-works">How Phoenix works<a class="headerlink" href="#how-phoenix-works" title="Permanent link">&para;</a></h3>
 <p>Every task Relier runs writes a <strong>heartbeat</strong> to Redis, a key with a short TTL (default 10 seconds). As long as the task is running, a background loop keeps refreshing that TTL. The task is also registered in a <strong>Phoenix registry</strong> (a Redis hash) with its full payload.</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Task starts
@@ -2099,7 +2099,7 @@ rest of this page explains the <em>why</em> behind each mechanism.</p>
 </span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>        <span class="k">if</span> <span class="n">lock</span><span class="o">.</span><span class="n">already_executed</span><span class="p">:</span>
 </span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>            <span class="k">return</span> <span class="n">lock</span><span class="o">.</span><span class="n">cached_result</span>
 </span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>        <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">handle_webhook</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>        <span class="n">lock</span><span class="o">.</span><span class="n">set_result</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>    <span class="c1"># sync — committed automatically on exit</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>        <span class="n">lock</span><span class="o">.</span><span class="n">set_result</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>    <span class="c1"># sync: committed automatically on exit</span>
 </span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>        <span class="k">return</span> <span class="n">result</span>
 </span></code></pre></div>
 <hr />
@@ -2110,7 +2110,7 @@ rest of this page explains the <em>why</em> behind each mechanism.</p>
 <h3 id="hard-timeout">Hard timeout<a class="headerlink" href="#hard-timeout" title="Permanent link">&para;</a></h3>
 <p>The hard timeout is <strong>unconditional</strong>. When it fires, the task coroutine is cancelled immediately, regardless of what it's doing.</p>
 <div class="admonition warning">
-<p class="admonition-title">Always set <code>hard_timeout</code> — omitting it does not mean no timeout</p>
+<p class="admonition-title">Always set <code>hard_timeout</code>: omitting it does not mean no timeout</p>
 <p>When <code>hard_timeout</code> is not set, Relier's internal async bridge applies a <strong>300-second fallback</strong> deadline. After 300 s the bridge raises <code>TimeoutError</code> and Celery marks the task failed, but the coroutine may still be running in the background until its next <code>await</code> checkpoint. Always set <code>hard_timeout</code> to match your task's expected worst-case duration. See <a href="../api-reference/#hard_timeout">API reference → <code>hard_timeout</code></a> and <a href="../troubleshooting/">Troubleshooting → Async bridge timeout</a> for details.</p>
 </div>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.context</span><span class="w"> </span><span class="kn">import</span> <span class="n">TaskContext</span>
@@ -2122,7 +2122,7 @@ rest of this page explains the <em>why</em> behind each mechanism.</p>
 </span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="n">progress</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;progress&quot;</span><span class="p">)</span>
 </span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="k">if</span> <span class="n">progress</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>        <span class="k">await</span> <span class="n">ctx</span><span class="o">.</span><span class="n">set_partial</span><span class="p">(</span><span class="n">progress</span><span class="p">)</span>
-</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    <span class="k">await</span> <span class="n">release_your_lock</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>   <span class="c1"># your own cleanup — not a Relier API</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    <span class="k">await</span> <span class="n">release_your_lock</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>   <span class="c1"># your own cleanup, not a Relier API</span>
 </span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>
 </span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="nd">@rl_task</span><span class="p">(</span>
 </span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>    <span class="n">soft_timeout</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span>
@@ -2140,11 +2140,11 @@ rest of this page explains the <em>why</em> behind each mechanism.</p>
 </span></code></pre></div>
 <p>The soft/hard gap (<code>hard - soft</code>, in this case 5 seconds) is the window your cleanup hook has to finish. Design it to complete well within that window.</p>
 <div class="admonition info">
-<p class="admonition-title"><code>ctx.metadata</code> vs <code>ctx.partial_result</code> — two different things</p>
-<p><strong><code>ctx.metadata</code></strong> is a plain in-memory <code>dict</code> that lives only for the duration of the current execution. It is never written to Redis. Use it to pass transient runtime state between the task body and the soft-timeout hook — e.g. recording a loop cursor so the hook knows what to checkpoint.</p>
+<p class="admonition-title"><code>ctx.metadata</code> vs <code>ctx.partial_result</code>: two different things</p>
+<p><strong><code>ctx.metadata</code></strong> is a plain in-memory <code>dict</code> that lives only for the duration of the current execution. It is never written to Redis. Use it to pass transient runtime state between the task body and the soft-timeout hook, e.g. recording a loop cursor so the hook knows what to checkpoint.</p>
 <p><strong><code>ctx.partial_result</code></strong> is the value previously written by <code>await ctx.set_partial(...)</code>. It is persisted to Redis (and carried with the task through resurrection), and injected back into the task on the next run. Use it to resume from where the last incarnation left off.</p>
 <p>Typical flow: the task body writes progress into <code>ctx.metadata</code> → at soft timeout, the hook reads <code>ctx.metadata</code> and calls <code>await ctx.set_partial(...)</code> → next incarnation starts with <code>ctx.partial_result</code> set.</p>
-<p>Note: <code>ctx.set_partial</code> is <code>async def</code> — it must be <code>await</code>ed.</p>
+<p>Note: <code>ctx.set_partial</code> is <code>async def</code> and must be <code>await</code>ed.</p>
 </div>
 <div class="admonition info">
 <p class="admonition-title">The hook doesn't magically know what to save</p>
@@ -2226,7 +2226,7 @@ blob describing how far the task got and the next incarnation receives it as
 </tr>
 <tr>
 <td>&gt; 256 KB, <strong>no</strong> filesystem backend</td>
-<td><strong><code>CheckpointTooLargeError</code> raised</strong> — <code>set_partial</code> fails loudly.</td>
+<td><strong><code>CheckpointTooLargeError</code> raised</strong>: <code>set_partial</code> fails loudly.</td>
 <td>default, must opt in to spillover</td>
 </tr>
 <tr>
@@ -2314,7 +2314,7 @@ full lifecycle.</p>
 </span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">  </span><span class="nt">&quot;enqueued_at&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-05-15T02:00:00Z&quot;</span>
 </span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>If you change a task's signature in a breaking way, register a <strong>migration</strong>. This requires two steps — both are required:</p>
+<p>If you change a task's signature in a breaking way, register a <strong>migration</strong>. This requires two steps (both are required):</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.core.schema</span><span class="w"> </span><span class="kn">import</span> <span class="n">SchemaRegistry</span>
 </span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>
 </span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="c1"># Step 1: bump CURRENT_VERSION so new payloads are tagged at version 2</span>
@@ -2331,7 +2331,7 @@ full lifecycle.</p>
 </span></code></pre></div>
 <div class="admonition warning">
 <p class="admonition-title">Bump <code>CURRENT_VERSION</code> before registering the migration</p>
-<p>The migration loop runs as <code>while payload_version &lt; CURRENT_VERSION</code>. If you register a migration but don't bump <code>CURRENT_VERSION</code>, the loop never runs and old payloads reach your function with the old signature — causing a <code>TypeError</code>. Relier logs a warning at startup if this misconfiguration is detected.</p>
+<p>The migration loop runs as <code>while payload_version &lt; CURRENT_VERSION</code>. If you register a migration but don't bump <code>CURRENT_VERSION</code>, the loop never runs and old payloads reach your function with the old signature, causing a <code>TypeError</code>. Relier logs a warning at startup if this misconfiguration is detected.</p>
 </div>
 <p>Old payloads in the queue are automatically migrated when picked up. No failed tasks, no manual intervention, no deploy window restrictions. Full reference: <a href="../api-reference/#schemaregistry">API → <code>SchemaRegistry</code></a>.</p>
 <hr />

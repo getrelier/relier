@@ -2142,8 +2142,8 @@ redis-server</code>, a system package, a remote instance anything). Set
 <div class="language-sh highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>make<span class="w"> </span>setup<span class="w">                       </span><span class="c1"># create the venv and install Relier</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">RELIER_REDIS_URL</span><span class="o">=</span>redis://localhost:6379/0
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>make<span class="w"> </span>worker<span class="w">                      </span><span class="c1"># terminal 1 — a Celery worker</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>make<span class="w"> </span>resurrector<span class="w">                 </span><span class="c1"># terminal 2 — the Phoenix resurrector</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>make<span class="w"> </span>worker<span class="w">                      </span><span class="c1"># terminal 1: a Celery worker</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>make<span class="w"> </span>resurrector<span class="w">                 </span><span class="c1"># terminal 2: the Phoenix resurrector</span>
 </span></code></pre></div>
 <p>The <code>make worker</code> target consumes every public Relier queue plus the internal
 <code>re-queue</code> queue used by Phoenix for resurrections. The <code>make resurrector</code>
@@ -2311,8 +2311,8 @@ scripts, <code>MULTI</code>/<code>EXEC</code>, and Pub/Sub semantics intact all 
 uses extensively. See <a href="../durability/#layer-2-sentinel">Durability → Layer 2</a>.</p>
 </blockquote>
 <h3 id="bring-it-up_1">Bring it up<a class="headerlink" href="#bring-it-up_1" title="Permanent link">&para;</a></h3>
-<div class="language-sh highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">REDIS_PASSWORD</span><span class="o">=</span>...<span class="w">      </span><span class="c1"># required — Redis data-node password</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">SENTINEL_PASSWORD</span><span class="o">=</span>...<span class="w">   </span><span class="c1"># required — Sentinel password</span>
+<div class="language-sh highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">REDIS_PASSWORD</span><span class="o">=</span>...<span class="w">      </span><span class="c1"># required: Redis data-node password</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">SENTINEL_PASSWORD</span><span class="o">=</span>...<span class="w">   </span><span class="c1"># required: Sentinel password</span>
 </span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GRAFANA_ADMIN_PASSWORD</span><span class="o">=</span>...<span class="w"> </span><span class="c1"># optional, defaults to &#39;admin&#39;</span>
 </span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
 </span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>make<span class="w"> </span>prod<span class="w">        </span><span class="c1"># builds + starts detached</span>
@@ -2612,11 +2612,11 @@ measured in tens of minutes, not seconds.</p>
 <h4 id="what-not-to-tune">What NOT to tune<a class="headerlink" href="#what-not-to-tune" title="Permanent link">&para;</a></h4>
 <p>Two settings look tempting but cost more than they save:</p>
 <ul>
-<li><strong><code>no-appendfsync-on-rewrite yes</code></strong> — skips fsyncs while a rewrite is running.
+<li><strong><code>no-appendfsync-on-rewrite yes</code></strong>: skips fsyncs while a rewrite is running.
   Removes the latency spike, but silently extends the data-loss window to
   <em>every write since the rewrite began</em> if the process crashes mid-rewrite.
   Relier ships <code>no</code> on purpose; do not change it.</li>
-<li><strong><code>appendonly no</code> on the master</strong> (with persistence delegated to replicas) —
+<li><strong><code>appendonly no</code> on the master</strong> (with persistence delegated to replicas):
   eliminates AOF I/O on the active node, at the cost of making async replication
   the only durability boundary. Async replication ACKs before it replicates,
   so a master crash + restart-loop, or a Sentinel-failover race window, will

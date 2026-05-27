@@ -627,12 +627,12 @@
   <a href="#tier-1-bare-metal-no-docker" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tier 1 — Bare metal (no Docker)
+        Tier 1: Bare metal (no Docker)
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Tier 1 — Bare metal (no Docker)">
+    <nav class="md-nav" aria-label="Tier 1: Bare metal (no Docker)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -666,7 +666,7 @@
   <a href="#tier-2-dev-docker" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tier 2 — Dev (Docker)
+        Tier 2: Dev (Docker)
       
     </span>
   </a>
@@ -677,7 +677,7 @@
   <a href="#tier-3-production-docker" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tier 3 — Production (Docker)
+        Tier 3: Production (Docker)
       
     </span>
   </a>
@@ -1332,12 +1332,12 @@
   <a href="#tier-1-bare-metal-no-docker" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tier 1 — Bare metal (no Docker)
+        Tier 1: Bare metal (no Docker)
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Tier 1 — Bare metal (no Docker)">
+    <nav class="md-nav" aria-label="Tier 1: Bare metal (no Docker)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1371,7 +1371,7 @@
   <a href="#tier-2-dev-docker" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tier 2 — Dev (Docker)
+        Tier 2: Dev (Docker)
       
     </span>
   </a>
@@ -1382,7 +1382,7 @@
   <a href="#tier-3-production-docker" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tier 3 — Production (Docker)
+        Tier 3: Production (Docker)
       
     </span>
   </a>
@@ -1419,15 +1419,15 @@
 
 <h1 id="running-relier">Running Relier<a class="headerlink" href="#running-relier" title="Permanent link">&para;</a></h1>
 <p>Relier is a plain Python library, not a service you have to containerize. The
-engine — the <code>@rl_task</code> decorator, the Phoenix resurrector, idempotency, the
-DLQ is pure Python. Like Celery, it runs as ordinary processes; Docker is a
+engine (the <code>@rl_task</code> decorator, the Phoenix resurrector, idempotency, the
+DLQ) is pure Python. Like Celery, it runs as ordinary processes; Docker is a
 convenience for dev and prod, not a requirement.</p>
 <p>There is exactly one hard dependency: <strong>a reachable Redis</strong>, the same way
 Celery needs a broker. Relier preflight-checks Redis at startup and refuses to
 start with a clear error if it is unreachable, nothing comes up half-working.</p>
 <h2 id="pip-install-vs-cloned-repo">pip install vs. cloned repo<a class="headerlink" href="#pip-install-vs-cloned-repo" title="Permanent link">&para;</a></h2>
 <p>The <code>make</code> targets (<code>make worker</code>, <code>make dev</code>, <code>make prod</code>) are <strong>only available if you've cloned the Relier repo</strong>. They require the project's <code>Makefile</code>, virtualenv, and config files.</p>
-<p>If you installed Relier via <code>pip install relier</code> into your own project, skip the <code>make</code> targets and run the Celery worker and resurrector directly — see <a href="#tier-1-bare-metal-no-docker">Tier 1 below</a>.</p>
+<p>If you installed Relier via <code>pip install relier</code> into your own project, skip the <code>make</code> targets and run the Celery worker and resurrector directly; see <a href="#tier-1-bare-metal-no-docker">Tier 1 below</a>.</p>
 <h2 id="the-three-ways-to-run-it">The three ways to run it<a class="headerlink" href="#the-three-ways-to-run-it" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1462,32 +1462,32 @@ start with a clear error if it is unreachable, nothing comes up half-working.</p
 <p>Relier always runs the same two process types: <strong>Celery workers</strong> and the
 <strong>Phoenix resurrector</strong>. Only the surrounding infrastructure changes per tier.</p>
 <hr />
-<h2 id="tier-1-bare-metal-no-docker">Tier 1 — Bare metal (no Docker)<a class="headerlink" href="#tier-1-bare-metal-no-docker" title="Permanent link">&para;</a></h2>
+<h2 id="tier-1-bare-metal-no-docker">Tier 1: Bare metal (no Docker)<a class="headerlink" href="#tier-1-bare-metal-no-docker" title="Permanent link">&para;</a></h2>
 <p><strong>Prerequisites:</strong> Python 3.11+, and a Redis reachable from your machine
 (<code>brew install redis &amp;&amp; redis-server</code>, a system package, or any remote
 instance).</p>
 <h3 id="if-you-installed-via-pip">If you installed via pip<a class="headerlink" href="#if-you-installed-via-pip" title="Permanent link">&para;</a></h3>
-<p>Set the Redis URL in your shell (or in a <code>.env</code> file) and start the two processes directly. The <code>--include</code> flag tells the worker which module contains your <code>@rl_task</code> functions — without it the worker boots but ignores incoming tasks.</p>
+<p>Set the Redis URL in your shell (or in a <code>.env</code> file) and start the two processes directly. The <code>--include</code> flag tells the worker which module contains your <code>@rl_task</code> functions; without it the worker boots but ignores incoming tasks.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">macOS / Linux</label><label for="__tabbed_1_2">Windows (PowerShell)</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="language-sh highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">RELIER_REDIS_URL</span><span class="o">=</span>redis://localhost:6379/0
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># terminal 1 — Celery worker (replace &#39;tasks&#39; with your task module name)</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># terminal 1: Celery worker (replace &#39;tasks&#39; with your task module name)</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>celery<span class="w"> </span>-A<span class="w"> </span>relier.tasks.app<span class="w"> </span>worker<span class="w"> </span>-l<span class="w"> </span>info<span class="w"> </span>-Q<span class="w"> </span>high_priority,default,low_priority,re-queue<span class="w"> </span>--include<span class="o">=</span>tasks
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># terminal 2 — Phoenix resurrector</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># terminal 2: Phoenix resurrector</span>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>rl<span class="w"> </span>run-resurrector
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
 <div class="language-powershell highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">$env:RELIER_REDIS_URL</span> <span class="p">=</span> <span class="s2">&quot;redis://localhost:6379/0&quot;</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c"># terminal 1 — Celery worker (replace &#39;tasks&#39; with your task module name)</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c"># terminal 1: Celery worker (replace &#39;tasks&#39; with your task module name)</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c"># --pool=solo is required on Windows; prefork&#39;s named-pipe IPC crashes under spawn</span>
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">celery</span> <span class="n">-A</span> <span class="n">relier</span><span class="p">.</span><span class="n">tasks</span><span class="p">.</span><span class="n">app</span> <span class="n">worker</span> <span class="n">-l</span> <span class="n">info</span> <span class="n">-Q</span> <span class="n">high_priority</span><span class="p">,</span><span class="k">default</span><span class="p">,</span><span class="n">low_priority</span><span class="p">,</span><span class="n">re-queue</span> <span class="p">-</span><span class="n">-include</span><span class="p">=</span><span class="n">tasks</span> <span class="p">-</span><span class="n">-pool</span><span class="p">=</span><span class="n">solo</span>
 </span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c"># terminal 2 — Phoenix resurrector</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c"># terminal 2: Phoenix resurrector</span>
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">rl</span> <span class="n">run-resurrector</span>
 </span></code></pre></div>
 </div>
@@ -1497,17 +1497,17 @@ instance).</p>
 <div class="language-sh highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>make<span class="w"> </span>setup<span class="w">                       </span><span class="c1"># create the venv and install Relier</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">RELIER_REDIS_URL</span><span class="o">=</span>redis://localhost:6379/0<span class="w">   </span><span class="c1"># the default; override as needed</span>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>make<span class="w"> </span>worker<span class="w">                      </span><span class="c1"># terminal 1 — a Celery worker</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>make<span class="w"> </span>resurrector<span class="w">                 </span><span class="c1"># terminal 2 — the Phoenix resurrector</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>make<span class="w"> </span>worker<span class="w">                      </span><span class="c1"># terminal 1: a Celery worker</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>make<span class="w"> </span>resurrector<span class="w">                 </span><span class="c1"># terminal 2: the Phoenix resurrector</span>
 </span></code></pre></div>
-<p>The <code>make worker</code> target runs the same <code>celery -A relier.tasks.app worker</code> command without <code>--include</code> — this is intentional. In the cloned repo there are no user task modules to discover; the worker only needs to run Relier's infrastructure (heartbeats, Phoenix, shutdown). The bench suite has its own entry point (<code>bench.worker_app</code>) that imports its tasks explicitly in the module body.</p>
+<p>The <code>make worker</code> target runs the same <code>celery -A relier.tasks.app worker</code> command without <code>--include</code>, which is intentional. In the cloned repo there are no user task modules to discover; the worker only needs to run Relier's infrastructure (heartbeats, Phoenix, shutdown). The bench suite has its own entry point (<code>bench.worker_app</code>) that imports its tasks explicitly in the module body.</p>
 <p>If Redis is not running, both processes exit immediately with:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>RuntimeError: Relier cannot reach Redis (localhost:6379). ... Refusing to start.
 </span></code></pre></div>
 <p>Start Redis (or fix <code>RELIER_REDIS_URL</code>) and re-run, nothing starts in a broken
 state.</p>
 <hr />
-<h2 id="tier-2-dev-docker">Tier 2 — Dev (Docker)<a class="headerlink" href="#tier-2-dev-docker" title="Permanent link">&para;</a></h2>
+<h2 id="tier-2-dev-docker">Tier 2: Dev (Docker)<a class="headerlink" href="#tier-2-dev-docker" title="Permanent link">&para;</a></h2>
 <p>A full local cluster: one Redis node (AOF + RDB persistence) plus the worker
 pool and the resurrector. Mirrors the production <em>shape</em> without the HA weight.</p>
 <div class="language-sh highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>make<span class="w"> </span>dev<span class="w">          </span><span class="c1"># build + start, detached</span>
@@ -1515,10 +1515,10 @@ pool and the resurrector. Mirrors the production <em>shape</em> without the HA w
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>make<span class="w"> </span>dev-down<span class="w">     </span><span class="c1"># stop</span>
 </span></code></pre></div>
 <p>Defined in <code>docker-compose.yml</code>.</p>
-<p>The Docker dev stack also unlocks the full <strong>chaos suite</strong> (<code>rl chaos worker-kill</code>, <code>rl chaos network-partition</code>, etc.). Those commands use <code>docker kill</code> internally and only work when the stack is running here — bare-metal workers can run the non-Docker scenarios (<code>load-spike</code>, <code>slow-task</code>, <code>task-corrupt</code>) but not the kill-based ones. See the <a href="../chaos-guide/">Chaos Guide</a>.</p>
+<p>The Docker dev stack also unlocks the full <strong>chaos suite</strong> (<code>rl chaos worker-kill</code>, <code>rl chaos network-partition</code>, etc.). Those commands use <code>docker kill</code> internally and only work when the stack is running here; bare-metal workers can run the non-Docker scenarios (<code>load-spike</code>, <code>slow-task</code>, <code>task-corrupt</code>) but not the kill-based ones. See the <a href="../chaos-guide/">Chaos Guide</a>.</p>
 <hr />
-<h2 id="tier-3-production-docker">Tier 3 — Production (Docker)<a class="headerlink" href="#tier-3-production-docker" title="Permanent link">&para;</a></h2>
-<p>The HA topology — Redis master + 2 replicas + 3 Sentinels + a backup sidecar,
+<h2 id="tier-3-production-docker">Tier 3: Production (Docker)<a class="headerlink" href="#tier-3-production-docker" title="Permanent link">&para;</a></h2>
+<p>The HA topology (Redis master + 2 replicas + 3 Sentinels + a backup sidecar)
 defined in <code>docker-compose.prod.yml</code>. Sentinel-aware client wiring turns on via
 environment variables (see below).</p>
 <div class="language-sh highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">REDIS_PASSWORD</span><span class="o">=</span>...<span class="w">         </span><span class="c1"># required</span>
@@ -1526,7 +1526,7 @@ environment variables (see below).</p>
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>make<span class="w"> </span>prod
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>make<span class="w"> </span>prod-down
 </span></code></pre></div>
-<p>The same manifest runs locally if you want to exercise failover — see
+<p>The same manifest runs locally if you want to exercise failover; see
 <code>scripts/redis/README.md</code>.</p>
 <hr />
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
@@ -1553,7 +1553,7 @@ environment variables (see below).</p>
 </tr>
 <tr>
 <td><code>RELIER_REDIS_SENTINEL_NODES</code></td>
-<td>—</td>
+<td>none</td>
 <td><code>host:port,host:port,...</code> when Sentinel is on</td>
 </tr>
 <tr>

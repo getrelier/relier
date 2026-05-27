@@ -2125,8 +2125,8 @@ pausing, network-partitioned, or actually dead, and from Redis's point of view
 they all look the same.</p>
 <h3 id="leasing-one-resurrection-per-task-at-a-time">Leasing, one resurrection per task at a time<a class="headerlink" href="#leasing-one-resurrection-per-task-at-a-time" title="Permanent link">&para;</a></h3>
 <p>Resurrection is coordinated through a Redis lease (a key with a short TTL):</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>rl:lease:{task_id}    — 180 s TTL — fence token of the current incarnation
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>rl:fence:{task_id}    — 600 s TTL — same token, longer-lived for commit checks
+<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>rl:lease:{task_id}    (180 s TTL) fence token of the current incarnation
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>rl:fence:{task_id}    (600 s TTL) same token, longer-lived for commit checks
 </span></code></pre></div>
 <p>When the resurrector decides a task needs to be replayed, it runs an atomic
 Lua script (<code>RESURRECT_LUA</code>) that mints a fresh fence token and writes both
@@ -2145,7 +2145,7 @@ through a scenario:</p>
 <li>A's heartbeat expires. The resurrector mints fence token <code>abc</code> and dispatches
    T to Worker B.</li>
 <li>Worker B runs T to completion under fence token <code>abc</code>. B's commit Lua script
-   verifies <code>rl:fence:{T} == "abc"</code>, yes — so the result is recorded, the
+   verifies <code>rl:fence:{T} == "abc"</code>, yes: the result is recorded, the
    lease released.</li>
 <li>Worker A wakes up from its pause and tries to commit <em>its</em> result for T.</li>
 </ol>
@@ -2258,13 +2258,13 @@ concurrent broker writes, overwhelming the broker's connection pool and any
 upstream proxies.</p>
 <h3 id="what-you-should-monitor">What you should monitor<a class="headerlink" href="#what-you-should-monitor" title="Permanent link">&para;</a></h3>
 <p>When a real incident happens, watch:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a># Recovery queue depth — brake 2 keeps this bounded
+<div class="language-text highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a># Recovery queue depth: brake 2 keeps this bounded
 </span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>redis-cli LLEN re-queue
 </span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
-</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a># How far behind the expiry index is — should drain across passes
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a># How far behind the expiry index is: should drain across passes
 </span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>redis-cli ZCARD rl:phoenix:expiry_index
 </span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>
-</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a># Per-task resurrection counts — if any approach max_resurrections,
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a># Per-task resurrection counts: if any approach max_resurrections,
 </span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a># poison-pill quarantines are coming
 </span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>rl tasks inspect &lt;task_id&gt;
 </span></code></pre></div>
@@ -2335,7 +2335,7 @@ index growing, which means workers aren't pulling fast enough.</p>
 </tr>
 <tr>
 <td>Checkpoint too large to store inline</td>
-<td><code>CheckpointTooLargeError</code> — loud, not silent. Configure filesystem backend if you need bigger checkpoints.</td>
+<td><code>CheckpointTooLargeError</code>: loud, not silent. Configure filesystem backend if you need bigger checkpoints.</td>
 </tr>
 </tbody>
 </table>

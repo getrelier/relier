@@ -1547,7 +1547,7 @@
 </span></code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">pip install vs. contributing from source</p>
-<p>This guide covers the <strong>pip install</strong> path — the right choice for adding Relier to your own project. If you're contributing to Relier itself, clone the repo and run <code>make setup</code> instead. The <code>make worker</code> / <code>make dev</code> shortcuts only exist in the cloned repo; pip users start workers with the <code>celery</code> command directly (shown in <a href="#6-start-the-worker">Step 6</a>).</p>
+<p>This guide covers the <strong>pip install</strong> path, which is the right choice for adding Relier to your own project. If you're contributing to Relier itself, clone the repo and run <code>make setup</code> instead. The <code>make worker</code> / <code>make dev</code> shortcuts only exist in the cloned repo; pip users start workers with the <code>celery</code> command directly (shown in <a href="#6-start-the-worker">Step 6</a>).</p>
 </div>
 <h2 id="2-start-redis">2. Start Redis<a class="headerlink" href="#2-start-redis" title="Permanent link">&para;</a></h2>
 <p>Relier needs Redis with persistence enabled. The quickest way locally is Docker:</p>
@@ -1588,17 +1588,17 @@
 </span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    <span class="n">hard_timeout</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>           <span class="c1"># forcefully terminates runaway execution at 30s</span>
 </span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="p">)</span>
 </span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">send_invoice</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Send an invoice — safe to retry, never double-charges.&quot;&quot;&quot;</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Send an invoice: safe to retry, never double-charges.&quot;&quot;&quot;</span>
 </span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>    <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>   <span class="c1"># ← replace with your actual work: Stripe, DB write, email</span>
 </span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;charged&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;invoice_id&quot;</span><span class="p">:</span> <span class="n">invoice_id</span><span class="p">}</span>
 </span></code></pre></div>
 <div class="admonition tip">
-<p class="admonition-title">This example runs immediately — no external services needed</p>
+<p class="admonition-title">This example runs immediately: no external services needed</p>
 <p><code>asyncio.sleep(1)</code> is a stand-in. Replace it with your actual logic once the worker is running. For ready-to-copy real-world shapes (Stripe, database writes, HTTP calls) see the <a href="../integrations/">Integration Recipes</a>.</p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">New to async?</p>
-<p>Relier tasks are <code>async def</code> functions. If your existing Celery tasks are regular <code>def</code> functions, Relier supports those too — just drop the <code>async</code> keyword. The async bridge is handled for you either way.</p>
+<p>Relier tasks are <code>async def</code> functions. If your existing Celery tasks are regular <code>def</code> functions, Relier supports those too: just drop the <code>async</code> keyword. The async bridge is handled for you either way.</p>
 </div>
 <h3 id="returning-results">Returning results<a class="headerlink" href="#returning-results" title="Permanent link">&para;</a></h3>
 <p>Tasks return values like any Python function:</p>
@@ -1607,7 +1607,7 @@
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;charged&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;invoice_id&quot;</span><span class="p">:</span> <span class="n">invoice_id</span><span class="p">}</span>
 </span></code></pre></div>
 <p>When <code>idempotent=True</code>, Relier automatically caches that return value. If the same <code>invoice_id</code> arrives again (retry, webhook re-delivery, duplicate dispatch), the cached result is returned immediately without re-running the function.</p>
-<p><strong>Most users never need to manage results manually.</strong> Manual result control with <code>idempotency_lock</code> is only needed when the key Relier would derive from arguments isn't the right one — for example, when a webhook <code>event_id</code> is more stable than the full payload hash. See <a href="../patterns/#pattern-2">Patterns Cookbook → Pattern 2</a>.</p>
+<p><strong>Most users never need to manage results manually.</strong> Manual result control with <code>idempotency_lock</code> is only needed when the key Relier would derive from arguments isn't the right one, for example, when a webhook <code>event_id</code> is more stable than the full payload hash. See <a href="../patterns/#pattern-2">Patterns Cookbook → Pattern 2</a>.</p>
 <h2 id="5-dispatch-tasks">5. Dispatch tasks<a class="headerlink" href="#5-dispatch-tasks" title="Permanent link">&para;</a></h2>
 <p>Relier has two dispatch methods on every <code>@rl_task</code>. Pick the one that
 matches your call site.</p>
@@ -1646,7 +1646,7 @@ See <a href="../api-reference/#dispatch-methods-apush-push-delay">API reference 
 <h2 id="6-start-the-worker">6. Start the worker<a class="headerlink" href="#6-start-the-worker" title="Permanent link">&para;</a></h2>
 <h3 id="installed-via-pip-your-own-project">Installed via pip (your own project)<a class="headerlink" href="#installed-via-pip-your-own-project" title="Permanent link">&para;</a></h3>
 <p>Open two terminals. Start these in the directory that contains your <code>tasks.py</code>.</p>
-<p><strong>Terminal 1 — Celery worker:</strong></p>
+<p><strong>Terminal 1: Celery worker:</strong></p>
 <div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">macOS / Linux</label><label for="__tabbed_2_2">Windows (PowerShell)</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
@@ -1660,16 +1660,16 @@ See <a href="../api-reference/#dispatch-methods-apush-push-delay">API reference 
 </div>
 </div>
 </div>
-<p><strong>Terminal 2 — Phoenix resurrector:</strong></p>
+<p><strong>Terminal 2: Phoenix resurrector:</strong></p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>rl<span class="w"> </span>run-resurrector
 </span></code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Why two processes?</p>
-<p>The Celery worker executes tasks. The Phoenix resurrector is a separate recovery service responsible for heartbeat monitoring, orphan detection, and re-queuing tasks after a worker crash. Keeping recovery isolated from workers means that a cascading worker failure cannot disable the recovery logic at the same time — the resurrector keeps running and draining the orphan backlog even as workers restart.</p>
+<p>The Celery worker executes tasks. The Phoenix resurrector is a separate recovery service responsible for heartbeat monitoring, orphan detection, and re-queuing tasks after a worker crash. Keeping recovery isolated from workers means that a cascading worker failure cannot disable the recovery logic at the same time; the resurrector keeps running and draining the orphan backlog even as workers restart.</p>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Workers must import your task modules</p>
-<p><strong>Relier wraps Celery's worker entry system — it does not replace it.</strong> You must provide a module that imports your task definitions so Celery registers them at startup.</p>
+<p><strong>Relier wraps Celery's worker entry system: it does not replace it.</strong> You must provide a module that imports your task definitions so Celery registers them at startup.</p>
 <p>The simplest way is <code>--include</code>:</p>
 <ul>
 <li>Tasks in <code>tasks.py</code> → <code>--include=tasks</code></li>
@@ -1683,13 +1683,13 @@ See <a href="../api-reference/#dispatch-methods-apush-push-delay">API reference 
 </span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="kn">import</span><span class="w"> </span><span class="nn">myapp.tasks</span>                        <span class="c1"># add more modules as needed</span>
 </span></code></pre></div>
 <p>Then run: <code>celery -A worker_app worker -l info -Q ...</code> (no <code>--include</code> needed).</p>
-<p>What <code>celery -A relier.tasks.app</code> means: <em>"start a worker using Relier's Celery app"</em>. Relier's app is what wires up Phoenix, DLQ, idempotency, and the async bridge. Do not substitute a custom <code>Celery(...)</code> instance — Relier's guarantees only work through its own app.</p>
+<p>What <code>celery -A relier.tasks.app</code> means: <em>"start a worker using Relier's Celery app"</em>. Relier's app is what wires up Phoenix, DLQ, idempotency, and the async bridge. Do not substitute a custom <code>Celery(...)</code> instance; Relier's guarantees only work through its own app.</p>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Module name, not file path</p>
 <p>Celery's <code>-A</code> flag takes a <strong>Python module name</strong>, not a file path:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>celery<span class="w"> </span>-A<span class="w"> </span>worker_app<span class="w"> </span>worker<span class="w"> </span>...<span class="w">   </span><span class="c1"># ✓ module name</span>
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>celery<span class="w"> </span>-A<span class="w"> </span>worker_app.py<span class="w"> </span>worker<span class="w"> </span>...<span class="w"> </span><span class="c1"># ✗ file path — raises &quot;module not found&quot;</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>celery<span class="w"> </span>-A<span class="w"> </span>worker_app.py<span class="w"> </span>worker<span class="w"> </span>...<span class="w"> </span><span class="c1"># ✗ file path: raises &quot;module not found&quot;</span>
 </span></code></pre></div>
 </div>
 <div class="admonition note">
@@ -1697,7 +1697,7 @@ See <a href="../api-reference/#dispatch-methods-apush-push-delay">API reference 
 <p>If you execute <code>python tasks.py</code> as a script, Celery names your tasks <code>__main__.send_invoice</code> instead of <code>tasks.send_invoice</code>. The worker won't recognise the name and will reject the task. Always route tasks through the Celery worker command above.</p>
 </div>
 <h3 id="cloned-from-source-contributing-dev">Cloned from source (contributing / dev)<a class="headerlink" href="#cloned-from-source-contributing-dev" title="Permanent link">&para;</a></h3>
-<p><code>make worker</code> starts the Relier infrastructure (heartbeats, Phoenix, graceful shutdown) against the library itself — there are no user task modules to import in this context. It runs the same <code>celery -A relier.tasks.app worker</code> command without <code>--include</code>, which is correct for the repo's own use.</p>
+<p><code>make worker</code> starts the Relier infrastructure (heartbeats, Phoenix, graceful shutdown) against the library itself; there are no user task modules to import in this context. It runs the same <code>celery -A relier.tasks.app worker</code> command without <code>--include</code>, which is correct for the repo's own use.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>make<span class="w"> </span>worker<span class="w">         </span><span class="c1"># terminal 1: Celery worker</span>
 </span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>make<span class="w"> </span>resurrector<span class="w">    </span><span class="c1"># terminal 2: Phoenix resurrector</span>
 </span></code></pre></div>
@@ -1769,7 +1769,7 @@ kernel panic, or a <code>kill -9</code>. Phoenix detects the missed heartbeat an
 corruption), the repo ships a first-party chaos suite:</p>
 <div class="admonition info">
 <p class="admonition-title">Chaos requires the Docker dev stack</p>
-<p><code>rl chaos</code> commands use <code>docker kill</code> to terminate worker containers. They only work when the stack is running via <code>make dev</code> in the cloned repo. <code>pip install</code> users can still run scenarios that don't need Docker kills (<code>load-spike</code>, <code>slow-task</code>, <code>task-corrupt</code>) — see the <a href="../chaos-guide/">Chaos Guide</a> for the breakdown.</p>
+<p><code>rl chaos</code> commands use <code>docker kill</code> to terminate worker containers. They only work when the stack is running via <code>make dev</code> in the cloned repo. <code>pip install</code> users can still run scenarios that don't need Docker kills (<code>load-spike</code>, <code>slow-task</code>, <code>task-corrupt</code>); see the <a href="../chaos-guide/">Chaos Guide</a> for the breakdown.</p>
 </div>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span>--seed<span class="w"> </span>--watch<span class="w"> </span>--watch-duration<span class="w"> </span><span class="m">60</span>
 </span></code></pre></div>
@@ -1783,7 +1783,7 @@ their own cluster. See the <a href="../chaos-guide/">Chaos Guide</a> for the ful
   five minutes.</li>
 <li><strong><a href="../concepts/">Core Concepts</a></strong>: understand <em>why</em> Relier works the way it does.</li>
 <li><strong><a href="../integrations/">Integration Recipes</a></strong>: FastAPI, Flask, Django, scripts.</li>
-<li><strong><a href="../patterns/">Patterns Cookbook</a></strong>: copy-paste shapes for common cases — including
+<li><strong><a href="../patterns/">Patterns Cookbook</a></strong>: copy-paste shapes for common cases, including
   manual idempotency control with <code>idempotency_lock</code> when you need a custom key.</li>
 <li><strong><a href="../troubleshooting/">Troubleshooting &amp; FAQ</a></strong>: first place to look when
   something breaks.</li>

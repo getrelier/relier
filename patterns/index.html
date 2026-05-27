@@ -1739,7 +1739,7 @@ retries use <code>idempotency_lock</code> with a key you control.</p>
 </span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>        <span class="k">if</span> <span class="n">lock</span><span class="o">.</span><span class="n">already_executed</span><span class="p">:</span>
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>            <span class="k">return</span> <span class="n">lock</span><span class="o">.</span><span class="n">cached_result</span>          <span class="c1"># short-circuit on duplicate</span>
 </span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>        <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">handle_event</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>        <span class="n">lock</span><span class="o">.</span><span class="n">set_result</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>                <span class="c1"># sync — committed automatically on exit</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>        <span class="n">lock</span><span class="o">.</span><span class="n">set_result</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>                <span class="c1"># sync: committed automatically on exit</span>
 </span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>        <span class="k">return</span> <span class="n">result</span>
 </span></code></pre></div>
 <p><strong>Why the prefix (<code>webhook:</code>)?</strong> Keeps idempotency keys for different feature
@@ -1885,10 +1885,10 @@ work suffers. Split them.</p>
 </span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">regenerate_thumbnails</span><span class="p">(</span><span class="o">...</span><span class="p">):</span> <span class="o">...</span>
 </span></code></pre></div>
 <p>Then run two worker pools:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Pool A — only fast work</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Pool A: only fast work</span>
 </span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>celery<span class="w"> </span>-A<span class="w"> </span>relier.tasks.app<span class="w"> </span>worker<span class="w"> </span>--concurrency<span class="o">=</span><span class="m">4</span><span class="w"> </span>-Q<span class="w"> </span>high_priority<span class="w"> </span>--hostname<span class="o">=</span>worker-fast@%h
 </span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
-</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># Pool B — bulk + default work</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># Pool B: bulk + default work</span>
 </span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>celery<span class="w"> </span>-A<span class="w"> </span>relier.tasks.app<span class="w"> </span>worker<span class="w"> </span>--concurrency<span class="o">=</span><span class="m">16</span><span class="w"> </span>-Q<span class="w"> </span>default,low_priority<span class="w"> </span>--hostname<span class="o">=</span>worker-bulk@%h
 </span></code></pre></div>
 <p>A third pool for the internal <code>re-queue</code> queue is recommended in production,
