@@ -255,6 +255,128 @@
           "refId": "B"
         }
       ]
+    },
+    {
+      "id": 10,
+      "title": "Redis Commands/sec — Steady-state ops (Test 7)",
+      "description": "Total Redis commands/sec. The bench measures a baseline (idle workers, no tasks) and subtracts it from the inflight measurement to isolate heartbeat overhead. The plateau during Test 7's 60 s window is what goes in docs/reliability.md.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" },
+          "unit": "ops",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+          "expr": "rate(redis_commands_total[30s])",
+          "legendFormat": "total ops/sec",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Resurrection Under Load — Task Pickups (Test 9)",
+      "description": "Cumulative task starts on phoenix_load_started. Rises to N when all workers pick up their initial tasks, then continues to 2N as the Phoenix resurrector re-queues orphaned tasks after the fleet-wide kill. The slope of the second rise is the resurrection throughput. The matching completion view stays flat for this test because tasks are killed mid-execution and the bench tears down replacement workers before they finish; end-to-end delivery is covered by Test 5.",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10, "showPoints": "auto" },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+          "expr": "redis_key_size{key=\"bench:relier:phoenix_load_started\"}",
+          "legendFormat": "pickups (initial + resurrected)",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+          "expr": "redis_key_size{key=\"bench:relier:phoenix_load_done\"}",
+          "legendFormat": "completed",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Cold-start p50 (ms)",
+      "description": "Median time from worker process start (Popen) to first task pickup. Written to Redis at the end of Test 8.",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 28 },
+      "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10000 },
+              { "color": "red", "value": 30000 }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+          "expr": "redis_key_value{key=\"bench:cold_start:p50_ms\"}",
+          "legendFormat": "p50",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Cold-start p99 (ms)",
+      "description": "p99 time from worker process start (Popen) to first task pickup. Written to Redis at the end of Test 8.",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 28 },
+      "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10000 },
+              { "color": "red", "value": 30000 }
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "bench-prometheus" },
+          "expr": "redis_key_value{key=\"bench:cold_start:p99_ms\"}",
+          "legendFormat": "p99",
+          "refId": "A"
+        }
+      ]
     }
   ]
 }

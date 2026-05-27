@@ -57,3 +57,14 @@ SHUTDOWN_WORK_S = SYNTHETIC_TASK_SLEEP_S if SYNTHETIC else 10.0
 # ── Resource overhead test ────────────────────────────────────────────────────
 RESOURCE_PROBE_S = SYNTHETIC_TASK_SLEEP_S * 6 if SYNTHETIC else 10.0
 RESOURCE_SAMPLE_WAIT = 2 if SYNTHETIC else 4
+
+# ── Steady-state Redis ops/sec (Test 7 sub-test) ─────────────────────────────
+# Measurement window; 60 s is long enough to average out bursts.
+REDIS_OPS_MEASURE_S = int(os.getenv("BENCH_OPS_MEASURE_S", "60"))
+
+# ── Resurrection under load + steady-state ops (Tests 7 & 9) ─────────────────
+# Solo-pool workers spawned for the load tests; each executes exactly 1 task,
+# so this is the true concurrent-inflight count during measurement.
+PHOENIX_LOAD_WORKERS = int(
+    os.getenv("BENCH_PHOENIX_LOAD_WORKERS", "5" if SYNTHETIC else "20")
+)
