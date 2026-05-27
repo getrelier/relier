@@ -57,7 +57,7 @@ Catch that base class to handle any framework error uniformly:
     ...     raise
 """
 
-__version__ = "0.1.3"
+__version__ = "0.1.2"
 
 # ---------------------------------------------------------------------------
 # Public API re-exports

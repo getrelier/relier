@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Start bench stack (Redis + Prometheus + Grafana)
         run: |
@@ -53,7 +53,7 @@ jobs:
 
       - name: Upload bench results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: chaos-results-${{ github.run_id }}
           path: bench-results/
@@ -83,7 +83,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Start bench stack
         run: |
@@ -117,7 +117,7 @@ jobs:
 
       - name: Upload high-scale results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: chaos-high-scale-${{ github.run_id }}
           path: bench-results/
