@@ -1746,7 +1746,7 @@ Run it yourself: <code>docker compose -f docker-compose.bench.yml up --build</co
 <thead>
 <tr>
 <th>Metric</th>
-<th>Relier 0.1.3</th>
+<th>Relier 0.1.4</th>
 <th>Vanilla (default)</th>
 <th>Vanilla (<code>task_acks_late=True</code>)</th>
 <th>Verified</th>
@@ -1757,19 +1757,19 @@ Run it yourself: <code>docker compose -f docker-compose.bench.yml up --build</co
 <td>Task delivery rate (500 tasks, 5 kills)</td>
 <td><strong>100%</strong> (500/500)</td>
 <td>92.0% (460/500)</td>
-<td>96.2% (481/500), 0 duplicates</td>
+<td>96.0% (480/500), 0 duplicates</td>
 <td>✓</td>
 </tr>
 <tr>
 <td>Worker OOM recovery (5 cycles)</td>
-<td><strong>7.5 s avg · 8.0 s p99</strong></td>
+<td><strong>7.4 s avg · 8.6 s p99</strong></td>
 <td>∞ lost</td>
 <td>partial (see note below)</td>
 <td>✓</td>
 </tr>
 <tr>
 <td>Dual-OOM (2 in-flight tasks, 1 kill)</td>
-<td><strong>2/2 recovered · 7.5 s</strong></td>
+<td><strong>2/2 recovered · 7.6 s</strong></td>
 <td>both lost</td>
 <td>partial (see note below)</td>
 <td>✓</td>
@@ -1783,7 +1783,7 @@ Run it yourself: <code>docker compose -f docker-compose.bench.yml up --build</co
 </tr>
 <tr>
 <td>Admission control p99</td>
-<td><strong>0.772 ms</strong> (p99.9 1.76 ms · max 2.358 ms)</td>
+<td><strong>0.568 ms</strong> (p99.9 0.861 ms · max 1.176 ms)</td>
 <td>n/a</td>
 <td>n/a</td>
 <td>✓</td>
@@ -1797,15 +1797,15 @@ Run it yourself: <code>docker compose -f docker-compose.bench.yml up --build</co
 </tr>
 <tr>
 <td>Overhead per task (200 dispatches)</td>
-<td><strong>1.77 ms</strong> net (p99 8.18 ms)</td>
-<td>1.03 ms baseline</td>
+<td><strong>2.07 ms</strong> net (p99 6.04 ms)</td>
+<td>0.94 ms baseline</td>
 <td>n/a</td>
 <td>✓</td>
 </tr>
 <tr>
 <td>Worker RAM (idle)</td>
-<td><strong>329.7 MB</strong> (+94.8 MB vs vanilla)</td>
-<td>234.9 MB</td>
+<td><strong>333.7 MB</strong> (+98.5 MB vs vanilla)</td>
+<td>235.2 MB</td>
 <td>n/a</td>
 <td>n/a</td>
 </tr>
@@ -1818,28 +1818,28 @@ Run it yourself: <code>docker compose -f docker-compose.bench.yml up --build</co
 </tr>
 <tr>
 <td>Cold-start to first task (3 trials)</td>
-<td><strong>4,068 ms avg · 5,317 ms p99</strong></td>
+<td><strong>4,141 ms avg · 5,062 ms p99</strong></td>
 <td>n/a</td>
 <td>n/a</td>
 <td>✓</td>
 </tr>
 <tr>
 <td>Resurrection under load (5 inflight at kill)</td>
-<td><strong>5/5 · p99 7.6 s</strong></td>
+<td><strong>5/5 · p99 5.6 s</strong></td>
 <td>∞ all lost</td>
 <td>partial (see note below)</td>
 <td>✓</td>
 </tr>
 <tr>
 <td>File descriptor leak</td>
-<td><strong>Δ 0</strong> (stable)</td>
+<td><strong>Δ +1</strong> (stable)</td>
 <td>n/a</td>
 <td>n/a</td>
 <td>n/a</td>
 </tr>
 </tbody>
 </table>
-<p>Tested on: Linux (Docker, python:3.11-slim-bookworm), Redis 7.2 with AOF + noeviction, Celery prefork pool, BENCH_WORKER_CONCURRENCY=4. Run: 2026-05-27.</p>
+<p>Tested on: Linux (Docker, python:3.11-slim-bookworm), Redis 7.2 with AOF + noeviction, Celery prefork pool, BENCH_WORKER_CONCURRENCY=4. Run: 2026-05-29.</p>
 <blockquote>
 <p><strong>Note on vanilla <code>task_acks_late=True</code>:</strong> Flipping the flag recovers some lost tasks (96.0% vs 92.4% default) but does <em>not</em> match Relier's 99.8%. The reason: Celery's Redis broker uses a <code>visibility_timeout</code> (default ~1 hour) to redeliver unacknowledged messages from a dead worker. Tasks that were in-flight at SIGKILL time sit in the broker's <code>unacked</code> set until that timeout elapses, long after most bench runs and most production timeouts. Phoenix detects worker death within <code>heartbeat_ttl</code> (~10 s) and replays immediately. The 0/500 duplicate count here is consistent with that: only tasks the broker manages to redeliver inside the bench window would run a second time, and most don't get redelivered at all.</p>
 </blockquote>
@@ -1850,20 +1850,20 @@ Run it yourself: <code>docker compose -f docker-compose.bench.yml up --build</co
 <ul>
 <li><strong>Relier (100%)</strong>: <code>task_acks_late=True</code> keeps the message unACK'd until the task succeeds. Phoenix re-queues the in-flight task onto the <code>re-queue</code> Celery queue within one heartbeat scan cycle. The replacement worker drains it. All 500/500 recovered with <code>max_resurrections=5</code> headroom intact. <em>(A prior run on this Redis with leftover orphan tasks scored 499/500; the missing task hit <code>max_resurrections</code> and was DLQ'd, the designed safety behaviour. Cleaning orphans restored 100%.)</em></li>
 <li><strong>Vanilla default (92.0%)</strong>: <code>task_acks_late=False</code> ACKs on pickup. Each kill loses the one task mid-execution. 40 tasks dropped across 5 kills; the rest survive in the queue.</li>
-<li><strong>Vanilla + <code>task_acks_late=True</code> (96.2%, 0 duplicates)</strong>: The broker keeps unACK'd messages in an <code>unacked</code> set after worker death, but redelivery is gated by <code>visibility_timeout</code> (default ~1 hour on the Redis broker). Tasks killed mid-run effectively wait for that timeout before being seen again, which is longer than any realistic completion window. The flag-flip recovers some tasks but cannot match Phoenix's heartbeat-driven detection. Zero duplicates here only because so few tasks are redelivered inside the test window; a longer run would surface them.</li>
+<li><strong>Vanilla + <code>task_acks_late=True</code> (96.0%, 0 duplicates)</strong>: The broker keeps unACK'd messages in an <code>unacked</code> set after worker death, but redelivery is gated by <code>visibility_timeout</code> (default ~1 hour on the Redis broker). Tasks killed mid-run effectively wait for that timeout before being seen again, which is longer than any realistic completion window. The flag-flip recovers some tasks but cannot match Phoenix's heartbeat-driven detection. Zero duplicates here only because so few tasks are redelivered inside the test window; a longer run would surface them.</li>
 </ul>
 <p>The 8% loss in vanilla default is structural, a consequence of default Celery ACK semantics. At 10M tasks/day this is 800,000 lost tasks. Flipping <code>task_acks_late=True</code> recovers about half of those (still ~4% loss) and trades silent loss for hour-long redelivery latency.</p>
 <h3 id="worker-oom-recovery">Worker OOM recovery<a class="headerlink" href="#worker-oom-recovery" title="Permanent link">&para;</a></h3>
 <p>Dispatches a long-running task, waits 4 s for it to start, SIGKILLs the worker, starts a replacement alongside the Phoenix resurrector. Repeated 5 times.</p>
 <ul>
-<li><strong>Relier (7.5 s avg · 8.0 s p99)</strong>: Phoenix detects the stale heartbeat within one scan cycle and re-queues the orphaned task onto <code>re-queue</code>. The replacement worker picks it up. All 5 cycles recovered.</li>
+<li><strong>Relier (7.4 s avg · 8.6 s p99)</strong>: Phoenix detects the stale heartbeat within one scan cycle and re-queues the orphaned task onto <code>re-queue</code>. The replacement worker picks it up. All 5 cycles recovered.</li>
 <li><strong>Vanilla (lost)</strong>: No heartbeat, no resurrector. Task is gone.</li>
 </ul>
 <p>Note: vanilla Celery with <code>task_acks_late=True</code> would <em>also</em> recover here; the broker re-delivers the unACK'd message after the worker dies. But without idempotency the redelivered task runs a second time. Test 5 quantifies that duplicate-execution cost on a larger sample.</p>
 <h4 id="dual-oom-variant">Dual-OOM variant<a class="headerlink" href="#dual-oom-variant" title="Permanent link">&para;</a></h4>
 <p>Dispatches 2 tasks to the same worker simultaneously, kills the worker with both in-flight. Both are independently detected and resurrected by Phoenix.</p>
 <ul>
-<li><strong>2/2 recovered · 7.5 s detection</strong>: Phoenix handles overlapping orphans correctly. Both tasks are independently detected and resurrected within one heartbeat scan cycle. ✓ &lt; 45 s claim.</li>
+<li><strong>2/2 recovered · 7.6 s detection</strong>: Phoenix handles overlapping orphans correctly. Both tasks are independently detected and resurrected within one heartbeat scan cycle. ✓ &lt; 45 s claim.</li>
 </ul>
 <h3 id="duplicate-prevention">Duplicate prevention<a class="headerlink" href="#duplicate-prevention" title="Permanent link">&para;</a></h3>
 <p>Dispatches the same <code>doc_id</code> 50 times in rapid succession with <code>idempotent=True</code>.</p>
@@ -1887,15 +1887,15 @@ Run it yourself: <code>docker compose -f docker-compose.bench.yml up --build</co
 <tbody>
 <tr>
 <td>Linux (Docker)</td>
-<td>0.377 ms</td>
-<td>0.559 ms</td>
-<td>0.772 ms</td>
-<td>1.76 ms</td>
-<td>2.358 ms</td>
+<td>0.285 ms</td>
+<td>0.443 ms</td>
+<td>0.568 ms</td>
+<td>0.861 ms</td>
+<td>1.176 ms</td>
 </tr>
 </tbody>
 </table>
-<p>The claim is p99 &lt; 1 ms, comfortably met. The p99.9 (1.76 ms) and max (2.358 ms) include cold-start outliers from the first samples before the Lua script is cached by Redis.</p>
+<p>The claim is p99 &lt; 1 ms, comfortably met. The p99.9 (0.861 ms) and max (1.176 ms) include cold-start outliers from the first samples before the Lua script is cached by Redis.</p>
 <h3 id="graceful-shutdown">Graceful shutdown<a class="headerlink" href="#graceful-shutdown" title="Permanent link">&para;</a></h3>
 <p>Dispatches 20 tasks (0.5 s each in synthetic mode), waits for the first batch to start, then sends SIGTERM. Repeated 3 cycles.</p>
 <ul>
@@ -1917,35 +1917,35 @@ Run it yourself: <code>docker compose -f docker-compose.bench.yml up --build</co
 <tbody>
 <tr>
 <td>Relier</td>
-<td>2.80 ms</td>
-<td>1.87 ms</td>
-<td>2.33 ms</td>
-<td>8.18 ms</td>
+<td>3.01 ms</td>
+<td>1.85 ms</td>
+<td>2.36 ms</td>
+<td>6.04 ms</td>
 </tr>
 <tr>
 <td>Vanilla</td>
-<td>1.03 ms</td>
-<td>0.96 ms</td>
-<td>1.39 ms</td>
-<td>2.01 ms</td>
+<td>0.94 ms</td>
+<td>0.90 ms</td>
+<td>1.13 ms</td>
+<td>1.83 ms</td>
 </tr>
 <tr>
 <td><strong>Net overhead</strong></td>
-<td><strong>1.77 ms</strong></td>
+<td><strong>2.07 ms</strong></td>
 <td>n/a</td>
 <td>n/a</td>
 <td>n/a</td>
 </tr>
 </tbody>
 </table>
-<p>The 1.77 ms average overhead covers: atomic admission check + SHA-256 envelope wrap + heartbeat registration. On any task that does real work (a DB query, an HTTP call, an AI inference), this is invisible.</p>
+<p>The 2.07 ms average overhead covers: atomic admission check + SHA-256 envelope wrap + heartbeat registration. On any task that does real work (a DB query, an HTTP call, an AI inference), this is invisible.</p>
 <h3 id="worker-ram-and-redis-overhead">Worker RAM and Redis overhead<a class="headerlink" href="#worker-ram-and-redis-overhead" title="Permanent link">&para;</a></h3>
 <p><strong>Worker RAM (idle)</strong></p>
-<p>A Relier worker uses ~330 MB RSS at idle vs ~235 MB for vanilla: a delta of +94.8 MB. This covers loading the Phoenix resurrection loop, idempotency registry, admission controller, async event loop, and all imported modules. The cost is paid once per worker process, not per task.</p>
+<p>A Relier worker uses ~334 MB RSS at idle vs ~235 MB for vanilla: a delta of +98.5 MB. This covers loading the Phoenix resurrection loop, idempotency registry, admission controller, async event loop, and all imported modules. The cost is paid once per worker process, not per task.</p>
 <p><strong>Redis per in-flight task</strong></p>
 <p>While a task is executing, Relier writes 11 Redis keys totalling ~1,936 bytes (heartbeat, idempotency slot, task state, fence tokens, queue registrations). Vanilla writes nothing. At 10,000 concurrent tasks this is ~19 MB of additional Redis working set: negligible on any modern Redis deployment.</p>
 <p><strong>File descriptor stability</strong></p>
-<p>Open file descriptors: 195 at worker idle → 195 after task completion (Δ = 0). No leak detected. The reliability stack does not accumulate file handles across task executions.</p>
+<p>Open file descriptors: 195 at worker idle → 196 after task completion (Δ = +1, stable). No leak detected. The reliability stack does not accumulate file handles across task executions.</p>
 <h3 id="cold-start-to-first-task-latency">Cold-start to first-task latency<a class="headerlink" href="#cold-start-to-first-task-latency" title="Permanent link">&para;</a></h3>
 <p>Dispatches a single no-op task while the worker process is <em>not</em> running, starts the worker, and measures wall-clock from process start to task completion. Repeated 3 times.</p>
 <table>
@@ -1960,9 +1960,9 @@ Run it yourself: <code>docker compose -f docker-compose.bench.yml up --build</co
 <tbody>
 <tr>
 <td>3</td>
-<td>4,068 ms</td>
-<td>4,006 ms</td>
-<td>5,317 ms</td>
+<td>4,141 ms</td>
+<td>4,019 ms</td>
+<td>5,062 ms</td>
 </tr>
 </tbody>
 </table>
@@ -1985,10 +1985,10 @@ Run it yourself: <code>docker compose -f docker-compose.bench.yml up --build</co
 <tr>
 <td>5</td>
 <td>5/5</td>
-<td>7.6 s</td>
-<td>7.6 s</td>
-<td>7.1 s</td>
-<td>7.6 s</td>
+<td>5.6 s</td>
+<td>5.6 s</td>
+<td>5.6 s</td>
+<td>5.6 s</td>
 </tr>
 </tbody>
 </table>
@@ -2034,12 +2034,12 @@ Run it yourself: <code>docker compose -f docker-compose.bench.yml up --build</co
 <tbody>
 <tr>
 <td>Admission control p99</td>
-<td><strong>0.772 ms</strong></td>
-<td>~1.6 ms (loopback overhead)</td>
+<td><strong>0.568 ms</strong></td>
+<td>~1.2 ms (loopback overhead)</td>
 </tr>
 <tr>
 <td>Dispatch overhead net</td>
-<td><strong>2.28 ms</strong></td>
+<td><strong>2.07 ms</strong></td>
 <td>~1.4 ms extra</td>
 </tr>
 <tr>
@@ -2054,7 +2054,7 @@ Run it yourself: <code>docker compose -f docker-compose.bench.yml up --build</co
 </tr>
 <tr>
 <td>OOM detection avg</td>
-<td><strong>7.3 s</strong></td>
+<td><strong>7.4 s</strong></td>
 <td>~8–12 s</td>
 </tr>
 </tbody>
@@ -2082,11 +2082,11 @@ The difference is the per-task steady-state coordination cost.</p>
 <tbody>
 <tr>
 <td>Baseline (5 idle workers, BRPOP polling)</td>
-<td style="text-align: right;">47.9</td>
+<td style="text-align: right;">50.8</td>
 </tr>
 <tr>
 <td>With 5 tasks inflight (heartbeats + tracking)</td>
-<td style="text-align: right;">42.0</td>
+<td style="text-align: right;">45.4</td>
 </tr>
 <tr>
 <td><strong>Per-task steady-state delta</strong></td>
