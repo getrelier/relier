@@ -207,31 +207,31 @@ Full guide: [docs/chaos-guide.md](https://getrelier.github.io/relier/chaos-guide
 
 Measured by the built-in bench suite (`docker compose -f docker-compose.bench.yml up --build`) on Linux with prefork workers and synthetic 0.5 s tasks. All claims verified end-to-end not microbenchmarks against a mock.
 
-_Numbers below: Relier `v0.1.3`, captured 2026-05-27. Re-run with `make bench-docker` to compare on your hardware._
+_Numbers below: Relier `v0.1.4`, captured 2026-05-29. Re-run with `make bench-docker` to compare on your hardware._
 
 ```
 Linux (Docker, python:3.11-slim, prefork=4) | Redis 7.2 AOF | 500 tasks × 5 kills
 
-Metric                              Relier 0.1.3       Vanilla Celery     Vanilla +acks_late
+Metric                              Relier 0.1.4       Vanilla Celery     Vanilla +acks_late
 ----------------------------------------------------------------------------------------------
-Task delivery rate (5 SIGKILL)      100%   500/500     92.0%  460/500     96.2%  481/500  (0 dup)
-OOM recovery avg / p99              7.5 s / 8.0 s      ∞ lost             partial (visibility)
-Dual-OOM (2 concurrent tasks)       2/2 · 7.5 s        both lost          partial (visibility)
+Task delivery rate (5 SIGKILL)      100%   500/500     92.0%  460/500     96.0%  480/500  (0 dup)
+OOM recovery avg / p99              7.4 s / 8.6 s      ∞ lost             partial (visibility)
+Dual-OOM (2 concurrent tasks)       2/2 · 7.6 s        both lost          partial (visibility)
 Idempotency (50 submissions)        1 execution        50 executions      50 executions
-Admission control p99 / max         0.772 ms / 2.4 ms  n/a                n/a
+Admission control p99 / max         0.568 ms / 1.2 ms  n/a                n/a
 Graceful shutdown (3 cycles)        100%               0%                 0%
-Dispatch overhead (net avg)         +1.77 ms           n/a                n/a
-Cold-start to first task            4.07 s avg         n/a                n/a
-Resurrection under load (5 kill)    5/5 · 7.6 s p99    all lost           partial (visibility)
-File descriptor leak                Δ 0 (stable)       n/a                n/a
+Dispatch overhead (net avg)         +2.07 ms           n/a                n/a
+Cold-start to first task            4.14 s avg         n/a                n/a
+Resurrection under load (5 kill)    5/5 · 5.6 s p99    all lost           partial (visibility)
+File descriptor leak                Δ +1 (stable)      n/a                n/a
 ----------------------------------------------------------------------------------------------
 ```
 
-**+1.77 ms per dispatch** pays for: atomic admission check, SHA-256-signed envelope wrap, heartbeat registration. On any task that does real work (a DB query, an HTTP call, an AI inference), this is invisible.
+**+2.07 ms per dispatch** pays for: atomic admission check, SHA-256-signed envelope wrap, heartbeat registration. On any task that does real work (a DB query, an HTTP call, an AI inference), this is invisible.
 
-At 2.80 ms average per dispatch, **a single async producer sustains ~350 `apush()` calls/second** per thread. FastAPI producers fan out well past 1,000/second.
+At 3.01 ms average per dispatch, **a single async producer sustains ~330 `apush()` calls/second** per thread. FastAPI producers fan out well past 1,000/second.
 
-The admission control Lua script stays under 1 ms at p99 (0.772 ms), meaning the tail-latency cost of the admission check is bounded for the vast majority of requests. The "Vanilla +acks_late" column shows what flipping `task_acks_late=True` actually buys you: partial recovery (96.2% vs 92.0%) but not Relier's 100%, because the Redis broker's `visibility_timeout` default (~1 hour) gates redelivery long after most completions would have happened.
+The admission control Lua script stays under 1 ms at p99 (0.568 ms), meaning the tail-latency cost of the admission check is bounded for the vast majority of requests. The "Vanilla +acks_late" column shows what flipping `task_acks_late=True` actually buys you: partial recovery (96.0% vs 92.0%) but not Relier's 100%, because the Redis broker's `visibility_timeout` default (~1 hour) gates redelivery long after most completions would have happened.
 
 ![Bench dashboard end of run](docs/assets/images/screenshot-2.png)
 
