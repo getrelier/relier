@@ -7,22 +7,22 @@ Run it yourself: `docker compose -f docker-compose.bench.yml up --build`
 
 ## Results
 
-| Metric | Relier 0.1.3 | Vanilla (default) | Vanilla (`task_acks_late=True`) | Verified |
+| Metric | Relier 0.1.4 | Vanilla (default) | Vanilla (`task_acks_late=True`) | Verified |
 |--------|-------------|-------------------|---------------------------------|----------|
-| Task delivery rate (500 tasks, 5 kills) | **100%** (500/500) | 92.0% (460/500) | 96.2% (481/500), 0 duplicates | ✓ |
-| Worker OOM recovery (5 cycles) | **7.5 s avg · 8.0 s p99** | ∞ lost | partial (see note below) | ✓ |
-| Dual-OOM (2 in-flight tasks, 1 kill) | **2/2 recovered · 7.5 s** | both lost | partial (see note below) | ✓ |
+| Task delivery rate (500 tasks, 5 kills) | **100%** (500/500) | 92.0% (460/500) | 96.0% (480/500), 0 duplicates | ✓ |
+| Worker OOM recovery (5 cycles) | **7.4 s avg · 8.6 s p99** | ∞ lost | partial (see note below) | ✓ |
+| Dual-OOM (2 in-flight tasks, 1 kill) | **2/2 recovered · 7.6 s** | both lost | partial (see note below) | ✓ |
 | Duplicate prevention (50 submissions) | **1/50 ran** | 50/50 ran | 50/50 ran (no dedup) | ✓ |
-| Admission control p99 | **0.772 ms** (p99.9 1.76 ms · max 2.358 ms) | n/a | n/a | ✓ |
+| Admission control p99 | **0.568 ms** (p99.9 0.861 ms · max 1.176 ms) | n/a | n/a | ✓ |
 | Graceful shutdown (3 cycles) | **100%** | 0% | 0% (drain still drops in-flight) | ✓ |
-| Overhead per task (200 dispatches) | **1.77 ms** net (p99 8.18 ms) | 1.03 ms baseline | n/a | ✓ |
-| Worker RAM (idle) | **329.7 MB** (+94.8 MB vs vanilla) | 234.9 MB | n/a | n/a |
+| Overhead per task (200 dispatches) | **2.07 ms** net (p99 6.04 ms) | 0.94 ms baseline | n/a | ✓ |
+| Worker RAM (idle) | **333.7 MB** (+98.5 MB vs vanilla) | 235.2 MB | n/a | n/a |
 | Redis per in-flight task | **1,936 bytes** (11 keys) | 0 bytes | 0 bytes | n/a |
-| Cold-start to first task (3 trials) | **4,068 ms avg · 5,317 ms p99** | n/a | n/a | ✓ |
-| Resurrection under load (5 inflight at kill) | **5/5 · p99 7.6 s** | ∞ all lost | partial (see note below) | ✓ |
-| File descriptor leak | **Δ 0** (stable) | n/a | n/a | n/a |
+| Cold-start to first task (3 trials) | **4,141 ms avg · 5,062 ms p99** | n/a | n/a | ✓ |
+| Resurrection under load (5 inflight at kill) | **5/5 · p99 5.6 s** | ∞ all lost | partial (see note below) | ✓ |
+| File descriptor leak | **Δ +1** (stable) | n/a | n/a | n/a |
 
-Tested on: Linux (Docker, python:3.11-slim-bookworm), Redis 7.2 with AOF + noeviction, Celery prefork pool, BENCH_WORKER_CONCURRENCY=4. Run: 2026-05-27.
+Tested on: Linux (Docker, python:3.11-slim-bookworm), Redis 7.2 with AOF + noeviction, Celery prefork pool, BENCH_WORKER_CONCURRENCY=4. Run: 2026-05-29.
 
 > **Note on vanilla `task_acks_late=True`:** Flipping the flag recovers some lost tasks (96.0% vs 92.4% default) but does *not* match Relier's 99.8%. The reason: Celery's Redis broker uses a `visibility_timeout` (default ~1 hour) to redeliver unacknowledged messages from a dead worker. Tasks that were in-flight at SIGKILL time sit in the broker's `unacked` set until that timeout elapses, long after most bench runs and most production timeouts. Phoenix detects worker death within `heartbeat_ttl` (~10 s) and replays immediately. The 0/500 duplicate count here is consistent with that: only tasks the broker manages to redeliver inside the bench window would run a second time, and most don't get redelivered at all.
 
@@ -36,7 +36,7 @@ Dispatches 500 tasks (each sleeping 0.5 s in synthetic mode), SIGKILLs the worke
 
 - **Relier (100%)**: `task_acks_late=True` keeps the message unACK'd until the task succeeds. Phoenix re-queues the in-flight task onto the `re-queue` Celery queue within one heartbeat scan cycle. The replacement worker drains it. All 500/500 recovered with `max_resurrections=5` headroom intact. *(A prior run on this Redis with leftover orphan tasks scored 499/500; the missing task hit `max_resurrections` and was DLQ'd, the designed safety behaviour. Cleaning orphans restored 100%.)*
 - **Vanilla default (92.0%)**: `task_acks_late=False` ACKs on pickup. Each kill loses the one task mid-execution. 40 tasks dropped across 5 kills; the rest survive in the queue.
-- **Vanilla + `task_acks_late=True` (96.2%, 0 duplicates)**: The broker keeps unACK'd messages in an `unacked` set after worker death, but redelivery is gated by `visibility_timeout` (default ~1 hour on the Redis broker). Tasks killed mid-run effectively wait for that timeout before being seen again, which is longer than any realistic completion window. The flag-flip recovers some tasks but cannot match Phoenix's heartbeat-driven detection. Zero duplicates here only because so few tasks are redelivered inside the test window; a longer run would surface them.
+- **Vanilla + `task_acks_late=True` (96.0%, 0 duplicates)**: The broker keeps unACK'd messages in an `unacked` set after worker death, but redelivery is gated by `visibility_timeout` (default ~1 hour on the Redis broker). Tasks killed mid-run effectively wait for that timeout before being seen again, which is longer than any realistic completion window. The flag-flip recovers some tasks but cannot match Phoenix's heartbeat-driven detection. Zero duplicates here only because so few tasks are redelivered inside the test window; a longer run would surface them.
 
 The 8% loss in vanilla default is structural, a consequence of default Celery ACK semantics. At 10M tasks/day this is 800,000 lost tasks. Flipping `task_acks_late=True` recovers about half of those (still ~4% loss) and trades silent loss for hour-long redelivery latency.
 
@@ -44,7 +44,7 @@ The 8% loss in vanilla default is structural, a consequence of default Celery AC
 
 Dispatches a long-running task, waits 4 s for it to start, SIGKILLs the worker, starts a replacement alongside the Phoenix resurrector. Repeated 5 times.
 
-- **Relier (7.5 s avg · 8.0 s p99)**: Phoenix detects the stale heartbeat within one scan cycle and re-queues the orphaned task onto `re-queue`. The replacement worker picks it up. All 5 cycles recovered.
+- **Relier (7.4 s avg · 8.6 s p99)**: Phoenix detects the stale heartbeat within one scan cycle and re-queues the orphaned task onto `re-queue`. The replacement worker picks it up. All 5 cycles recovered.
 - **Vanilla (lost)**: No heartbeat, no resurrector. Task is gone.
 
 Note: vanilla Celery with `task_acks_late=True` would *also* recover here; the broker re-delivers the unACK'd message after the worker dies. But without idempotency the redelivered task runs a second time. Test 5 quantifies that duplicate-execution cost on a larger sample.
@@ -53,7 +53,7 @@ Note: vanilla Celery with `task_acks_late=True` would *also* recover here; the b
 
 Dispatches 2 tasks to the same worker simultaneously, kills the worker with both in-flight. Both are independently detected and resurrected by Phoenix.
 
-- **2/2 recovered · 7.5 s detection**: Phoenix handles overlapping orphans correctly. Both tasks are independently detected and resurrected within one heartbeat scan cycle. ✓ < 45 s claim.
+- **2/2 recovered · 7.6 s detection**: Phoenix handles overlapping orphans correctly. Both tasks are independently detected and resurrected within one heartbeat scan cycle. ✓ < 45 s claim.
 
 ### Duplicate prevention
 
@@ -68,9 +68,9 @@ Runs 5,000 consecutive admission checks (the atomic Lua script Relier executes o
 
 | | avg | p95 | p99 | p99.9 | max |
 |---|---|---|---|---|---|
-| Linux (Docker) | 0.377 ms | 0.559 ms | 0.772 ms | 1.76 ms | 2.358 ms |
+| Linux (Docker) | 0.285 ms | 0.443 ms | 0.568 ms | 0.861 ms | 1.176 ms |
 
-The claim is p99 < 1 ms, comfortably met. The p99.9 (1.76 ms) and max (2.358 ms) include cold-start outliers from the first samples before the Lua script is cached by Redis.
+The claim is p99 < 1 ms, comfortably met. The p99.9 (0.861 ms) and max (1.176 ms) include cold-start outliers from the first samples before the Lua script is cached by Redis.
 
 ### Graceful shutdown
 
@@ -85,17 +85,17 @@ Dispatches 200 no-op tasks with `apush()` and 200 with vanilla `.delay()`.
 
 | | avg | p50 | p95 | p99 |
 |---|---|---|---|---|
-| Relier | 2.80 ms | 1.87 ms | 2.33 ms | 8.18 ms |
-| Vanilla | 1.03 ms | 0.96 ms | 1.39 ms | 2.01 ms |
-| **Net overhead** | **1.77 ms** | n/a | n/a | n/a |
+| Relier | 3.01 ms | 1.85 ms | 2.36 ms | 6.04 ms |
+| Vanilla | 0.94 ms | 0.90 ms | 1.13 ms | 1.83 ms |
+| **Net overhead** | **2.07 ms** | n/a | n/a | n/a |
 
-The 1.77 ms average overhead covers: atomic admission check + SHA-256 envelope wrap + heartbeat registration. On any task that does real work (a DB query, an HTTP call, an AI inference), this is invisible.
+The 2.07 ms average overhead covers: atomic admission check + SHA-256 envelope wrap + heartbeat registration. On any task that does real work (a DB query, an HTTP call, an AI inference), this is invisible.
 
 ### Worker RAM and Redis overhead
 
 **Worker RAM (idle)**
 
-A Relier worker uses ~330 MB RSS at idle vs ~235 MB for vanilla: a delta of +94.8 MB. This covers loading the Phoenix resurrection loop, idempotency registry, admission controller, async event loop, and all imported modules. The cost is paid once per worker process, not per task.
+A Relier worker uses ~334 MB RSS at idle vs ~235 MB for vanilla: a delta of +98.5 MB. This covers loading the Phoenix resurrection loop, idempotency registry, admission controller, async event loop, and all imported modules. The cost is paid once per worker process, not per task.
 
 **Redis per in-flight task**
 
@@ -103,7 +103,7 @@ While a task is executing, Relier writes 11 Redis keys totalling ~1,936 bytes (h
 
 **File descriptor stability**
 
-Open file descriptors: 195 at worker idle → 195 after task completion (Δ = 0). No leak detected. The reliability stack does not accumulate file handles across task executions.
+Open file descriptors: 195 at worker idle → 196 after task completion (Δ = +1, stable). No leak detected. The reliability stack does not accumulate file handles across task executions.
 
 ### Cold-start to first-task latency
 
@@ -111,7 +111,7 @@ Dispatches a single no-op task while the worker process is *not* running, starts
 
 | trials | avg | p50 | p99 |
 |---|---|---|---|
-| 3 | 4,068 ms | 4,006 ms | 5,317 ms |
+| 3 | 4,141 ms | 4,019 ms | 5,062 ms |
 
 This number matters for serverless and scale-to-zero deployments where a new worker spins up on demand. The bulk of the ~4 s is Celery's startup phase (mingle, gossip, Redis validation); Relier adds a fraction of a second on top for the Phoenix and admission-control infrastructure.
 
@@ -123,7 +123,7 @@ The published `resurrection_claim_grace_period` default (30 s) is sized to comfo
 
 | inflight at kill | recovered | p50 | p99 | first | last |
 |---|---|---|---|---|---|
-| 5 | 5/5 | 7.6 s | 7.6 s | 7.1 s | 7.6 s |
+| 5 | 5/5 | 5.6 s | 5.6 s | 5.6 s | 5.6 s |
 
 The tight bunching is structural: all 5 tasks have their heartbeats expire in the same `heartbeat_ttl` window after the kill, so the resurrector discovers them in a single scan pass and re-queues them as a batch. Replacement workers pick them up in the next poll cycle.
 
@@ -178,11 +178,11 @@ python -m bench.bench --synthetic  # ~20 min, no GPU required
 
 | | Linux / Docker (prefork) | Windows (solo pool) |
 |--|--------------------------|---------------------|
-| Admission control p99 | **0.772 ms** | ~1.6 ms (loopback overhead) |
-| Dispatch overhead net | **2.28 ms** | ~1.4 ms extra |
+| Admission control p99 | **0.568 ms** | ~1.2 ms (loopback overhead) |
+| Dispatch overhead net | **2.07 ms** | ~1.4 ms extra |
 | Vanilla graceful shutdown | 0% (in-flight tasks lost) | 0% (SIGTERM immediate) |
 | Concurrency | True parallel workers (prefork) | Sequential (1 task at a time) |
-| OOM detection avg | **7.3 s** | ~8–12 s |
+| OOM detection avg | **7.4 s** | ~8–12 s |
 
 Windows TCP loopback adds ~0.6–1.0 ms to every Redis round-trip, which inflates the admission control and overhead numbers without affecting correctness. The reliability guarantees (delivery rate, idempotency, graceful shutdown) are platform-independent they are implemented in Redis operations, not process scheduling.
 
@@ -207,8 +207,8 @@ Result from the latest run (5 inflight, 60 s window, default `heartbeat_ttl=10`)
 
 | | Ops/sec |
 |---|---:|
-| Baseline (5 idle workers, BRPOP polling) | 47.9 |
-| With 5 tasks inflight (heartbeats + tracking) | 42.0 |
+| Baseline (5 idle workers, BRPOP polling) | 50.8 |
+| With 5 tasks inflight (heartbeats + tracking) | 45.4 |
 | **Per-task steady-state delta** | **~0** (below measurement noise) |
 
 The headline finding: **inflight-task steady-state Redis cost is essentially
