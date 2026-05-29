@@ -29,7 +29,7 @@ my_app/
 ### `tasks.py`
 
 ```python
-from relier.tasks.decorator import rl_task
+from relier import rl_task
 
 @rl_task(
     queue="default",
@@ -80,7 +80,7 @@ In three terminals (or via `make dev` for a Docker stack):
 uvicorn main:app --reload
 
 # 2. The Celery worker
-celery -A relier.tasks.app worker -l info -Q high_priority,default,low_priority,re-queue
+celery -A relier.tasks.app worker -l info -Q high_priority,default,low_priority,re-queue --include=tasks
 
 # 3. The Phoenix resurrector
 rl run-resurrector
@@ -103,7 +103,7 @@ internally without making you `await` anything.
 ### `tasks.py`
 
 ```python
-from relier.tasks.decorator import rl_task
+from relier import rl_task
 
 @rl_task(idempotent=True)
 async def send_invoice(invoice_id: str) -> dict:
@@ -212,38 +212,6 @@ class Command(BaseCommand):
 
 ---
 
-## Starlette / async frameworks generally
-
-Anything that runs on an asyncio event loop uses `apush`. The receipt is
-identical to FastAPI:
-
-```python
-from starlette.applications import Starlette
-from starlette.responses import JSONResponse
-from starlette.routing import Route
-from relier.core.exceptions import AdmissionRejectedError
-
-from tasks import send_invoice
-
-async def dispatch_invoice(request: Request) -> JSONResponse:
-    invoice_id = request.path_params["invoice_id"]
-    try:
-        await send_invoice.apush(invoice_id)
-    except AdmissionRejectedError as exc:
-        return JSONResponse(
-            {"detail": "at capacity"},
-            status_code=429,
-            headers={"Retry-After": str(exc.retry_after)},
-        )
-    return JSONResponse({"status": "queued"})
-
-app = Starlette(routes=[
-    Route("/invoices/{invoice_id}/send", dispatch_invoice, methods=["POST"]),
-])
-```
-
----
-
 ## Scripts, cron jobs, CLI tools
 
 Anywhere you can run a Python interpreter, you can dispatch a Relier task. Use
@@ -273,9 +241,16 @@ asyncio.run(main())
 
 ## Dispatching from inside a task
 
-Sometimes a task needs to enqueue another task. Both `apush` and `push` work
-from inside a Celery worker, `push` is convenient because the task body is
-often easier to read without `await` on dispatch:
+Sometimes a task needs to enqueue follow-up work. **Which method you use depends
+on whether the task body is `async` or `sync`** this is the one place where
+`push` and `apush` are *not* interchangeable.
+
+### From an `async` task body use `await apush`
+
+An `async` task body runs **on the worker's persistent event loop**. Calling the
+synchronous `push` from there would block that loop waiting on a coroutine that
+needs the same loop to make progress, a deadlock. Relier detects this and
+raises `RuntimeError` rather than hanging. Always `await apush`:
 
 ```python
 @rl_task()
@@ -283,12 +258,33 @@ async def import_user(user_id: str) -> None:
     profile = await fetch_profile(user_id)
     await store(profile)
     # Fan out follow-up work, fire-and-forget.
-    send_welcome_email.push(user_id)         # sync convenience
-    await regenerate_avatar.apush(user_id)   # equivalent
+    await send_welcome_email.apush(user_id)
+    await regenerate_avatar.apush(user_id)
 ```
 
-Inside the worker, both call paths schedule onto the worker's persistent event
-loop. There is no risk of nested-loop trouble.
+### From a `sync` task body use `push`
+
+A `sync` task body runs in a worker thread (via `asyncio.to_thread`), *not* on
+the event loop, so there is no loop to block. Use `push`:
+
+```python
+@rl_task()
+def import_user(user_id: str) -> None:
+    profile = fetch_profile(user_id)        # sync I/O
+    store(profile)
+    send_welcome_email.push(user_id)        # sync dispatch, safe here
+```
+
+!!! warning "`push` from async code raises `RuntimeError`"
+    Calling `task.push(...)` from inside any running event loop — an async task
+    body, a FastAPI route, or an async Django view raises:
+
+    ```
+    RuntimeError: <task>.push() was called from inside a running event loop …
+                  Use `await <task>.apush(...)` instead.
+    ```
+
+    The rule is simple: **async context → `await apush`; sync context → `push`.**
 
 ---
 

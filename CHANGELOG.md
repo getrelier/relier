@@ -15,6 +15,78 @@ intended for adopters who need a single place to read migration impact.
 
 
 
+## [0.1.4] — 2026-05-29
+
+Patch release focused on dispatch-boundary correctness, type-checker /
+IntelliSense quality, quieter resurrection logs, and CI notification fixes.
+
+### Bug fixes
+
+- **Stacking `@rl_task` twice now fails fast with a clear `ValueError`.** A
+  stray `@rl_task(...)` decorator with no function directly beneath it would
+  fall through onto the next definition, double-wrapping an already-decorated
+  task. At execution time this blew up with an opaque
+  `RecursionError: maximum recursion depth exceeded` deep inside
+  `inspect`/`celery/local.py`. The decorator now detects an already-decorated
+  target at decoration time and explains exactly what to fix.
+  (`src/relier/tasks/decorator.py`)
+
+- **`push()` from async code raises a clear `RuntimeError` instead of
+  deadlocking.** Calling the synchronous `push()` from a running event loop (a
+  FastAPI route or an `async` task body) scheduled the dispatch onto the loop
+  and then blocked the same loop waiting for it — a 5-second hang ending in a
+  confusing timeout. `push()` now detects a running loop on the calling thread
+  and tells you to use `await task.apush(...)`. Sync task bodies (which run in a
+  worker thread) are unaffected. (`src/relier/tasks/decorator.py`)
+
+### Developer experience
+
+- **Dispatch methods are now typed as `TaskReceipt`, not `Any`.** `apush` /
+  `push` return a Celery `AsyncResult`, but Celery ships no type information,
+  so type checkers treated the receipt as opaque — `receipt.id` had no
+  autocomplete and no checking. A new `TaskReceipt` `Protocol` describes the
+  live slice Relier promises (`id`, `status`/`state`, `result`, `ready()`,
+  `successful()`, `failed()`, `get()`). `receipt.id` now resolves to `str` and
+  typos on the receipt are flagged, with no runtime wrapper and no behaviour
+  change. Exported from the top level: `from relier import TaskReceipt`.
+  (`src/relier/tasks/decorator.py`, `src/relier/__init__.py`)
+
+### Observability
+
+- **Resurrection logs no longer spam every scan interval.** The "Phoenix
+  resurrection pass complete" line fired on every pass while a task was merely
+  being *monitored* (`monitored > 0`), emitting an identical line every ~2s
+  until that task finished — noise that leaked into worker logs. The pass
+  summary now logs only when a task was actually recovered, and reads
+  "Phoenix recovered N orphaned task(s) onto healthy workers". State changes
+  (reclaimed / died-again / completed) are still logged individually, and the
+  "recovered task finished successfully" confirmation is now visible instead of
+  being buried. (`src/relier/core/phoenix.py`)
+
+### CI
+
+- **Nightly Slack notifications guard against an unset `SLACK_WEBHOOK`.** The
+  failure-only Slack step previously ran `curl` against an empty URL when the
+  secret was missing; it now skips cleanly with a workflow warning.
+- **High-scale chaos can be opt-in on manual runs.** The 10k×8 job is gated on
+  `github.event.schedule`, which is unset for `workflow_dispatch`, so a manual
+  run always skipped it. A new `run_high_scale` dispatch input opts in, while
+  the Monday auto-schedule is unchanged. (`.github/workflows/nightly.yml`)
+
+### Documentation
+
+- Examples now use the friendlier top-level import `from relier import rl_task`.
+- Dispatch, admission-control (429), and result-handling docs now show FastAPI,
+  Flask, and Django side by side with copy-paste-runnable code.
+- New `TaskReceipt` API reference; documented that `receipt.get()` blocks and
+  must not be called inline in async handlers.
+- Corrected the "dispatch from inside a task" guidance (async body → `apush`,
+  sync body → `push`) and added troubleshooting entries for the two new errors.
+- Resurrection timing clarified: detection is typically ~12s (heartbeat TTL +
+  scan interval), with 35s as the conservative worst-case ceiling.
+- Removed the standalone Starlette recipe (FastAPI, built on Starlette, covers
+  it).
+
 ## [0.1.3] — 2026-05-27
 
 Patch release focused on observability fixes, Redis Cluster preparation, and a

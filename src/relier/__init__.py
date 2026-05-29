@@ -57,7 +57,7 @@ Catch that base class to handle any framework error uniformly:
     ...     raise
 """
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 # ---------------------------------------------------------------------------
 # Public API re-exports
@@ -80,7 +80,7 @@ from relier.core.exceptions import (
     WorkerInitializationError,
 )
 from relier.tasks.context import TaskContext, task_context
-from relier.tasks.decorator import PUBLIC_QUEUES, RelierTask, rl_task
+from relier.tasks.decorator import PUBLIC_QUEUES, RelierTask, TaskReceipt, rl_task
 
 __all__ = [
     # Version
@@ -88,6 +88,7 @@ __all__ = [
     # Core decorator & typed handle
     "rl_task",
     "RelierTask",
+    "TaskReceipt",
     # Task context
     "TaskContext",
     "task_context",

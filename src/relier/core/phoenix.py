@@ -318,12 +318,21 @@ class PhoenixRegistry:
 
                 duration = asyncio.get_running_loop().time() - start_time
 
-                if (monitored_count or 0) > 0 or (resurrected_count or 0) > 0:
+                # Only announce a pass when we actually recovered something.
+                # Logging every pass merely because a task is still being
+                # *monitored* (monitored_count > 0) spams the worker/CLI logs
+                # with an identical line every scan interval until that task
+                # finishes. State changes during monitoring (reclaimed, died
+                # again, completed) are already logged individually by
+                # _monitor_resurrected_tasks, so steady-state monitoring stays
+                # quiet here.
+                if (resurrected_count or 0) > 0:
                     logger.info(
-                        "Phoenix resurrection pass complete",
+                        f"Phoenix recovered {resurrected_count} orphaned "
+                        "task(s) onto healthy workers",
                         extra={
-                            "monitored": monitored_count,
                             "resurrected": resurrected_count,
+                            "monitored": monitored_count,
                             "duration_ms": int(duration * 1000),
                         },
                     )
@@ -410,7 +419,10 @@ class PhoenixRegistry:
                 # A healthy worker reclaimed execution ownership.
                 writes.hset(monitor_key, t_id, "1")
                 transitions["alive"] += 1
-                logger.info("Resurrected task is now alive", extra={"task_id": t_id})
+                logger.info(
+                    "Recovered task reclaimed by a healthy worker",
+                    extra={"task_id": t_id},
+                )
 
             elif state == 1 and not hb_exists and payload_exists:
                 # The replacement worker also disappeared before completion.
@@ -446,7 +458,8 @@ class PhoenixRegistry:
                 writes.hdel(monitor_key, t_id)
                 transitions["completed"] += 1
                 logger.info(
-                    "Resurrected task completed successfully", extra={"task_id": t_id}
+                    "Recovered task finished successfully (resurrection confirmed)",
+                    extra={"task_id": t_id},
                 )
 
         await writes.execute()

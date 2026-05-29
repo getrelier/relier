@@ -24,7 +24,7 @@ The main decorator. Wraps any async (or sync) function with Relier's full
 reliability stack.
 
 ```python
-from relier.tasks.decorator import rl_task
+from relier import rl_task
 
 @rl_task(
     queue="default",
@@ -287,10 +287,95 @@ own `.delay()`.
     send_invoice.push(invoice_id)  # sync, no await needed
     ```
 
+#### What you get back: a Celery `AsyncResult`
+
+Both `apush` and `push` return a Celery
+[`AsyncResult`](https://docs.celeryq.dev/en/stable/reference/celery.result.html).
+This is deliberate. Relier is a thin layer over Celery, and the `AsyncResult`
+is the standard, well-documented handle for a dispatched task. Relier configures
+**Redis as the result backend** (`result_backend` is set to your
+`RELIER_REDIS_URL`), so the handle is *live*, not a stub:
+
+```python
+receipt = await send_invoice.apush("INV-001")
+
+receipt.id          # "f8a2…"  — the task UUID (use this for correlation/logging)
+receipt.status      # "PENDING" → "STARTED" → "SUCCESS" / "FAILURE"
+receipt.ready()     # True once the task has finished (non-blocking)
+receipt.successful() # True if it finished without raising
+receipt.get()       # the task's return value — BLOCKS until it finishes
+```
+
+In the overwhelming majority of cases you only need `receipt.id`. Both dispatch
+methods are **fire-and-forget**: they return the moment the task is *enqueued*,
+not when it *runs*.
+
+!!! tip "Typed receipts: `TaskReceipt`"
+    Celery ships no type information, so a strict type checker treats
+    `AsyncResult`'s attributes as `Any` — `receipt.id` would have no autocomplete
+    and no checking. Relier annotates the dispatch methods as
+    [`TaskReceipt`](#taskreceipt), a `Protocol` describing the live slice of
+    `AsyncResult` it promises (`id`, `status`/`state`, `result`, `ready()`,
+    `successful()`, `failed()`, `get()`). Your editor autocompletes `receipt.id`
+    as `str` and flags typos — with no wrapper object and nothing changed at
+    runtime (the object *is* still an `AsyncResult`). Import it to annotate your
+    own code:
+
+    ```python
+    from relier import TaskReceipt
+
+    def enqueue() -> TaskReceipt:
+        return send_invoice.push("INV-001")
+    ```
+
+!!! warning "Do not call `receipt.get()` in an async request handler"
+    `AsyncResult.get()` / `.wait()` is **synchronous and blocking** — it parks
+    the calling thread until the worker finishes. Calling it in a FastAPI route
+    (or any async handler) blocks the entire event loop, stalling every other
+    request on that worker. It also re-raises whatever exception the task raised,
+    as a Celery-wrapped traceback.
+
+    Three correct options, in order of preference:
+
+    1. **Fire-and-forget (recommended).** Return the task ID immediately and let
+       the client poll a status endpoint:
+       ```python
+       receipt = await send_invoice.apush("INV-001")
+       return {"task_id": receipt.id, "status": "queued"}
+       ```
+    2. **Poll without blocking** from a separate endpoint:
+       ```python
+       from celery.result import AsyncResult
+       from relier.tasks.app import celery_app
+
+       @app.get("/tasks/{task_id}")
+       async def task_status(task_id: str):
+           r = AsyncResult(task_id, app=celery_app)
+           return {"status": r.status, "result": r.result if r.ready() else None}
+       ```
+    3. **If you truly must block in-request**, offload the blocking call to a
+       thread so the event loop stays free:
+       ```python
+       import asyncio
+       result = await asyncio.to_thread(receipt.get, timeout=30)
+       ```
+
+    Blocking a web request on a background task is usually an anti-pattern: it
+    defeats the point of dispatching the work in the first place. Reach for
+    option 3 only for short tasks where the caller genuinely needs the result
+    inline.
+
 #### `task.push(*args, **kwargs)` → `AsyncResult`
 
-**Use this in Flask, classic (sync) Django, management commands, scripts, or
-inside a Celery task that wants to enqueue another task.**
+**Use this in Flask, classic (sync) Django, management commands, scripts, or the
+body of a _sync_ `@rl_task` that wants to enqueue another task.**
+
+!!! warning "`push` is for sync callers only"
+    `push` blocks until the dispatch is acknowledged, so it cannot run on a
+    thread that already has a live event loop. Calling it from async code (a
+    FastAPI route, an async Django view, or an `async` `@rl_task` body) raises
+    `RuntimeError` — use `await task.apush(...)` there. See
+    [Integrations → Dispatching from inside a task](integrations.md#dispatching-from-inside-a-task).
 
 ```python
 # Flask route
@@ -307,15 +392,18 @@ def dispatch_invoice(request, invoice_id):
 
 `push` is a thin synchronous wrapper around `apush`:
 
-- If called **inside a Celery worker** (whose persistent event loop is already
-  running), `push` schedules the coroutine via
+- If called **inside a Celery worker** from a sync task body (which runs in a
+  worker thread, not on the event loop), `push` schedules the coroutine via
   `asyncio.run_coroutine_threadsafe(self.apush(...), worker_loop)` and waits up
   to 5 s for the dispatch to be acknowledged by the broker.
-- If called **outside Celery** (e.g., from a Flask or Django request handler),
-  `push` falls back to `asyncio.run(self.apush(...))`.
+- If called **outside Celery** (e.g., from a Flask or sync Django request
+  handler), `push` falls back to `asyncio.run(self.apush(...))`.
+- If called **from a thread with a running event loop** (a FastAPI route or an
+  `async` task body), `push` raises `RuntimeError` instead of deadlocking —
+  use `await task.apush(...)` there.
 
-Either way, the reliability semantics are identical to `apush`. The only
-difference is that you didn't have to `await`.
+In the first two cases the reliability semantics are identical to `apush`. The
+only difference is that you didn't have to `await`.
 
 #### `task.delay(*args, **kwargs)` / `task.apply_async(...)` - **do not use**
 
@@ -359,6 +447,38 @@ except AdmissionRejectedError as exc:
 
 `exc.retry_after` is the number of seconds until the admission window resets,
 hand it to the client as the standard HTTP `Retry-After` header.
+
+---
+
+## `TaskReceipt`
+
+The typed handle returned by `apush` and `push`. At runtime it **is** a Celery
+`AsyncResult`; `TaskReceipt` is a `typing.Protocol` that gives your editor and
+type checker the live slice Relier promises, since Celery itself ships no types.
+Import it from the top-level package to annotate your own code:
+
+```python
+from relier import TaskReceipt
+
+async def enqueue() -> TaskReceipt:
+    return await send_invoice.apush("INV-001")
+```
+
+| Member | Type | Description |
+|--------|------|-------------|
+| `receipt.id` | `str` | Task UUID. Use for correlation, logging, status lookup. |
+| `receipt.status` / `receipt.state` | `str` | `PENDING` → `STARTED` → `SUCCESS`/`FAILURE`. |
+| `receipt.result` | `Any` | The return value once finished, or the exception on failure. |
+| `receipt.ready()` | `bool` | `True` once the task has finished. Non-blocking. |
+| `receipt.successful()` | `bool` | `True` if it finished without raising. |
+| `receipt.failed()` | `bool` | `True` if it raised. |
+| `receipt.get(timeout=None)` | `Any` | **Blocks** until the task finishes, then returns its result. |
+
+!!! warning "`receipt.get()` blocks"
+    `get()` is synchronous. Never call it directly in an async handler — it
+    stalls the event loop. Offload with `await asyncio.to_thread(receipt.get)`,
+    or return `receipt.id` and poll `receipt.ready()` from a separate endpoint.
+    See [Dispatch methods → What you get back](#what-you-get-back-a-celery-asyncresult).
 
 ---
 

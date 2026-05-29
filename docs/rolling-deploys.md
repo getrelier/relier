@@ -57,6 +57,46 @@ version before calling your function.
 
 ---
 
+## Your route never changes only the task does
+
+This is the part that trips people up, so let's be concrete. The migration is a
+**worker-side** concern. The code that *dispatches* the task your FastAPI
+route, Flask view, or script, stays exactly the same before, during, and after
+the deploy:
+
+```python
+# main.py — UNCHANGED across the whole migration
+@app.post("/invoices/{invoice_id}/send")
+async def dispatch_invoice(invoice_id: str) -> dict:
+    receipt = await send_invoice.apush(invoice_id)   # same call, v1 and v2
+    return {"task_id": receipt.id, "status": "queued"}
+```
+
+The route always calls `send_invoice.apush(invoice_id)`. It doesn't know or care
+which schema version is current, Relier stamps the envelope with
+`CURRENT_VERSION` for it. All the version-awareness lives in two places:
+
+1. `SchemaRegistry.CURRENT_VERSION`, the number stamped onto new envelopes.
+2. The migration function, which upgrades *old* envelopes when a worker picks
+   them up.
+
+So the mental model is: **producers stay dumb, workers get smart.** A v1 producer
+keeps enqueueing v1 envelopes; a v2 worker quietly upgrades them on arrival.
+
+Here's the whole timeline in plain English, for adding a required `region` arg:
+
+| When | A v1 producer enqueues | A v2 worker receives | What happens |
+|---|---|---|---|
+| Before deploy | `send_invoice("INV-1")` → v1 envelope | (still v1 worker) | Runs as `send_invoice("INV-1")` |
+| Mid-deploy | `send_invoice("INV-1")` → v1 envelope | v2 worker | Migration adds `region="global"`, then runs `send_invoice("INV-1", region="global")` |
+| After deploy | `send_invoice("INV-1")` → v2 envelope | v2 worker | No migration needed; runs directly |
+
+No failed tasks, no special-casing in your route, no deploy-window downtime —
+provided you registered the migration *before* the new workers start pulling
+old payloads.
+
+---
+
 ## Step-by-step: a real schema change
 
 You want to make `region` required (and ban the implicit default). Here's the
