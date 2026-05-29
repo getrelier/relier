@@ -58,7 +58,7 @@ import logging
 import time
 import uuid
 from collections.abc import Awaitable, Callable
-from typing import Any, Generic, ParamSpec, TypeVar, cast
+from typing import Any, Generic, ParamSpec, Protocol, TypeVar, cast
 
 from celery import shared_task
 from celery.exceptions import SoftTimeLimitExceeded
@@ -145,6 +145,79 @@ R = TypeVar("R")
 
 
 # =============================================================================
+# TaskReceipt — typed view of the dispatch return value
+# =============================================================================
+
+
+class TaskReceipt(Protocol):
+    """Structural type for the handle returned by :meth:`RelierTask.push` and
+    :meth:`RelierTask.apush`.
+
+    At runtime this is a Celery
+    `AsyncResult <https://docs.celeryq.dev/en/stable/reference/celery.result.html>`_.
+    Celery ships no type information, so its ``AsyncResult`` is opaque (``Any``)
+    to type checkers — which means ``receipt.id`` would be unchecked and offer
+    no autocomplete.  This :class:`~typing.Protocol` describes the exact slice of
+    ``AsyncResult`` that Relier's dispatch methods promise, so editors give you
+    autocomplete and type-checking on the receipt without us inventing a wrapper
+    object.  ``AsyncResult`` satisfies it structurally; nothing changes at
+    runtime.
+
+    Relier configures Redis as the result backend, so every attribute here is
+    live, not a stub.
+
+    Example:
+        >>> receipt = await send_invoice.apush("INV-001")
+        >>> receipt.id          # str — task UUID, for correlation/logging
+        >>> receipt.status      # "PENDING" → "STARTED" → "SUCCESS" / "FAILURE"
+        >>> receipt.ready()     # bool — non-blocking "is it done?"
+    """
+
+    @property
+    def id(self) -> str:
+        """The task UUID.  Use this for correlation, logging, and status lookup."""
+        ...
+
+    @property
+    def status(self) -> str:
+        """Current task state: ``PENDING`` → ``STARTED`` → ``SUCCESS``/``FAILURE``."""
+        ...
+
+    @property
+    def state(self) -> str:
+        """Alias of :attr:`status`."""
+        ...
+
+    @property
+    def result(self) -> Any:
+        """The task's return value once finished, or the exception on failure."""
+        ...
+
+    def ready(self) -> bool:
+        """Return ``True`` once the task has finished.  Non-blocking."""
+        ...
+
+    def successful(self) -> bool:
+        """Return ``True`` if the task finished without raising."""
+        ...
+
+    def failed(self) -> bool:
+        """Return ``True`` if the task raised."""
+        ...
+
+    def get(self, timeout: float | None = ..., **kwargs: Any) -> Any:
+        """Block until the task finishes and return its result.
+
+        .. warning::
+            This is **synchronous and blocking**.  Never call it directly in an
+            async request handler — offload with
+            ``await asyncio.to_thread(receipt.get)`` or poll :meth:`ready`
+            instead.
+        """
+        ...
+
+
+# =============================================================================
 # RelierTask — typed task handle returned by @rl_task()
 # =============================================================================
 
@@ -200,28 +273,35 @@ class RelierTask(Generic[P, R]):
         """
         raise NotImplementedError  # Replaced by Celery task machinery at runtime.
 
-    def push(self, *args: P.args, **kwargs: P.kwargs) -> Any:
+    def push(self, *args: P.args, **kwargs: P.kwargs) -> TaskReceipt:
         """Dispatch the task synchronously from sync code.
 
         Performs an admission check, wraps the payload in a versioned
         envelope, and enqueues it via the Celery broker.  Returns
         immediately, does **not** block on task completion.
 
-        Use this in Django views, Flask routes, CLI scripts, or anywhere
-        an ``async`` call would be inconvenient.  Internally bridges to
-        :meth:`apush` via the worker's persistent asyncio event loop.
+        Use this in Django views, Flask routes, CLI scripts, or the body of a
+        **sync** ``@rl_task``.  Do **not** call ``push`` from async code
+        (FastAPI, async Django, or an ``async`` task body) — it would block and
+        deadlock the running event loop, and raises ``RuntimeError`` if it
+        detects one.  Use :meth:`apush` there instead.
 
         Args:
             *args:   Positional arguments forwarded to the task function.
             **kwargs: Keyword arguments forwarded to the task function.
 
         Returns:
-            A Celery ``AsyncResult`` representing the enqueued task.  Call
-            ``result.id`` for the task ID or ``result.get()`` to block on
-            the outcome.
+            A Celery ``AsyncResult`` for the enqueued task.  Relier configures
+            Redis as the result backend, so the handle is live: ``result.id``
+            (task UUID), ``result.status`` / ``result.state`` (``PENDING`` →
+            ``STARTED`` → ``SUCCESS``/``FAILURE``), ``result.ready()``, and
+            ``result.get()`` (blocking) all work.  ``push`` itself is
+            fire-and-forget: it returns as soon as the task is enqueued and does
+            **not** wait for the task to run.
 
         Raises:
             AdmissionRejectedError: If the cluster is at capacity.
+            RuntimeError: If called from inside a running event loop.
 
         Example:
             >>> receipt = process_document.push(doc_id="doc-123")
@@ -229,7 +309,7 @@ class RelierTask(Generic[P, R]):
         """
         raise NotImplementedError  # Replaced by the dynamic _RelierTaskBase at runtime.
 
-    async def apush(self, *args: P.args, **kwargs: P.kwargs) -> Any:
+    async def apush(self, *args: P.args, **kwargs: P.kwargs) -> TaskReceipt:
         """Dispatch the task asynchronously from async code.
 
         Performs an admission check, wraps the payload in a versioned
@@ -244,7 +324,14 @@ class RelierTask(Generic[P, R]):
             **kwargs: Keyword arguments forwarded to the task function.
 
         Returns:
-            A Celery ``AsyncResult`` representing the enqueued task.
+            A Celery ``AsyncResult`` for the enqueued task.  Relier configures
+            Redis as the result backend, so ``result.id``, ``result.status`` /
+            ``result.state``, ``result.ready()``, and ``result.get()`` all
+            work.  ``apush`` is fire-and-forget: it returns once the task is
+            enqueued and does **not** wait for it to run.  Do not call the
+            blocking ``result.get()`` directly inside an async handler — offload
+            it with ``await asyncio.to_thread(result.get)`` or, preferably,
+            return ``result.id`` and poll status from a separate endpoint.
 
         Raises:
             AdmissionRejectedError: If the cluster is at capacity.  The
@@ -257,7 +344,7 @@ class RelierTask(Generic[P, R]):
         """
         raise NotImplementedError  # Replaced by the dynamic _RelierTaskBase at runtime.
 
-    def delay(self, *args: P.args, **kwargs: P.kwargs) -> Any:
+    def delay(self, *args: P.args, **kwargs: P.kwargs) -> TaskReceipt:
         """Celery-native dispatch, bypasses Relier's reliability envelope.
 
         Equivalent to Celery's built-in ``task.delay()``.  Routes directly
@@ -402,6 +489,29 @@ def rl_task(
 
     def decorator(func: Callable[P, R]) -> RelierTask[P, R]:
         """Apply Relier's reliability stack to a single task function."""
+        # Guard against double-decoration. If `func` is already a Relier/Celery
+        # task, two @rl_task decorators have been stacked on the same function —
+        # almost always a stray @rl_task(...) with no function directly beneath
+        # it, so it falls through onto the next definition. Wrapping it a second
+        # time makes `func` a Celery proxy; the later inspect.signature() and
+        # functools.wraps() calls then recurse through the proxy's __getattr__
+        # until the interpreter raises RecursionError at execution time. Fail
+        # fast here with an actionable message instead.
+        if hasattr(func, "apush") or hasattr(func, "apply_async"):
+            raise ValueError(
+                f"@rl_task was applied to {getattr(func, 'name', func)!r}, which "
+                "is already a Relier task. @rl_task has been stacked twice on the "
+                "same function. This usually means a @rl_task(...) decorator has "
+                "no function directly beneath it and falls through onto the next "
+                "one, e.g.:\n"
+                "\n"
+                "    @rl_task(idempotent=True)   # <- stray: no function below\n"
+                "\n"
+                "    @rl_task()\n"
+                "    async def my_task(...): ...\n"
+                "\n"
+                "Fix: apply @rl_task exactly once per function."
+            )
         is_async = inspect.iscoroutinefunction(func)
 
         if not is_async and (soft_timeout or hard_timeout or on_soft_timeout):
@@ -910,7 +1020,7 @@ def rl_task(
         # stay attached no matter how many times Celery re-registers.
         from celery import Task
 
-        async def _apush(self: Any, *d_args: Any, **d_kwargs: Any) -> Any:
+        async def _apush(self: Any, *d_args: Any, **d_kwargs: Any) -> TaskReceipt:
             """Async dispatch, use in FastAPI or async Django.
 
             Args:
@@ -974,7 +1084,7 @@ def rl_task(
                     task_id=task_id,
                 )
 
-        def _push(self: Any, *d_args: Any, **d_kwargs: Any) -> Any:
+        def _push(self: Any, *d_args: Any, **d_kwargs: Any) -> TaskReceipt:
             """Sync dispatch, use in Django views, Flask routes, or scripts.
 
             Blocks the calling thread for ~1 ms (admission check) then
@@ -989,9 +1099,39 @@ def rl_task(
 
             Raises:
                 AdmissionRejectedError: If the cluster is at capacity.
+                RuntimeError: If called from inside a running event loop (async
+                    code), where blocking would deadlock the loop. Use
+                    :meth:`apush` there instead.
             """
+            # If THIS thread is already running an event loop, push() cannot
+            # block on the dispatch without deadlocking that loop. This happens
+            # when push() is mistakenly called from async code: a FastAPI/async
+            # Django route, or the body of an *async* @rl_task (which runs on the
+            # worker's persistent loop). The correct API in those places is
+            # `await task.apush(...)`. A *sync* @rl_task body is fine — it runs
+            # in a worker thread via asyncio.to_thread, so no loop is running on
+            # this thread and we fall through to the worker-loop bridge below.
             try:
-                # Inside a Celery worker, reuse the persistent loop.
+                asyncio.get_running_loop()
+            except RuntimeError:
+                pass  # No running loop on this thread — safe to bridge below.
+            else:
+                raise RuntimeError(
+                    f"{self.name}.push() was called from inside a running event "
+                    "loop, where it would block and deadlock that loop. "
+                    f"Use `await {self.name}.apush(...)` instead.\n"
+                    "\n"
+                    "push() is the synchronous dispatch path — use it only from "
+                    "synchronous callers: Flask routes, sync Django views, "
+                    "management commands, scripts, or the body of a sync "
+                    "@rl_task. Async code (FastAPI, async Django, or an async "
+                    "@rl_task body) must use apush()."
+                )
+
+            try:
+                # Inside a Celery worker (a sync task body, or any sync caller),
+                # reuse the worker's persistent loop. It runs on a separate
+                # thread, so run_coroutine_threadsafe + result() is safe here.
                 import relier.tasks.app
 
                 loop = relier.tasks.app.worker_loop
@@ -999,12 +1139,12 @@ def rl_task(
                     future = asyncio.run_coroutine_threadsafe(
                         self.apush(*d_args, **d_kwargs), loop
                     )
-                    return future.result(timeout=5.0)
+                    return cast(TaskReceipt, future.result(timeout=5.0))
             except (ImportError, AttributeError):
                 pass
 
             # Outside Celery (Django view, Flask route, script).
-            return asyncio.run(self.apush(*d_args, **d_kwargs))
+            return cast(TaskReceipt, asyncio.run(self.apush(*d_args, **d_kwargs)))
 
         _RelierTaskBase = type(
             f"RelierTask_{task_name.replace('.', '_')}",
@@ -1061,7 +1201,7 @@ async def _dispatch_internal(
     queue: str,
     envelope: dict[str, Any],
     task_id: str,
-) -> Any:
+) -> TaskReceipt:
     """Internal privileged dispatch path for Relier recovery subsystems.
 
     Routes via ``celery_app.send_task()`` rather than ``task.apply_async()``

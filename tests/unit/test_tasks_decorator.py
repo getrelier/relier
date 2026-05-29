@@ -68,6 +68,27 @@ class TestTasksDecorator:
 
             assert mock_send.called
 
+    def test_double_decoration_raises(self) -> None:
+        """Stacking @rl_task twice fails fast instead of recursing to death."""
+
+        @rl_task()
+        async def already_a_task(x):
+            return x
+
+        with pytest.raises(ValueError, match="already a Relier task"):
+            rl_task()(already_a_task)
+
+    @pytest.mark.asyncio
+    async def test_push_from_running_loop_raises(self) -> None:
+        """push() inside a running loop must refuse rather than deadlock."""
+
+        @rl_task()
+        async def my_task(x):
+            return x
+
+        with pytest.raises(RuntimeError, match="running event loop"):
+            my_task.push(x=1)
+
     @pytest.mark.asyncio
     async def test_apush_dispatch(self) -> None:
         """Verify async admission-controlled dispatch."""

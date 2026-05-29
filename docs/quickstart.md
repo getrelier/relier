@@ -52,7 +52,7 @@ That's the only required setting. Everything else has sensible defaults.
 ```python
 # tasks.py
 import asyncio
-from relier.tasks.decorator import rl_task
+from relier import rl_task
 
 @rl_task(
     queue="default",

@@ -9,6 +9,11 @@ on:
         description: "Batch size override (default: 500)"
         required: false
         default: "500"
+      run_high_scale:
+        description: "Also run the high-scale (10k × 8) chaos job on this manual run"
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   chaos-full:
@@ -68,6 +73,10 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
         run: |
+          if [ -z "$SLACK_WEBHOOK" ]; then
+            echo "::warning::SLACK_WEBHOOK secret is not set — skipping Slack notification."
+            exit 0
+          fi
           curl -X POST "$SLACK_WEBHOOK" \
             -H 'Content-type: application/json' \
             -d "{
@@ -75,9 +84,14 @@ jobs:
             }"
 
   chaos-high-scale:
-    name: High-Scale Chaos (Mondays)
+    name: High-Scale Chaos (Mondays / opt-in manual)
     runs-on: ubuntu-latest
-    if: github.event.schedule == '0 2 * * 1'  # Mondays only
+    # Auto-runs on the Monday schedule. A plain manual dispatch does NOT set
+    # github.event.schedule, so it would otherwise always skip — opt in with
+    # the run_high_scale input when triggering manually.
+    if: >-
+      github.event.schedule == '0 2 * * 1' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_high_scale == 'true')
     timeout-minutes: 60
 
     steps:
@@ -132,6 +146,10 @@ jobs:
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
         run: |
+          if [ -z "$SLACK_WEBHOOK" ]; then
+            echo "::warning::SLACK_WEBHOOK secret is not set — skipping Slack notification."
+            exit 0
+          fi
           curl -X POST "$SLACK_WEBHOOK" \
             -H 'Content-type: application/json' \
             -d "{

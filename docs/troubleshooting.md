@@ -138,6 +138,57 @@ async def my_task(x):
     return await asyncio.to_thread(blocking_call, x)
 ```
 
+### `ValueError: @rl_task was applied to ... which is already a Relier task`
+
+You stacked `@rl_task` twice on the same function. The most common cause is a
+stray `@rl_task(...)` decorator with **no function directly beneath it**, so it
+falls through onto the next definition:
+
+```python
+# ✗ Wrong: the first decorator has nothing under it, so it decorates
+#   the *already-decorated* task below it.
+@rl_task(idempotent=True, idempotency_ttl=3600)
+
+@rl_task()
+async def process_webhook(event_id: str, payload: dict) -> dict:
+    ...
+
+# ✓ Right: one decorator, all options on it.
+@rl_task(idempotent=True, idempotency_ttl=3600)
+async def process_webhook(event_id: str, payload: dict) -> dict:
+    ...
+```
+
+!!! note "This used to be a `RecursionError`"
+    Earlier versions didn't catch this and the double-wrapped task blew up at
+    execution time with `RecursionError: maximum recursion depth exceeded`
+    (deep inside `inspect`/`celery/local.py`). Relier now detects it at
+    decoration time and tells you exactly what to fix.
+
+### `RuntimeError: <task>.push() was called from inside a running event loop`
+
+You called the **sync** `push` from **async** code — a FastAPI route, an async
+Django view, or an `async def` task body. `push` blocks until the dispatch is
+acknowledged, which would deadlock the event loop, so Relier refuses. Use the
+async dispatch method instead:
+
+```python
+# ✗ Wrong: push() inside an async handler
+@app.post("/x")
+async def handler():
+    my_task.push(arg)            # RuntimeError
+
+# ✓ Right: await apush() in async code
+@app.post("/x")
+async def handler():
+    await my_task.apush(arg)
+```
+
+The rule: **async caller → `await task.apush(...)`; sync caller →
+`task.push(...)`.** A *sync* `@rl_task` body may still use `push` (it runs in a
+worker thread, not on the loop). See
+[Integrations → Dispatching from inside a task](integrations.md#dispatching-from-inside-a-task).
+
 ---
 
 ## "My task never runs"

@@ -267,15 +267,16 @@ this is what isolates Phoenix resurrections from user traffic. The bundled
 
 ## Pattern 7: Fan-out from one task
 
-A task that triggers many smaller tasks. Use `push` inside the parent no
-need to `await` each one if you only need fire-and-forget.
+A task that triggers many smaller tasks. Use `apush` inside an `async` parent
+and `await` each dispatch. (`push` is only for sync callers — using it inside
+an async task can deadlock or enqueue on the wrong event loop.)
 
 ```python
 @rl_task()
 async def import_all_users() -> None:
     user_ids = await fetch_all_user_ids()
     for user_id in user_ids:
-        import_user.push(user_id)        # sync convenience inside worker
+        await import_user.apush(user_id)
 
 @rl_task(idempotent=True)
 async def import_user(user_id: str) -> None:

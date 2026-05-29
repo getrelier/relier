@@ -43,7 +43,7 @@ no compromise on reliability:
 | You are here… | Use this | What happens |
 |---|---|---|
 | FastAPI / Starlette / async Django | `await task.apush(...)` | Runs on the calling task's event loop. No extra bridging. |
-| Flask / classic Django / scripts | `task.push(...)` | Sync wrapper. If a Celery worker loop is running, schedules the dispatch onto it via `run_coroutine_threadsafe`. Otherwise falls back to `asyncio.run()`. |
+| Flask / classic Django / scripts / sync task body | `task.push(...)` | Sync wrapper. Inside a worker (sync task body), schedules the dispatch onto the worker loop via `run_coroutine_threadsafe`; otherwise falls back to `asyncio.run()`. Raises `RuntimeError` if called from a thread that already has a running loop (use `apush` there). |
 
 Both paths run the **same** reliability stack, admission control, schema
 envelope, OTel context injection. The only difference is whether the caller
@@ -56,6 +56,158 @@ needs to `await`. Detailed explanation in
 > on Celery's `shared_task`, but in application code, always use `apush` or
 > `push`. The only intentional caller of `.delay()` is `rl bench`, which uses
 > it as a measurement baseline.
+
+---
+
+## What dispatch returns, and how to use it in a route
+
+Both `apush` and `push` return a Celery
+[`AsyncResult`](https://docs.celeryq.dev/en/stable/reference/celery.result.html).
+Relier is a thin layer over Celery, so it hands you Celery's own task handle
+rather than inventing a new type you'd have to learn. Because Relier configures
+**Redis as the result backend**, that handle is live:
+
+| You call | You get | What it's for |
+|---|---|---|
+| `receipt.id` | task UUID (`str`) | correlation, logging, status lookup. **This is what you return to clients 95% of the time.** |
+| `receipt.status` | `"PENDING"` → `"STARTED"` → `"SUCCESS"`/`"FAILURE"` | polling progress |
+| `receipt.ready()` | `bool` | non-blocking "is it done?" |
+| `receipt.get()` | the task's return value | **blocks** until the task finishes — see the warning below |
+
+`apush`/`push` are **fire-and-forget**: they return the instant the task is
+*enqueued*, not when it *runs*. The whole point of a task queue is that the HTTP
+request returns immediately while the work happens in the background.
+
+> **Typed handle.** The methods are annotated as `TaskReceipt` (a `Protocol`),
+> so `receipt.id` autocompletes as `str` and typos are caught — even though
+> Celery itself ships no types. At runtime it's still a Celery `AsyncResult`.
+> Import `from relier import TaskReceipt` to annotate your own code. Details in
+> [API Reference → `TaskReceipt`](api-reference.md#taskreceipt).
+
+!!! danger "Don't block your route on `receipt.get()`"
+    `AsyncResult.get()` is synchronous and blocks the calling thread until the
+    worker finishes — in an async route that stalls the entire event loop. The
+    idiomatic pattern is **return the task ID, poll separately**. Only block
+    in-request (via `await asyncio.to_thread(receipt.get)`) for short tasks
+    where the caller truly needs the result inline.
+
+### Copy-paste: FastAPI (dispatch + status polling)
+
+A complete, runnable two-file app. Dispatch returns the task ID immediately; a
+second endpoint reports status without ever blocking the loop.
+
+```python
+# tasks.py
+from relier import rl_task
+
+@rl_task(queue="default", idempotent=True, soft_timeout=25, hard_timeout=30)
+async def send_invoice(invoice_id: str) -> dict:
+    # Replace with your real work (Stripe call, DB write, email, …).
+    await charge_card(invoice_id)
+    return {"charged": True, "invoice_id": invoice_id}
+```
+
+```python
+# main.py
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from celery.result import AsyncResult
+
+from relier.core.exceptions import AdmissionRejectedError
+from relier.tasks.app import celery_app
+from tasks import send_invoice
+
+app = FastAPI()
+
+@app.exception_handler(AdmissionRejectedError)
+async def at_capacity(_: Request, exc: AdmissionRejectedError) -> JSONResponse:
+    return JSONResponse(
+        status_code=429,
+        headers={"Retry-After": str(exc.retry_after)},
+        content={"detail": "Service at capacity, retry later."},
+    )
+
+@app.post("/invoices/{invoice_id}/send")
+async def dispatch_invoice(invoice_id: str) -> dict:
+    receipt = await send_invoice.apush(invoice_id)   # async → apush
+    return {"task_id": receipt.id, "status": "queued"}   # return immediately
+
+@app.get("/tasks/{task_id}")
+async def task_status(task_id: str) -> dict:
+    r = AsyncResult(task_id, app=celery_app)
+    return {
+        "task_id": task_id,
+        "status": r.status,                      # PENDING / STARTED / SUCCESS / FAILURE
+        "result": r.result if r.ready() else None,
+    }
+```
+
+Run it (three terminals):
+
+```bash
+uvicorn main:app --reload                                                   # web app
+celery -A relier.tasks.app worker -l info -Q high_priority,default,low_priority,re-queue --include=tasks
+rl run-resurrector                                                          # crash recovery
+```
+
+Try it:
+
+```bash
+curl -X POST localhost:8000/invoices/INV-001/send
+# {"task_id":"f8a2…","status":"queued"}
+curl localhost:8000/tasks/f8a2…
+# {"task_id":"f8a2…","status":"SUCCESS","result":{"charged":true,"invoice_id":"INV-001"}}
+```
+
+### Copy-paste: Flask (sync → `push`)
+
+```python
+# app.py
+from flask import Flask, jsonify
+from relier.core.exceptions import AdmissionRejectedError
+from tasks import send_invoice          # same tasks.py as above
+
+app = Flask(__name__)
+
+@app.errorhandler(AdmissionRejectedError)
+def at_capacity(exc: AdmissionRejectedError):
+    resp = jsonify(detail="Service at capacity, retry later.")
+    resp.status_code = 429
+    resp.headers["Retry-After"] = str(exc.retry_after)
+    return resp
+
+@app.post("/invoices/<invoice_id>/send")
+def dispatch_invoice(invoice_id: str):
+    receipt = send_invoice.push(invoice_id)   # sync → push, no await
+    return jsonify(task_id=receipt.id, status="queued"), 202
+```
+
+### Copy-paste: Django (sync view → `push`)
+
+```python
+# views.py
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from relier.core.exceptions import AdmissionRejectedError
+from .tasks import send_invoice
+
+@require_POST
+def dispatch_invoice(request, invoice_id: str):
+    try:
+        receipt = send_invoice.push(invoice_id)   # sync view → push
+    except AdmissionRejectedError as exc:
+        resp = JsonResponse({"detail": "at capacity"}, status=429)
+        resp["Retry-After"] = str(exc.retry_after)
+        return resp
+    return JsonResponse({"task_id": receipt.id, "status": "queued"}, status=202)
+```
+
+> **The one rule to remember:** async caller → `await task.apush(...)`; sync
+> caller → `task.push(...)`. Calling `push` from async code raises a
+> `RuntimeError` (it would otherwise deadlock the event loop). More framework
+> recipes — async Django, management commands, scripts — are in
+> [Integrations](integrations.md). Starlette works exactly like FastAPI (FastAPI
+> is built on it): use `await task.apush(...)`.
 
 ---
 
@@ -166,7 +318,7 @@ Resurrector scans every 2 seconds
   → logs the resurrection in rl:monitoring
 ```
 
-**The result:** Within 35 seconds of a worker crash, the task is back in queue on a healthy worker. The task's original arguments are preserved exactly as they were at enqueue time.
+**The result:** the task is back in queue on a healthy worker, typically within **~12 seconds** of a crash (heartbeat TTL of 10s + the 2s scan interval), and within **35 seconds** as a conservative worst-case ceiling. The task's original arguments are preserved exactly as they were at enqueue time.
 
 ### The resurrection limit
 
@@ -422,23 +574,76 @@ if count > limit then return "rejected" end
 return "admitted"
 ```
 
-When a request is rejected, `apush()` raises `AdmissionRejectedError`. Your API layer should catch this and return HTTP 429 with a `Retry-After` header:
+When a request is rejected, `apush`/`push` raise `AdmissionRejectedError` with a
+`retry_after` attribute. Your web layer should catch it and return HTTP 429 with
+a `Retry-After` header. Here it is in all three frameworks:
 
-```python
-from relier.core.exceptions import AdmissionRejectedError
+=== "FastAPI"
 
-@app.post("/tasks/process")
-async def submit_task(payload: TaskPayload):
-    try:
-        await my_task.apush(payload.data)
-        return {"status": "queued"}
-    except AdmissionRejectedError as exc:
-        raise HTTPException(
+    ```python
+    from relier import rl_task, AdmissionRejectedError
+    from fastapi import FastAPI, Request
+    from fastapi.responses import JSONResponse
+
+    app = FastAPI()
+
+    # A single handler covers every route that dispatches a task.
+    @app.exception_handler(AdmissionRejectedError)
+    async def at_capacity(_: Request, exc: AdmissionRejectedError) -> JSONResponse:
+        return JSONResponse(
             status_code=429,
             headers={"Retry-After": str(exc.retry_after)},
-            detail="Service is at capacity. Retry later.",
+            content={"detail": "Service at capacity, retry later."},
         )
-```
+
+    @app.post("/tasks/process")
+    async def submit_task(item_id: str) -> dict:
+        await my_task.apush(item_id)        # async → apush
+        return {"status": "queued"}
+    ```
+
+=== "Flask"
+
+    ```python
+    from relier import AdmissionRejectedError
+    from flask import Flask, jsonify
+
+    app = Flask(__name__)
+
+    @app.errorhandler(AdmissionRejectedError)
+    def at_capacity(exc: AdmissionRejectedError):
+        resp = jsonify(detail="Service at capacity, retry later.")
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(exc.retry_after)
+        return resp
+
+    @app.post("/tasks/process")
+    def submit_task():
+        my_task.push(request.json["item_id"])   # sync → push
+        return jsonify(status="queued"), 202
+    ```
+
+=== "Django"
+
+    ```python
+    # views.py
+    from relier import AdmissionRejectedError
+    from django.http import JsonResponse
+    from django.views.decorators.http import require_POST
+
+    @require_POST
+    def submit_task(request, item_id: str):
+        try:
+            my_task.push(item_id)               # sync view → push
+        except AdmissionRejectedError as exc:
+            resp = JsonResponse({"detail": "at capacity"}, status=429)
+            resp["Retry-After"] = str(exc.retry_after)
+            return resp
+        return JsonResponse({"status": "queued"}, status=202)
+    ```
+
+`AdmissionRejectedError` is importable straight from the top-level package
+(`from relier import AdmissionRejectedError`).
 
 If Redis is unavailable, admission control **fails open**, it admits the request rather than blocking your API. Availability is prioritised over rate limiting.
 

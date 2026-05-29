@@ -51,7 +51,7 @@ With Relier, you decorate with `@rl_task` instead, and dispatch with `.apush()`
 (async) or `.push()` (sync):
 
 ```python
-from relier.tasks.decorator import rl_task
+from relier import rl_task
 
 @rl_task()
 async def send_email(to: str, subject: str) -> None:
