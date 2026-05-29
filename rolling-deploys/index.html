@@ -795,6 +795,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#your-route-never-changes-only-the-task-does" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Your route never changes only the task does
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#step-by-step-a-real-schema-change" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1373,6 +1384,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#your-route-never-changes-only-the-task-does" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Your route never changes only the task does
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#step-by-step-a-real-schema-change" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1545,27 +1567,83 @@ field, or changed types workers raise <code>TypeError</code> and the task gets D
 <strong>registered migrations</strong> to bring the payload up to the current schema
 version before calling your function.</p>
 <hr />
+<h2 id="your-route-never-changes-only-the-task-does">Your route never changes only the task does<a class="headerlink" href="#your-route-never-changes-only-the-task-does" title="Permanent link">&para;</a></h2>
+<p>This is the part that trips people up, so let's be concrete. The migration is a
+<strong>worker-side</strong> concern. The code that <em>dispatches</em> the task your FastAPI
+route, Flask view, or script, stays exactly the same before, during, and after
+the deploy:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># main.py — UNCHANGED across the whole migration</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/invoices/</span><span class="si">{invoice_id}</span><span class="s2">/send&quot;</span><span class="p">)</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">dispatch_invoice</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">receipt</span> <span class="o">=</span> <span class="k">await</span> <span class="n">send_invoice</span><span class="o">.</span><span class="n">apush</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">)</span>   <span class="c1"># same call, v1 and v2</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;task_id&quot;</span><span class="p">:</span> <span class="n">receipt</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;queued&quot;</span><span class="p">}</span>
+</span></code></pre></div>
+<p>The route always calls <code>send_invoice.apush(invoice_id)</code>. It doesn't know or care
+which schema version is current, Relier stamps the envelope with
+<code>CURRENT_VERSION</code> for it. All the version-awareness lives in two places:</p>
+<ol>
+<li><code>SchemaRegistry.CURRENT_VERSION</code>, the number stamped onto new envelopes.</li>
+<li>The migration function, which upgrades <em>old</em> envelopes when a worker picks
+   them up.</li>
+</ol>
+<p>So the mental model is: <strong>producers stay dumb, workers get smart.</strong> A v1 producer
+keeps enqueueing v1 envelopes; a v2 worker quietly upgrades them on arrival.</p>
+<p>Here's the whole timeline in plain English, for adding a required <code>region</code> arg:</p>
+<table>
+<thead>
+<tr>
+<th>When</th>
+<th>A v1 producer enqueues</th>
+<th>A v2 worker receives</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Before deploy</td>
+<td><code>send_invoice("INV-1")</code> → v1 envelope</td>
+<td>(still v1 worker)</td>
+<td>Runs as <code>send_invoice("INV-1")</code></td>
+</tr>
+<tr>
+<td>Mid-deploy</td>
+<td><code>send_invoice("INV-1")</code> → v1 envelope</td>
+<td>v2 worker</td>
+<td>Migration adds <code>region="global"</code>, then runs <code>send_invoice("INV-1", region="global")</code></td>
+</tr>
+<tr>
+<td>After deploy</td>
+<td><code>send_invoice("INV-1")</code> → v2 envelope</td>
+<td>v2 worker</td>
+<td>No migration needed; runs directly</td>
+</tr>
+</tbody>
+</table>
+<p>No failed tasks, no special-casing in your route, no deploy-window downtime —
+provided you registered the migration <em>before</em> the new workers start pulling
+old payloads.</p>
+<hr />
 <h2 id="step-by-step-a-real-schema-change">Step-by-step: a real schema change<a class="headerlink" href="#step-by-step-a-real-schema-change" title="Permanent link">&para;</a></h2>
 <p>You want to make <code>region</code> required (and ban the implicit default). Here's the
 safe sequence:</p>
 <h3 id="step-1-bump-the-schema-version">Step 1: bump the schema version<a class="headerlink" href="#step-1-bump-the-schema-version" title="Permanent link">&para;</a></h3>
 <p>In your code that <em>defines</em> the task, increment <code>SchemaRegistry.CURRENT_VERSION</code>.
 This is a global per-process value. Pick the next integer:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.core.schema</span><span class="w"> </span><span class="kn">import</span> <span class="n">SchemaRegistry</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1"># In your application bootstrap:</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">SchemaRegistry</span><span class="o">.</span><span class="n">CURRENT_VERSION</span> <span class="o">=</span> <span class="mi">2</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.core.schema</span><span class="w"> </span><span class="kn">import</span> <span class="n">SchemaRegistry</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># In your application bootstrap:</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">SchemaRegistry</span><span class="o">.</span><span class="n">CURRENT_VERSION</span> <span class="o">=</span> <span class="mi">2</span>
 </span></code></pre></div>
 <p>(Or set it once, in a module imported by everything that dispatches.)</p>
 <h3 id="step-2-register-the-migration">Step 2: register the migration<a class="headerlink" href="#step-2-register-the-migration" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.core.schema</span><span class="w"> </span><span class="kn">import</span> <span class="n">SchemaRegistry</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nd">@SchemaRegistry</span><span class="o">.</span><span class="n">register_migration</span><span class="p">(</span><span class="s2">&quot;my_app.tasks.send_invoice&quot;</span><span class="p">,</span> <span class="n">from_version</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">migrate_v1_to_v2</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="c1"># v1 callers omitted `region`; default it to &quot;global&quot;.</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="k">if</span> <span class="s2">&quot;region&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>        <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;region&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;global&quot;</span>
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    <span class="k">return</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.core.schema</span><span class="w"> </span><span class="kn">import</span> <span class="n">SchemaRegistry</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="nd">@SchemaRegistry</span><span class="o">.</span><span class="n">register_migration</span><span class="p">(</span><span class="s2">&quot;my_app.tasks.send_invoice&quot;</span><span class="p">,</span> <span class="n">from_version</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">migrate_v1_to_v2</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">):</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="c1"># v1 callers omitted `region`; default it to &quot;global&quot;.</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="k">if</span> <span class="s2">&quot;region&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>        <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;region&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;global&quot;</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="k">return</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
 </span></code></pre></div>
 <p>The first argument to <code>register_migration</code> is the <strong>full task name</strong>
 typically <code>module.function</code>. You can see the registered name with
@@ -1574,9 +1652,9 @@ typically <code>module.function</code>. You can see the registered name with
 reaches <code>CURRENT_VERSION</code>. So if you skip ahead from v1 to v3 in one deploy,
 you need to register <em>both</em> migrations (v1 → v2 and v2 → v3).</p>
 <h3 id="step-3-change-the-function-signature">Step 3: change the function signature<a class="headerlink" href="#step-3-change-the-function-signature" title="Permanent link">&para;</a></h3>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nd">@rl_task</span><span class="p">()</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">send_invoice</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">region</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>   <span class="c1"># no default</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="o">...</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nd">@rl_task</span><span class="p">()</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">send_invoice</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">region</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>   <span class="c1"># no default</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="o">...</span>
 </span></code></pre></div>
 <p>By the time a v2 worker calls this, the migration has already added the
 <code>region</code> kwarg, so the signature is satisfied even for v1-enqueued payloads.</p>
@@ -1650,13 +1728,13 @@ your broker / Redis storage layer first.</p>
 <hr />
 <h2 id="why-not-just-version-the-function-name">Why not just version the function name?<a class="headerlink" href="#why-not-just-version-the-function-name" title="Permanent link">&para;</a></h2>
 <p>A simpler approach is to write a new task with a different name:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># v1: keep around</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nd">@rl_task</span><span class="p">()</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">send_invoice</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span> <span class="o">...</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1"># v2: new name</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="nd">@rl_task</span><span class="p">()</span>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">send_invoice_v2</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">region</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span> <span class="o">...</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># v1: keep around</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nd">@rl_task</span><span class="p">()</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">send_invoice</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span> <span class="o">...</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="c1"># v2: new name</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="nd">@rl_task</span><span class="p">()</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">send_invoice_v2</span><span class="p">(</span><span class="n">invoice_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">region</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span> <span class="o">...</span>
 </span></code></pre></div>
 <p>This works for additive cases and avoids the migration plumbing entirely. The
 trade-off is that <strong>callers</strong> must know about both names during the transition.
