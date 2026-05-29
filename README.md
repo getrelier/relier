@@ -42,7 +42,7 @@ charge_customer.delay("cus_abc", 5000)
 With Relier (same function, four added kwargs):
 
 ```python
-from relier.tasks.decorator import rl_task
+from relier import rl_task
 
 @rl_task(
     queue="high_priority",
@@ -71,7 +71,7 @@ swaps `.delay(...)` for `await task.apush(...)` (async) or `task.push(...)`
 
 | Problem | Vanilla Celery | With Relier |
 |---|---|---|
-| Worker OOM-killed mid-task | Lost forever, no trace | Phoenix re-queues within ~9 s (p99) |
+| Worker OOM-killed mid-task | Lost forever, no trace | Phoenix re-queues within ~8 s (p99) |
 | Non-idempotent retries | Your problem to solve | `idempotent=True`  atomic Lua, exactly-once |
 | No task timeouts | Zombie tasks block workers | Two-tier soft/hard timeout with cleanup hooks |
 | Ungraceful deploys | ~40% of in-flight tasks silently lost | SIGTERM drain + handoff to other workers |
@@ -150,7 +150,7 @@ start if either is wrong.
 
 ```python
 # tasks.py
-from relier.tasks.decorator import rl_task
+from relier import rl_task
 
 @rl_task(idempotent=True, hard_timeout=30)
 async def send_invoice(invoice_id: str) -> dict:
@@ -295,11 +295,13 @@ Full feature reference: [docs/](https://getrelier.github.io/relier/).
 
 ---
 
-## Recent fixes (v0.1.2)
+## Recent fixes (v0.1.4)
 
-- **`idempotency_lock` auto-commit**: `set_result(value)` stages the result synchronously; `__aexit__` commits it. Forgetting the call no longer silently breaks idempotency; a `None` sentinel is committed and future duplicates are still blocked.
-- **`RedisConnectionError` on dispatch**: `apush`/`push` now raises `RedisConnectionError` with the configured Redis URL and a `docker run` command when Redis is unreachable, instead of a 60-line Celery traceback.
-- **`rl chaos worker-kill` result reporting**: prints "Worker terminated." only when a container was actually killed; prints a clear "no containers found" warning otherwise.
+- **Typed dispatch receipts**: `apush`/`push` are now typed as `TaskReceipt` (importable from `relier`), so `receipt.id` autocompletes as `str` and typos are caught — without any runtime wrapper. Celery's untyped `AsyncResult` no longer leaks `Any` into your editor.
+- **Clearer dispatch errors**: stacking `@rl_task` twice now fails fast with an explanatory `ValueError` (previously an opaque `RecursionError`), and calling sync `push()` from async code raises a clear `RuntimeError` telling you to use `apush()` instead of silently deadlocking the event loop.
+- **Quieter resurrection logs**: the Phoenix scanner no longer repeats a "pass complete" line every scan interval while a task is merely being monitored; it logs only when a task is actually recovered, and successful recoveries are now visible.
+
+Full history in the [CHANGELOG](CHANGELOG.md).
 
 ---
 
