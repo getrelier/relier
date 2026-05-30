@@ -407,10 +407,10 @@ spec:
 
 ### Graceful rolling deploys on Kubernetes
 
-A rolling update sends SIGTERM to old pods while new ones start. Relier handles
-this correctly because it intercepts SIGTERM:
+A rolling update sends `SIGTERM` to old pods while new ones start. Relier handles
+this correctly because it intercepts `SIGTERM`:
 
-1. Worker receives SIGTERM.
+1. Worker receives `SIGTERM`.
 2. Relier's drain phase stops accepting new tasks from the broker.
 3. Running tasks either finish, or their heartbeats expire on shutdown.
 4. Phoenix re-queues any unfinished tasks onto a new pod within ~12 s.

@@ -282,7 +282,7 @@ the resurrector log:
 The task completes on a healthy worker. No data loss, no duplicate execution
 (idempotency blocks the re-run from charging twice), no manual intervention.
 
-That guarantee holds whether the worker was killed by OOM, a deploy SIGTERM, a
+That guarantee holds whether the worker was killed by OOM, a deploy `SIGTERM`, a
 kernel panic, or a `kill -9`. Phoenix detects the missed heartbeat and acts.
 
 To verify the full failure surface (network partitions, load spikes, payload

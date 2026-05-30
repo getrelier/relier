@@ -542,9 +542,9 @@ full lifecycle.
 
 ## Graceful Shutdown
 
-Every production system restarts workers eventually, deploys, autoscaling, Kubernetes node rotation. Vanilla Celery's SIGTERM handler drops all in-flight tasks immediately. Relier's doesn't.
+Every production system restarts workers eventually, deploys, autoscaling, Kubernetes node rotation. Vanilla Celery's `SIGTERM` handler drops all in-flight tasks immediately. Relier's doesn't.
 
-### What happens when Relier receives SIGTERM
+### What happens when Relier receives `SIGTERM`
 
 1. **Drain mode**: the worker stops accepting new tasks from the queue.
 2. **Wait**: Relier waits up to `graceful_shutdown_timeout` seconds (default: 30) for running tasks to finish.

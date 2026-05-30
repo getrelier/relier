@@ -638,7 +638,7 @@ Trade-offs
   soft-timeout boundary.
 - ✅ Best for very hot loops where per-item checkpointing would dominate
   the work.
-- ⚠️ Only protects you against soft-timeout-triggered handoff. **A SIGKILL or
+- ⚠️ Only protects you against soft-timeout-triggered handoff. **A `SIGKILL` or
   OOM-kill bypasses the soft hook entirely**, the task is resurrected with
   whatever `set_partial` last persisted (often nothing). For real crash
   resilience, combine: write to `ctx.metadata` per item and *also* call
@@ -666,7 +666,7 @@ async def process_items(cursor: str = "start", ctx: TaskContext = None) -> dict:
     return {"status": "done", "processed": count}
 ```
 
-This combines crash resilience (you re-do at most 100 items after a SIGKILL)
+This combines crash resilience (you re-do at most 100 items after a `SIGKILL`)
 with low write overhead (one Redis hit per 100 items, not per item).
 
 #### Size limits: read this before checkpointing anything bigger than a JSON document
