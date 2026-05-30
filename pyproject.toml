@@ -36,6 +36,10 @@ dev = [
     "ruff>=0.15.12",
     "testcontainers[redis]>=4.13.3",
 ]
+docs = [
+    "mkdocs-material>=9.5.0",
+    "pymdown-extensions>=10.7",
+]
 
 [project.scripts]
 rl = "relier.cli.main:app"

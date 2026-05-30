@@ -1,6 +1,6 @@
 .PHONY: setup format lint check test test-integration clean \
         worker resurrector dev dev-down dev-logs prod prod-down \
-        bench bench-docker bench-docker-down
+        bench bench-docker bench-docker-down docs docs-serve docs-build
 
 # =============================================================================
 # Setup & quality
@@ -35,6 +35,22 @@ clean:
 	find . -type d -name ".mypy_cache" -exec rm -rf {} +
 	find . -type d -name ".ruff_cache" -exec rm -rf {} +
 	@echo "Local cache cleared."
+
+# =============================================================================
+# Docs (MkDocs Material)
+# =============================================================================
+# Docs deps live in the `docs` dependency group, not the base install, so a
+# plain `mkdocs serve` in the project venv fails with "No module named mkdocs".
+# These targets pull the group on demand via uv, matching the CI build in
+# .github/workflows/docs.yml.
+
+# Live-reload server at http://127.0.0.1:8000
+docs docs-serve:
+	uv run --group docs mkdocs serve
+
+# Strict build (fails on broken links / nav), same as CI.
+docs-build:
+	uv run --group docs mkdocs build --strict
 
 # =============================================================================
 # Run bare-metal (no Docker)
