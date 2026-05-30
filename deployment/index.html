@@ -2495,10 +2495,10 @@ default works fine for most workloads.)</p>
 </span><span id="__span-13-18"><a id="__codelineno-13-18" name="__codelineno-13-18" href="#__codelineno-13-18"></a><span class="w">            </span><span class="nt">limits</span><span class="p">:</span><span class="w">   </span><span class="p p-Indicator">{</span><span class="nt"> cpu</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;500m&quot;</span><span class="p p-Indicator">,</span><span class="nt"> memory</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;512Mi&quot;</span><span class="w"> </span><span class="p p-Indicator">}</span>
 </span></code></pre></div>
 <h3 id="graceful-rolling-deploys-on-kubernetes">Graceful rolling deploys on Kubernetes<a class="headerlink" href="#graceful-rolling-deploys-on-kubernetes" title="Permanent link">&para;</a></h3>
-<p>A rolling update sends SIGTERM to old pods while new ones start. Relier handles
-this correctly because it intercepts SIGTERM:</p>
+<p>A rolling update sends <code>SIGTERM</code> to old pods while new ones start. Relier handles
+this correctly because it intercepts <code>SIGTERM</code>:</p>
 <ol>
-<li>Worker receives SIGTERM.</li>
+<li>Worker receives <code>SIGTERM</code>.</li>
 <li>Relier's drain phase stops accepting new tasks from the broker.</li>
 <li>Running tasks either finish, or their heartbeats expire on shutdown.</li>
 <li>Phoenix re-queues any unfinished tasks onto a new pod within ~12 s.</li>

@@ -2457,7 +2457,7 @@ configured), reads or writes the relevant <code>rl:*</code> keys, and exits. Tha
   <code>rl tasks inflight</code> fetches per-worker counts concurrently.</li>
 <li><strong>No special daemon mode for <code>rl run-resurrector</code>.</strong> That command is just an
   ordinary process: it runs the Phoenix resurrection loop and exits cleanly on
-  SIGTERM.</li>
+  <code>SIGTERM</code>.</li>
 <li><strong>Cluster commands (<code>rl cluster …</code>) shell out to <code>docker compose</code>.</strong> They
   assume there is a <code>docker-compose.yml</code> in the current directory and that
   Docker is installed. Without Docker, the bare-metal <code>make</code> targets do
@@ -2830,7 +2830,7 @@ in place. No long-lived Redis subscription.</p>
 <tr>
 <td><code>--terminate</code> / <code>--no-terminate</code></td>
 <td><code>true</code></td>
-<td>Send SIGTERM to the running task process. <code>--no-terminate</code> marks it revoked without killing it (only prevents future execution).</td>
+<td>Send <code>SIGTERM</code> to the running task process. <code>--no-terminate</code> marks it revoked without killing it (only prevents future execution).</td>
 </tr>
 </tbody>
 </table>
@@ -3176,7 +3176,7 @@ any checkpoint blobs referenced by the quarantined envelopes.</p>
 <p>Run chaos commands against a non-production cluster.</p>
 </div>
 <h3 id="rl-chaos-worker-kill"><code>rl chaos worker-kill</code><a class="headerlink" href="#rl-chaos-worker-kill" title="Permanent link">&para;</a></h3>
-<p>Kill a random or specific worker process with SIGKILL (unclean death).</p>
+<p>Kill a random or specific worker process with <code>SIGKILL</code> (unclean death).</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-55-1"><a id="__codelineno-55-1" name="__codelineno-55-1" href="#__codelineno-55-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </span></code></pre></div>
 <table>

@@ -1463,7 +1463,7 @@ eventually you hit one or more of these:</p>
 <li><strong>Worker dies mid-task.</strong> The task is just gone. No retry, no trace.</li>
 <li><strong>Network blip retries the task.</strong> Your customer's card is charged twice.</li>
 <li><strong>A task hangs.</strong> It holds a worker slot forever. Other tasks back up.</li>
-<li><strong>Deploy time.</strong> SIGTERM kills workers; in-flight tasks vanish.</li>
+<li><strong>Deploy time.</strong> <code>SIGTERM</code> kills workers; in-flight tasks vanish.</li>
 <li><strong>You can't see what's running.</strong> <code>celery inspect</code> gives you a tarpit of
    text.</li>
 <li><strong>One bad payload poisons your workers.</strong> A malformed task keeps crashing

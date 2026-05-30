@@ -1763,7 +1763,7 @@ the resurrector log:</p>
 </span></code></pre></div>
 <p>The task completes on a healthy worker. No data loss, no duplicate execution
 (idempotency blocks the re-run from charging twice), no manual intervention.</p>
-<p>That guarantee holds whether the worker was killed by OOM, a deploy SIGTERM, a
+<p>That guarantee holds whether the worker was killed by OOM, a deploy <code>SIGTERM</code>, a
 kernel panic, or a <code>kill -9</code>. Phoenix detects the missed heartbeat and acts.</p>
 <p>To verify the full failure surface (network partitions, load spikes, payload
 corruption), the repo ships a first-party chaos suite:</p>

@@ -2499,8 +2499,8 @@ blob describing how far the task got and the next incarnation receives it as
 full lifecycle.</p>
 <hr />
 <h2 id="graceful-shutdown">Graceful Shutdown<a class="headerlink" href="#graceful-shutdown" title="Permanent link">&para;</a></h2>
-<p>Every production system restarts workers eventually, deploys, autoscaling, Kubernetes node rotation. Vanilla Celery's SIGTERM handler drops all in-flight tasks immediately. Relier's doesn't.</p>
-<h3 id="what-happens-when-relier-receives-sigterm">What happens when Relier receives SIGTERM<a class="headerlink" href="#what-happens-when-relier-receives-sigterm" title="Permanent link">&para;</a></h3>
+<p>Every production system restarts workers eventually, deploys, autoscaling, Kubernetes node rotation. Vanilla Celery's <code>SIGTERM</code> handler drops all in-flight tasks immediately. Relier's doesn't.</p>
+<h3 id="what-happens-when-relier-receives-sigterm">What happens when Relier receives <code>SIGTERM</code><a class="headerlink" href="#what-happens-when-relier-receives-sigterm" title="Permanent link">&para;</a></h3>
 <ol>
 <li><strong>Drain mode</strong>: the worker stops accepting new tasks from the queue.</li>
 <li><strong>Wait</strong>: Relier waits up to <code>graceful_shutdown_timeout</code> seconds (default: 30) for running tasks to finish.</li>

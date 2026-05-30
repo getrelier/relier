@@ -1555,7 +1555,7 @@
 <hr />
 <h2 id="scenarios">Scenarios<a class="headerlink" href="#scenarios" title="Permanent link">&para;</a></h2>
 <h3 id="rl-chaos-worker-kill-kill-a-worker-process"><code>rl chaos worker-kill</code>, Kill a worker process<a class="headerlink" href="#rl-chaos-worker-kill-kill-a-worker-process" title="Permanent link">&para;</a></h3>
-<p>The most fundamental chaos test. Terminates a Celery worker with SIGKILL (not SIGTERM, this is an unclean death with no graceful shutdown). The goal is to confirm Phoenix resurrects any task the worker was running.</p>
+<p>The most fundamental chaos test. Terminates a Celery worker with <code>SIGKILL</code> (not <code>SIGTERM</code>, this is an unclean death with no graceful shutdown). The goal is to confirm Phoenix resurrects any task the worker was running.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </span></code></pre></div>
 <table>

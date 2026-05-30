@@ -2282,15 +2282,15 @@ index growing, which means workers aren't pulling fast enough.</p>
 </thead>
 <tbody>
 <tr>
-<td>Worker SIGKILL'd mid-task</td>
+<td>Worker <code>SIGKILL</code>'d mid-task</td>
 <td>Heartbeat expires → Phoenix re-queues. Idempotency stops duplicate side effects.</td>
 </tr>
 <tr>
 <td>Worker OOM-killed</td>
-<td>Same as SIGKILL.</td>
+<td>Same as <code>SIGKILL</code>.</td>
 </tr>
 <tr>
-<td>Worker SIGTERM'd (deploy)</td>
+<td>Worker <code>SIGTERM</code>'d (deploy)</td>
 <td>Graceful drain, tasks that won't finish in time have heartbeat deleted → Phoenix re-queues elsewhere.</td>
 </tr>
 <tr>

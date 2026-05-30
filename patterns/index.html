@@ -1752,7 +1752,7 @@ got to?</strong> Relier doesn't introspect your code. The task body must record
 progress somewhere accessible, and you have three honest choices.</p>
 <h3 id="3a-checkpoint-inline-simplest-most-crash-resilient">3a: Checkpoint inline (simplest, most crash-resilient)<a class="headerlink" href="#3a-checkpoint-inline-simplest-most-crash-resilient" title="Permanent link">&para;</a></h3>
 <p>The task body calls <code>ctx.set_partial</code> after each item. No soft hook needed:
-the latest progress is in Redis the moment the worker dies, so even a SIGKILL
+the latest progress is in Redis the moment the worker dies, so even a <code>SIGKILL</code>
 loses at most one item.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.context</span><span class="w"> </span><span class="kn">import</span> <span class="n">TaskContext</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
@@ -1791,7 +1791,7 @@ single checkpoint just before the hard timeout fires.</p>
 </span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>        <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
 </span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;processed&quot;</span><span class="p">:</span> <span class="n">count</span><span class="p">}</span>
 </span></code></pre></div>
-<p>⚠️ <strong>Caveat:</strong> the soft-timeout hook <strong>only fires on timeout</strong>. A SIGKILL or
+<p>⚠️ <strong>Caveat:</strong> the soft-timeout hook <strong>only fires on timeout</strong>. A <code>SIGKILL</code> or
 OOM-kill or <code>kill -9</code> bypasses it entirely. If the worker dies in any way
 other than running out the clock, the resurrected task starts from
 <code>partial_result</code> as it was when the previous incarnation began, usually
@@ -1816,7 +1816,7 @@ Recommended for any long-running task that goes to production.</p>
 </span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>
 </span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;processed&quot;</span><span class="p">:</span> <span class="n">count</span><span class="p">}</span>
 </span></code></pre></div>
-<p>The most you re-do after a SIGKILL is the items since the last 100-item
+<p>The most you re-do after a <code>SIGKILL</code> is the items since the last 100-item
 durable save. The soft hook (using the same <code>save_progress</code> from 3b) saves a
 final checkpoint at the timeout boundary so an orderly handoff loses nothing.</p>
 <h3 id="size-budget-applies-to-all-three-patterns">Size budget applies to all three patterns<a class="headerlink" href="#size-budget-applies-to-all-three-patterns" title="Permanent link">&para;</a></h3>

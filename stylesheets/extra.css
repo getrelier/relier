@@ -1,67 +1,106 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   Relier docs theme — monochrome, matched to the black-and-white "R" logo.
+   Brand surfaces (header, nav, links, code, tables) are grayscale and
+   scheme-aware. Semantic status colours (warning / tip / error) are kept so
+   callouts and terminal output stay readable.
+   ────────────────────────────────────────────────────────────────────────── */
+
 /* ── Dark mode ───────────────────────────────────────────────────────────── */
 
 [data-md-color-scheme="slate"] {
-  /* Primary — #6366f1 indigo */
-  --md-primary-fg-color:        #6366f1;
-  --md-primary-fg-color--light: #818cf8;
-  --md-primary-fg-color--dark:  #4f46e5;
+  /* Primary / accent — near-white on black */
+  --md-primary-fg-color:        #fafafa;
+  --md-primary-fg-color--light: #ffffff;
+  --md-primary-fg-color--dark:  #d4d4d4;
 
-  /* Accent — same indigo family */
-  --md-accent-fg-color:         #818cf8;
+  --md-accent-fg-color:         #ffffff;
 
-  /* Background — match landing page #0a0e17 */
-  --md-default-bg-color:        #0a0e17;
-  --md-default-bg-color--light: #0d1117;
+  /* Background — true near-black to match the logo disc */
+  --md-default-bg-color:        #0a0a0a;
+  --md-default-bg-color--light: #121212;
 
-  /* Code blocks */
-  --md-code-bg-color:           #0d1117;
-  --md-code-fg-color:           #e2e8f0;
+  /* Code blocks — VS Code "Dark+" editor surface */
+  --md-code-bg-color:           #1e1e1e;
+  --md-code-fg-color:           #d4d4d4;
+
+  /* Syntax highlighting — VS Code Dark+ palette */
+  --md-code-hl-keyword-color:     #569cd6;
+  --md-code-hl-function-color:    #dcdcaa;
+  --md-code-hl-string-color:      #ce9178;
+  --md-code-hl-number-color:      #b5cea8;
+  --md-code-hl-comment-color:     #6a9955;
+  --md-code-hl-constant-color:    #569cd6;
+  --md-code-hl-name-color:        #9cdcfe;
+  --md-code-hl-operator-color:    #d4d4d4;
+  --md-code-hl-punctuation-color: #d4d4d4;
+  --md-code-hl-variable-color:    #9cdcfe;
+  --md-code-hl-special-color:     #9cdcfe;
 
   /* Sidebar + header surfaces */
-  --md-footer-bg-color:         #0d1117;
-  --md-footer-bg-color--dark:   #070b12;
+  --md-footer-bg-color:         #121212;
+  --md-footer-bg-color--dark:   #080808;
 
-  --rl-header-bg:               rgba(10, 14, 23, 0.92);
-  --rl-header-border:           rgba(99, 102, 241, 0.12);
-  --rl-tabs-bg:                 #0d1117;
-  --rl-table-th-bg:             #1e293b;
-  --rl-table-th-color:          #e2e8f0;
+  --rl-header-bg:               rgba(10, 10, 10, 0.92);
+  --rl-header-border:           rgba(255, 255, 255, 0.10);
+  --rl-tabs-bg:                 #121212;
+  --rl-table-th-bg:             #1f1f1f;
+  --rl-table-th-color:          #fafafa;
+
+  --rl-code-bg:                 rgba(255, 255, 255, 0.08);
+  --rl-inline-code-color:       #4ec9b0;
 }
 
 /* ── Light mode ──────────────────────────────────────────────────────────── */
 
 [data-md-color-scheme="default"] {
-  --md-primary-fg-color:        #6366f1;
-  --md-primary-fg-color--light: #818cf8;
-  --md-primary-fg-color--dark:  #4f46e5;
+  --md-primary-fg-color:        #111111;
+  --md-primary-fg-color--light: #333333;
+  --md-primary-fg-color--dark:  #000000;
 
-  --md-accent-fg-color:         #6366f1;
+  --md-accent-fg-color:         #000000;
 
   --md-default-bg-color:        #ffffff;
-  --md-default-bg-color--light: #f8f9fc;
+  --md-default-bg-color--light: #f7f7f7;
 
-  --md-code-bg-color:           #f3f4ff;
-  --md-code-fg-color:           #1e1b4b;
+  /* Code blocks — VS Code "Light+" editor surface */
+  --md-code-bg-color:           #f4f4f4;
+  --md-code-fg-color:           #1f1f1f;
 
-  --md-footer-bg-color:         #f0f0f7;
-  --md-footer-bg-color--dark:   #e8e8f0;
+  /* Syntax highlighting — VS Code Light+ palette */
+  --md-code-hl-keyword-color:     #0000ff;
+  --md-code-hl-function-color:    #795e26;
+  --md-code-hl-string-color:      #a31515;
+  --md-code-hl-number-color:      #098658;
+  --md-code-hl-comment-color:     #008000;
+  --md-code-hl-constant-color:    #0000ff;
+  --md-code-hl-name-color:        #001080;
+  --md-code-hl-operator-color:    #1f1f1f;
+  --md-code-hl-punctuation-color: #1f1f1f;
+  --md-code-hl-variable-color:    #001080;
+  --md-code-hl-special-color:     #001080;
+
+  --md-footer-bg-color:         #f2f2f2;
+  --md-footer-bg-color--dark:   #e8e8e8;
 
   /* Text ON primary-coloured surfaces (header, footer).
      Material defaults this to white (assumes a dark primary bg).
      We override the header/footer bg to near-white, so text must be dark. */
-  --md-primary-bg-color:        #1e293b;
-  --md-primary-bg-color--light: rgba(30, 41, 59, 0.54);
+  --md-primary-bg-color:        #111111;
+  --md-primary-bg-color--light: rgba(17, 17, 17, 0.54);
 
   /* Footer text */
-  --md-footer-fg-color:         #1e293b;
-  --md-footer-fg-color--light:  rgba(30, 41, 59, 0.75);
-  --md-footer-fg-color--lighter: rgba(30, 41, 59, 0.54);
+  --md-footer-fg-color:         #111111;
+  --md-footer-fg-color--light:  rgba(17, 17, 17, 0.75);
+  --md-footer-fg-color--lighter: rgba(17, 17, 17, 0.54);
 
   --rl-header-bg:               rgba(255, 255, 255, 0.92);
-  --rl-header-border:           rgba(99, 102, 241, 0.15);
-  --rl-tabs-bg:                 #f8f9fc;
-  --rl-table-th-bg:             #ede9fe;
-  --rl-table-th-color:          #3730a3;
+  --rl-header-border:           rgba(0, 0, 0, 0.12);
+  --rl-tabs-bg:                 #f7f7f7;
+  --rl-table-th-bg:             #f0f0f0;
+  --rl-table-th-color:          #111111;
+
+  --rl-code-bg:                 rgba(0, 0, 0, 0.06);
+  --rl-inline-code-color:       #0e7490;
 }
 
 /* ── Header bar ──────────────────────────────────────────────────────────── */
@@ -73,6 +112,12 @@
   box-shadow: none;
 }
 
+/* Give the round logo a little breathing room so the disc reads cleanly. */
+.md-header__button.md-logo img {
+  height: 1.7rem;
+  width: 1.7rem;
+}
+
 /* ── Nav tabs ────────────────────────────────────────────────────────────── */
 
 .md-tabs {
@@ -82,24 +127,24 @@
 
 .md-tabs__link--active,
 .md-tabs__link:hover {
-  color: #818cf8;
+  color: var(--md-accent-fg-color);
 }
 
 /* Sidebar */
 .md-nav__link--active {
-  color: #818cf8 !important;
+  color: var(--md-accent-fg-color) !important;
   font-weight: 600;
 }
 
 .md-nav__link:hover {
-  color: #818cf8;
+  color: var(--md-accent-fg-color);
 }
 
-/* Admonition — match landing page border style */
+/* Admonition — neutral default border, semantic colours kept */
 .md-typeset .admonition,
 .md-typeset details {
-  border-left-color: #6366f1;
-  background-color: rgba(99, 102, 241, 0.06);
+  border-left-color: var(--md-accent-fg-color);
+  background-color: rgba(127, 127, 127, 0.06);
 }
 
 .md-typeset .admonition.warning,
@@ -114,9 +159,17 @@
   background-color: rgba(34, 197, 94, 0.06);
 }
 
+.md-typeset .admonition.danger,
+.md-typeset details.danger,
+.md-typeset .admonition.failure,
+.md-typeset details.failure {
+  border-left-color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.06);
+}
+
 /* Code copy button */
 .md-clipboard:hover {
-  color: #818cf8;
+  color: var(--md-accent-fg-color);
 }
 
 /* Table header */
@@ -125,29 +178,50 @@
   color: var(--rl-table-th-color);
 }
 
-/* Inline code */
-.md-typeset code {
-  background-color: rgba(99, 102, 241, 0.1);
-  color: #818cf8;
+/* Inline code (not fenced blocks — those keep the VS Code token colours). */
+.md-typeset :not(pre) > code {
+  background-color: var(--rl-code-bg);
+  color: var(--rl-inline-code-color);
   border-radius: 4px;
   padding: 0.1em 0.35em;
 }
 
-/* Selection */
-::selection {
-  background: #6366f1;
-  color: #fff;
+/* No-language fenced blocks (``` with no lexer) are ASCII flow diagrams and
+   plain output — Pygments emits no tokens, so they'd render in the default
+   near-white. Tint them with the teal code accent so they read as technical
+   content rather than washed-out prose in a box. Language-tagged blocks keep
+   their full VS Code token colouring. */
+[data-md-color-scheme="slate"] .md-typeset .language-text > pre > code {
+  color: #4ec9b0;
+}
+[data-md-color-scheme="default"] .md-typeset .language-text > pre > code {
+  color: #0e7490;
+}
+
+/* Selection — inverted monochrome per scheme */
+[data-md-color-scheme="slate"] ::selection {
+  background: #fafafa;
+  color: #0a0a0a;
+}
+
+[data-md-color-scheme="default"] ::selection {
+  background: #111111;
+  color: #ffffff;
 }
 
 /* Scroll to top button */
 .md-top {
-  background-color: #6366f1;
+  background-color: var(--md-primary-fg-color);
+  color: var(--md-default-bg-color);
 }
 
 /* ── Terminal output blocks ── */
+/* Terminals stay dark in both schemes (they emulate a real terminal). The
+   brand highlight is neutralised; status colours (ok/warn/bad/info) are kept
+   because they encode meaning in the output, not branding. */
 .rl-terminal {
-  background-color: #0d1117;
-  border: 1px solid rgba(99, 102, 241, 0.18);
+  background-color: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 8px;
   overflow: hidden;
   margin: 1.2em 0;
@@ -155,10 +229,10 @@
 }
 
 .rl-terminal-bar {
-  background-color: #161b22;
-  border-bottom: 1px solid rgba(99, 102, 241, 0.12);
+  background-color: #161616;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
   padding: 0.45em 1em;
-  color: #e2e8f0;
+  color: #e5e5e5;
   font-family: "JetBrains Mono", monospace;
   display: flex;
   align-items: center;
@@ -168,7 +242,7 @@
 .rl-terminal-bar::before {
   content: "● ● ●";
   font-size: 0.7em;
-  color: rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.18);
   letter-spacing: 0.2em;
   margin-right: 0.6em;
 }
@@ -177,20 +251,73 @@
   margin: 0;
   padding: 1em 1.2em;
   background: transparent;
-  color: #c9d1d9;
+  color: #c9c9c9;
   font-family: "JetBrains Mono", monospace;
   overflow-x: auto;
   line-height: 1.55;
 }
 
-.rl-terminal .rl-p   { color: #818cf8; font-weight: 600; }
+.rl-terminal .rl-p   { color: #ffffff; font-weight: 600; }
 .rl-terminal .rl-ok  { color: #22c55e; }
 .rl-terminal .rl-warn{ color: #f59e0b; }
 .rl-terminal .rl-bad { color: #ef4444; }
 .rl-terminal .rl-dim { color: #6b7280; }
-.rl-terminal .rl-info{ color: #60a5fa; }
-.rl-terminal .rl-mag { color: #c084fc; }
-.rl-terminal em      { color: #e2e8f0; font-style: normal; }
+.rl-terminal .rl-info{ color: #9ca3af; }
+.rl-terminal .rl-mag { color: #d4d4d4; }
+.rl-terminal em      { color: #e5e5e5; font-style: normal; }
+
+/* ── Code syntax: VS Code accents ────────────────────────────────────────────
+   The --md-code-hl-* variables above colour the bulk of the tokens. These
+   rules add the VS-Code-specific touches Pygments' generic buckets miss:
+   teal classes/types, yellow function names & decorators & builtins, and
+   blue word-operators (and / or / in / not). Scheme-scoped so dark uses the
+   "Dark+" hues and light uses "Light+". */
+
+/* Dark — VS Code Dark+ */
+[data-md-color-scheme="slate"] .highlight .nc,   /* class name        */
+[data-md-color-scheme="slate"] .highlight .kt,   /* type keyword      */
+[data-md-color-scheme="slate"] .highlight .nb,   /* builtin type/hint */
+[data-md-color-scheme="slate"] .highlight .ne {  /* exception name    */
+  color: #4ec9b0;
+}
+[data-md-color-scheme="slate"] .highlight .nf,   /* function def/call */
+[data-md-color-scheme="slate"] .highlight .fm,   /* magic method      */
+[data-md-color-scheme="slate"] .highlight .nd {  /* decorator         */
+  color: #dcdcaa;
+}
+[data-md-color-scheme="slate"] .highlight .n,    /* names / variables */
+[data-md-color-scheme="slate"] .highlight .nx,   /* other identifier  */
+[data-md-color-scheme="slate"] .highlight .na,   /* attribute / kwarg */
+[data-md-color-scheme="slate"] .highlight .nv,   /* variable          */
+[data-md-color-scheme="slate"] .highlight .bp {  /* self / cls        */
+  color: #9cdcfe;
+}
+[data-md-color-scheme="slate"] .highlight .ow {  /* and / or / in / not */
+  color: #569cd6;
+}
+
+/* Light — VS Code Light+ */
+[data-md-color-scheme="default"] .highlight .nc,
+[data-md-color-scheme="default"] .highlight .kt,
+[data-md-color-scheme="default"] .highlight .nb,
+[data-md-color-scheme="default"] .highlight .ne {
+  color: #267f99;
+}
+[data-md-color-scheme="default"] .highlight .nf,
+[data-md-color-scheme="default"] .highlight .fm,
+[data-md-color-scheme="default"] .highlight .nd {
+  color: #795e26;
+}
+[data-md-color-scheme="default"] .highlight .n,
+[data-md-color-scheme="default"] .highlight .nx,
+[data-md-color-scheme="default"] .highlight .na,
+[data-md-color-scheme="default"] .highlight .nv,
+[data-md-color-scheme="default"] .highlight .bp {
+  color: #001080;
+}
+[data-md-color-scheme="default"] .highlight .ow {
+  color: #0000ff;
+}
 
 /* Mermaid diagram theming */
 .mermaid {

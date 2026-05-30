@@ -1729,7 +1729,7 @@ reliability guarantees are identical either way.</p>
 <h3 id="timeout-enforcement">Timeout enforcement<a class="headerlink" href="#timeout-enforcement" title="Permanent link">&para;</a></h3>
 <p>Two-tier timeout: a soft timeout fires your cleanup hook so you can save partial progress. A hard timeout terminates unconditionally. Both emit OpenTelemetry events.</p>
 <h3 id="graceful-shutdown">Graceful shutdown<a class="headerlink" href="#graceful-shutdown" title="Permanent link">&para;</a></h3>
-<p>Relier intercepts SIGTERM (deploys, scale-downs, Kubernetes evictions) and waits for in-flight tasks to finish. Tasks that won't finish in time are handed off to another worker not dropped.</p>
+<p>Relier intercepts <code>SIGTERM</code> (deploys, scale-downs, Kubernetes evictions) and waits for in-flight tasks to finish. Tasks that won't finish in time are handed off to another worker not dropped.</p>
 <h3 id="dead-letter-queue">Dead Letter Queue<a class="headerlink" href="#dead-letter-queue" title="Permanent link">&para;</a></h3>
 <p>Tasks that can't be recovered after repeated attempts are quarantined in the DLQ with a full payload, stack trace, and resurrection history. Inspect and re-release them at any time via the CLI.</p>
 <h3 id="admission-control">Admission control<a class="headerlink" href="#admission-control" title="Permanent link">&para;</a></h3>

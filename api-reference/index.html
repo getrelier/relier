@@ -3108,7 +3108,7 @@ fires.</p>
   soft-timeout boundary.</li>
 <li>✅ Best for very hot loops where per-item checkpointing would dominate
   the work.</li>
-<li>⚠️ Only protects you against soft-timeout-triggered handoff. <strong>A SIGKILL or
+<li>⚠️ Only protects you against soft-timeout-triggered handoff. <strong>A <code>SIGKILL</code> or
   OOM-kill bypasses the soft hook entirely</strong>, the task is resurrected with
   whatever <code>set_partial</code> last persisted (often nothing). For real crash
   resilience, combine: write to <code>ctx.metadata</code> per item and <em>also</em> call
@@ -3132,7 +3132,7 @@ fires.</p>
 </span><span id="__span-23-14"><a id="__codelineno-23-14" name="__codelineno-23-14" href="#__codelineno-23-14"></a>
 </span><span id="__span-23-15"><a id="__codelineno-23-15" name="__codelineno-23-15" href="#__codelineno-23-15"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;done&quot;</span><span class="p">,</span> <span class="s2">&quot;processed&quot;</span><span class="p">:</span> <span class="n">count</span><span class="p">}</span>
 </span></code></pre></div>
-<p>This combines crash resilience (you re-do at most 100 items after a SIGKILL)
+<p>This combines crash resilience (you re-do at most 100 items after a <code>SIGKILL</code>)
 with low write overhead (one Redis hit per 100 items, not per item).</p>
 <h4 id="size-limits-read-this-before-checkpointing-anything-bigger-than-a-json-document">Size limits: read this before checkpointing anything bigger than a JSON document<a class="headerlink" href="#size-limits-read-this-before-checkpointing-anything-bigger-than-a-json-document" title="Permanent link">&para;</a></h4>
 <p>Redis is Relier's coordination plane. It runs with <code>maxmemory-policy
