@@ -140,6 +140,27 @@ async def oom_probe(task_key: str, target_s: float = 50.0) -> dict:
     return {"task_key": task_key, "elapsed_s": elapsed}
 
 
+# ── 6b. Idempotent OOM probe (idempotent-recovery robustness test) ──────────
+@rl_task(queue="default", idempotent=True, idempotency_ttl=3600)
+async def idempotent_oom_probe(task_key: str, target_s: float = 50.0) -> dict:
+    """Idempotent variant of ``oom_probe``. Used ONLY by the idempotent-recovery
+    test.
+
+    Exercises the path where a resurrected task must reclaim the dead worker's
+    idempotency in-flight lock instead of stalling on it until the lock's TTL
+    expires. ``target_s`` stays well under ``idempotency_inflight_ttl`` so the
+    in-flight lock cannot expire on its own mid-run.
+    """
+    _r.rpush(f"{BENCH_NS}:relier:idem_oom_started", task_key)
+    elapsed = 0
+    while elapsed < target_s:
+        await asyncio.sleep(1)
+        elapsed += 1
+    _r.incr(f"{BENCH_NS}:relier:idem_oom_exec")
+    _r.rpush(f"{BENCH_NS}:relier:idem_oom_done", task_key)
+    return {"task_key": task_key, "elapsed_s": elapsed}
+
+
 # ── 7. Phoenix-load probe (resurrection-under-load + steady-state ops tests) ─
 @rl_task(queue="default")
 async def phoenix_load_probe(task_key: str, target_s: float = 50.0) -> dict:

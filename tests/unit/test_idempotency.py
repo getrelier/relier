@@ -47,6 +47,46 @@ class TestIdempotencyManager:
 
         assert key in str(exc.value)
 
+    async def test_same_task_id_reclaims_inflight_lock(self, mock_redis) -> None:
+        """A resurrection/retry of the SAME task_id takes over its own lock."""
+        key = "resumable_task:42"
+        task_id = "task-eb276f3a"
+
+        # The original incarnation claims the lock, then "dies".
+        first = await idempotency_manager.check_or_claim(key, 60, task_id=task_id)
+        assert first.already_executed is False
+
+        # The resurrected incarnation (same task_id) must NOT be blocked.
+        second = await idempotency_manager.check_or_claim(key, 60, task_id=task_id)
+        assert second.already_executed is False
+        # It now owns the lock under a fresh lock id.
+        assert second._lock_id != first._lock_id
+        val = await mock_redis.get(RedisKeys.idempotency(key))
+        assert val.decode() == second._lock_id
+
+    async def test_different_task_id_same_key_still_blocks(self, mock_redis) -> None:
+        """A different task_id with the same key is a true duplicate — blocked."""
+        key = "dup_task:7"
+
+        await idempotency_manager.check_or_claim(key, 60, task_id="task-aaa")
+
+        with pytest.raises(IdempotencyInFlightError):
+            await idempotency_manager.check_or_claim(key, 60, task_id="task-bbb")
+
+    async def test_same_task_id_returns_cached_result_when_completed(
+        self, mock_redis
+    ) -> None:
+        """Takeover never masks a finalized result: completion still short-circuits."""
+        key = "done_task:9"
+        task_id = "task-ccc"
+
+        first = await idempotency_manager.check_or_claim(key, 60, task_id=task_id)
+        await first._record_result({"ok": True})
+
+        again = await idempotency_manager.check_or_claim(key, 60, task_id=task_id)
+        assert again.already_executed is True
+        assert again.cached_result == {"ok": True}
+
     async def test_clear_lock_compare_and_delete(self, mock_redis) -> None:
         """Test that we only delete a lock if we own the specific lock_id."""
         key = "lock_test"

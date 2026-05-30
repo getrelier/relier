@@ -15,6 +15,51 @@ intended for adopters who need a single place to read migration impact.
 
 
 
+## [0.1.5] — 2026-05-30
+
+Patch release fixing two resurrection-recovery stalls that surface when a
+worker is killed and a replacement is not immediately available — most visibly
+with idempotent tasks. No public API changes; no benchmark headline numbers
+change (the OOM-recovery benchmark uses a non-idempotent probe with an
+immediate restart and is unaffected).
+
+### Bug fixes
+
+- **Resurrector no longer locks itself out of re-dispatching.** When the monitor
+  released a replayed task back to the scanner, it left its own 180s resurrection
+  lease in place. The next scan then collided with that lease and logged
+  "Lease already claimed by another resurrector — skipping" (there was only one
+  resurrector), freezing re-dispatch for the full lease TTL. The monitor now
+  releases the lease before handing the task back to the scanner.
+  (`src/relier/core/phoenix.py`)
+
+- **A replayed task with no worker online is held, not declared lost.** If no
+  worker had heartbeated within `heartbeat_ttl`, the replayed message was
+  sitting in the `re-queue` with no consumer, yet the monitor declared it
+  "never claimed" and churned. The monitor now detects that no worker is
+  available (via `RedisKeys.workers()` score freshness) and holds the task —
+  and its lease — until a worker returns and consumes it, at which point
+  recovery completes and is reported normally. (`src/relier/core/phoenix.py`)
+
+- **A resurrected (or retried) idempotent task reclaims its own in-flight
+  lock.** The idempotency in-flight sentinel now embeds the `task_id`. A later
+  run of the *same* task_id — a Phoenix resurrection or a Celery retry — takes
+  over the lock instead of spinning in `IdempotencyInFlightError` until the
+  in-flight TTL (default 120s) expires. Cross-task deduplication (different
+  task_ids, same arguments) is unchanged, and overlapping-zombie commit safety
+  is still enforced by the Phoenix lease/fence layer. The sentinel format change
+  is backward compatible: pre-upgrade locks simply do not get the takeover.
+  (`src/relier/core/idempotency.py`, `src/relier/tasks/decorator.py`)
+
+### Benchmarks
+
+- Added **Test 4b — Idempotent recovery (delayed restart)**: SIGKILLs a worker
+  running an idempotent task, restarts the replacement after a deliberate gap,
+  and asserts the resurrected task re-runs within seconds rather than stalling
+  on the dead worker's idempotency in-flight lock. (`bench/bench.py`,
+  `bench/relier_tasks.py`)
+
+
 ## [0.1.4] — 2026-05-29
 
 Patch release focused on dispatch-boundary correctness, type-checker /

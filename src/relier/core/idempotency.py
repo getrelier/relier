@@ -54,6 +54,7 @@ Manual control (async tasks only)::
 
 import json
 import logging
+import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -70,6 +71,35 @@ logger = logging.getLogger(__name__)
 # so a prefix check unambiguously distinguishes an active execution from a
 # cached result, unlike a substring match, which a result value could spoof.
 _IN_FLIGHT_SENTINEL_PREFIX = "rl:inflight:"
+
+
+def _make_lock_id(task_id: str | None) -> str:
+    """Build an in-flight sentinel.
+
+    When a ``task_id`` is supplied (the decorator path) it is embedded so a
+    later run of the *same* task_id — a Celery retry or a Phoenix resurrection —
+    can recognise the lock as its own and take it over instead of blocking
+    against itself. A random suffix preserves the per-attempt uniqueness that
+    ``RELEASE_LUA``'s compare-and-delete relies on. The manual
+    ``idempotency_lock`` path has no task_id and keeps the plain format.
+    """
+    if task_id:
+        return RedisKeys.in_flight(f"{task_id}:{uuid.uuid4().hex}")
+    return RedisKeys.in_flight()
+
+
+def _sentinel_task_id(value: str) -> str | None:
+    """Extract the embedded task_id from an in-flight sentinel, if any.
+
+    Sentinels written by the decorator path look like
+    ``rl:inflight:<task_id>:<random>``; task_ids (UUIDs) and the random suffix
+    contain no colons, so the task_id is the segment before the final colon.
+    Plain (task_id-less) sentinels return ``None``.
+    """
+    rest = value[len(_IN_FLIGHT_SENTINEL_PREFIX) :]
+    task_id, sep, _ = rest.rpartition(":")
+    return task_id if sep else None
+
 
 # Sentinel used to distinguish "set_result was never called" from
 # "set_result was called with None".
@@ -155,7 +185,9 @@ class IdempotencyManager:
         """
         return get_settings()
 
-    async def check_or_claim(self, key: str, ttl: int) -> IdempotencyResult:
+    async def check_or_claim(
+        self, key: str, ttl: int, task_id: str | None = None
+    ) -> IdempotencyResult:
         """
         Atomically resolve cached execution state or claim execution ownership.
 
@@ -167,10 +199,18 @@ class IdempotencyManager:
 
         Otherwise, the caller receives execution ownership and is responsible
         for recording the final result.
+
+        When ``task_id`` is supplied and an in-flight lock is found that belongs
+        to the *same* task_id, ownership is taken over rather than blocked: the
+        prior holder is a dead or superseded incarnation of this exact task (a
+        Phoenix resurrection or a Celery retry), not a competing duplicate.
+        Cross-task deduplication — different task_ids, same arguments — is
+        unaffected. Commit safety against an overlapping zombie incarnation is
+        still enforced separately by the Phoenix lease/fence layer.
         """
         redis = await get_relier_redis()
         full_key = RedisKeys.idempotency(key)
-        lock_id = RedisKeys.in_flight()
+        lock_id = _make_lock_id(task_id)
 
         # The in-flight sentinel is claimed with a short, bounded TTL so a
         # worker that dies mid-execution without releasing the lock cannot
@@ -187,6 +227,22 @@ class IdempotencyManager:
             if isinstance(raw_val, str) and raw_val.startswith(
                 _IN_FLIGHT_SENTINEL_PREFIX
             ):
+                # Same logical task re-entering (resurrection / retry): the lock
+                # is held by a prior incarnation of this very task_id, so take
+                # it over instead of blocking the task against itself.
+                if task_id is not None and _sentinel_task_id(raw_val) == task_id:
+                    await redis.set(full_key, lock_id, ex=inflight_ttl)
+                    logger.info(
+                        "Idempotency in-flight lock reclaimed by the same task.",
+                        extra={"key": key, "task_id": task_id},
+                    )
+                    return IdempotencyResult(
+                        already_executed=False,
+                        _key=full_key,
+                        _lock_id=lock_id,
+                        _ttl=ttl,
+                    )
+
                 logger.warning(
                     "Idempotent task already executing on another worker.",
                     extra={"key": key},
