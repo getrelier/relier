@@ -248,6 +248,24 @@ class PhoenixRegistry:
         redis = await get_relier_redis()
         return bool(await redis.exists(RedisKeys.heartbeat(task_id)))
 
+    @classmethod
+    async def _has_live_worker(cls, redis: Redis) -> bool:
+        """Return whether any worker has heartbeated within the liveness window.
+
+        A resurrected task is replayed onto the ``re-queue`` broker queue, but
+        nothing can consume it until a worker is online. Worker presence is
+        tracked in ``RedisKeys.workers()`` as a sorted set scored by last
+        heartbeat; a worker is considered available if its score is newer than
+        ``heartbeat_ttl`` ago, the same window used for crash detection. Dead
+        worker rows linger in the set (they are pruned only after a long
+        retention window), so membership alone is not enough — the score must
+        be fresh.
+        """
+        settings = cls._get_settings()
+        cutoff = time.time() - settings.heartbeat_ttl
+        count = await redis.zcount(RedisKeys.workers(), cutoff, float("inf"))
+        return int(count) > 0
+
     # ===========================================================================
     # Resurrection coordinator
     # ===========================================================================
@@ -402,6 +420,12 @@ class PhoenixRegistry:
         writes = redis.pipeline()
         now = time.time()
 
+        # A replayed task that no worker can pick up yet is waiting in the
+        # re-queue, not lost. Resolve worker availability once per pass so the
+        # "never claimed" branch can tell a genuine claim-miss apart from "no
+        # consumer online".
+        has_live_worker = await cls._has_live_worker(redis)
+
         for i, t_id in enumerate(task_ids):
             hb_exists = bool(results[i * 2])
             payload_exists = bool(results[i * 2 + 1])
@@ -442,9 +466,27 @@ class PhoenixRegistry:
                 # a broker drop and the warning fires as a false positive.
                 if now - resurrected_at < settings.resurrection_claim_grace_period:
                     continue
-                # Grace expired: treat as a genuine miss. The task is NOT in
-                # the expiry index, so re-add it explicitly. The resurrection
-                # lease prevents a duplicate dispatch until it expires.
+                # Grace expired, but if no worker is online the replayed
+                # message is simply sitting in the re-queue with no consumer —
+                # not lost. Hold the monitor entry (and the resurrection lease,
+                # which that queued message validates against) until a worker
+                # returns. Re-dispatching here would be pointless: the still-held
+                # lease would only block it, and the scanner would collide with
+                # its own lease ("claimed by another resurrector"). Logged at
+                # debug so a quiet, worker-less cluster doesn't spam warnings.
+                if not has_live_worker:
+                    logger.debug(
+                        "Resurrected task awaiting a live worker - holding.",
+                        extra={"task_id": t_id},
+                    )
+                    continue
+                # A worker is alive yet never claimed the replay: treat as a
+                # genuine miss. Release the resurrection lease first so the next
+                # scan can dispatch a fresh incarnation — otherwise the
+                # coordinator's own still-valid lease blocks the re-dispatch for
+                # its full TTL. The task is NOT in the expiry index, so re-add
+                # it explicitly.
+                writes.delete(RedisKeys.lease(t_id))
                 writes.hdel(monitor_key, t_id)
                 writes.zadd(expiry_index_key, {t_id: now})
                 transitions["lost"] += 1

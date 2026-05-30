@@ -24,7 +24,7 @@ rl chaos worker-kill --seed --watch --watch-duration 60
 
 ### `rl chaos worker-kill`, Kill a worker process
 
-The most fundamental chaos test. Terminates a Celery worker with SIGKILL (not SIGTERM, this is an unclean death with no graceful shutdown). The goal is to confirm Phoenix resurrects any task the worker was running.
+The most fundamental chaos test. Terminates a Celery worker with `SIGKILL` (not `SIGTERM`, this is an unclean death with no graceful shutdown). The goal is to confirm Phoenix resurrects any task the worker was running.
 
 ```bash
 rl chaos worker-kill [OPTIONS]

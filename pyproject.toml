@@ -1,6 +1,6 @@
 [project]
 name = "relier"
-version = "0.1.4"
+version = "0.1.5"
 description = "Reliability layer for Celery. Zero job loss with task resurrection, idempotency, and graceful shutdown."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -35,6 +35,10 @@ dev = [
     "pytest-timeout>=2.4.0",
     "ruff>=0.15.12",
     "testcontainers[redis]>=4.13.3",
+]
+docs = [
+    "mkdocs-material>=9.5.0",
+    "pymdown-extensions>=10.7",
 ]
 
 [project.scripts]

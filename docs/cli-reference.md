@@ -21,7 +21,7 @@ configured), reads or writes the relevant `rl:*` keys, and exits. That means:
   `rl tasks inflight` fetches per-worker counts concurrently.
 - **No special daemon mode for `rl run-resurrector`.** That command is just an
   ordinary process: it runs the Phoenix resurrection loop and exits cleanly on
-  SIGTERM.
+  `SIGTERM`.
 - **Cluster commands (`rl cluster …`) shell out to `docker compose`.** They
   assume there is a `docker-compose.yml` in the current directory and that
   Docker is installed. Without Docker, the bare-metal `make` targets do
@@ -377,7 +377,7 @@ rl tasks cancel [OPTIONS] TASK_ID
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--terminate` / `--no-terminate` | `true` | Send SIGTERM to the running task process. `--no-terminate` marks it revoked without killing it (only prevents future execution). |
+| `--terminate` / `--no-terminate` | `true` | Send `SIGTERM` to the running task process. `--no-terminate` marks it revoked without killing it (only prevents future execution). |
 
 | Argument | Description |
 |----------|-------------|
@@ -688,7 +688,7 @@ rl chaos COMMAND [ARGS]...
 
 ### `rl chaos worker-kill`
 
-Kill a random or specific worker process with SIGKILL (unclean death).
+Kill a random or specific worker process with `SIGKILL` (unclean death).
 
 ```bash
 rl chaos worker-kill [OPTIONS]

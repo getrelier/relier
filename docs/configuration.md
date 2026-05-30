@@ -148,7 +148,7 @@ With defaults: 10s + 2s = 12s to detect, plus broker round-trip. Total resurrect
 |----------|------|---------|-------------|
 | `RELIER_SOFT_TIMEOUT` | `int` | `25` | Global default soft timeout in seconds. Overridden per-task with `@rl_task(soft_timeout=N)`. |
 | `RELIER_HARD_TIMEOUT` | `int` | `30` | Global default hard timeout in seconds. Overridden per-task with `@rl_task(hard_timeout=N)`. |
-| `RELIER_GRACEFUL_SHUTDOWN_TIMEOUT` | `int` | `30` | How long to wait for in-flight tasks during SIGTERM drain before handing them off. |
+| `RELIER_GRACEFUL_SHUTDOWN_TIMEOUT` | `int` | `30` | How long to wait for in-flight tasks during `SIGTERM` drain before handing them off. |
 
 ---
 

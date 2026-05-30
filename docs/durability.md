@@ -426,9 +426,9 @@ index growing, which means workers aren't pulling fast enough.
 
 | Failure | What guarantees survival |
 |--------|---------------------------|
-| Worker SIGKILL'd mid-task | Heartbeat expires → Phoenix re-queues. Idempotency stops duplicate side effects. |
-| Worker OOM-killed | Same as SIGKILL. |
-| Worker SIGTERM'd (deploy) | Graceful drain, tasks that won't finish in time have heartbeat deleted → Phoenix re-queues elsewhere. |
+| Worker `SIGKILL`'d mid-task | Heartbeat expires → Phoenix re-queues. Idempotency stops duplicate side effects. |
+| Worker OOM-killed | Same as `SIGKILL`. |
+| Worker `SIGTERM`'d (deploy) | Graceful drain, tasks that won't finish in time have heartbeat deleted → Phoenix re-queues elsewhere. |
 | Redis master crashes | Sentinel quorum promotes a replica within ~5 s. Clients reconnect; in-flight tasks either finish or resurrect via the new master. |
 | Whole Redis cluster crashes | AOF restart loads up to 1 s prior to crash. Tasks in that 1 s window with no broker ACK simply weren't dispatched. Tasks dispatched but unacknowledged on the producer side are lost but their producer never got a success from `apush`, so the producer knows to retry. |
 | Single host loses disk | Sentinel fails over to a replica on another host. Hourly RDB backups protect against multi-host disk loss. |

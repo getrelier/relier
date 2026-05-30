@@ -109,7 +109,7 @@ eventually you hit one or more of these:
 1. **Worker dies mid-task.** The task is just gone. No retry, no trace.
 2. **Network blip retries the task.** Your customer's card is charged twice.
 3. **A task hangs.** It holds a worker slot forever. Other tasks back up.
-4. **Deploy time.** SIGTERM kills workers; in-flight tasks vanish.
+4. **Deploy time.** `SIGTERM` kills workers; in-flight tasks vanish.
 5. **You can't see what's running.** `celery inspect` gives you a tarpit of
    text.
 6. **One bad payload poisons your workers.** A malformed task keeps crashing

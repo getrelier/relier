@@ -248,12 +248,18 @@ class TestPhoenixGaps:
             assert mock_celery.send_task.called is False
 
     async def test_monitor_lost_transition(self, mock_redis) -> None:
-        """state=0 + no heartbeat + payload exists re-adds task to expiry index."""
+        """state=0 + no heartbeat + payload + a live worker re-adds to expiry index."""
+        import time as _time
+
         task_id = "lost_task"
+        # A worker is online but never claimed the replay — a genuine miss.
+        await mock_redis.zadd(RedisKeys.workers(), {"worker_live": _time.time()})
         # State 0 with an ancient timestamp (grace period already elapsed).
         await mock_redis.hset(RedisKeys.monitor(), task_id, "0:0")
         # Payload exists but NO heartbeat (worker crashed before registering)
         await mock_redis.hset(RedisKeys.phoenix(task_id), "payload", "{}")
+        # A resurrection lease is held by the coordinator.
+        await mock_redis.set(RedisKeys.lease(task_id), "fence-abc")
 
         await PhoenixRegistry._monitor_resurrected_tasks(mock_redis)
 
@@ -262,6 +268,46 @@ class TestPhoenixGaps:
         # Task re-added to expiry index
         members = await mock_redis.zrange(RedisKeys.phoenix_expiry_index(), 0, -1)
         assert task_id in members
+        # The coordinator's own lease is released so the re-dispatch is not
+        # blocked by it ("claimed by another resurrector" self-collision).
+        assert await mock_redis.exists(RedisKeys.lease(task_id)) == 0
+
+    async def test_monitor_holds_when_no_live_worker(self, mock_redis) -> None:
+        """No online worker => the replay is waiting in the queue, not lost."""
+        task_id = "waiting_task"
+        # No worker registered in rl:workers — nothing can consume the replay.
+        # State 0 with an ancient timestamp (grace period already elapsed).
+        await mock_redis.hset(RedisKeys.monitor(), task_id, "0:0")
+        await mock_redis.hset(RedisKeys.phoenix(task_id), "payload", "{}")
+        await mock_redis.set(RedisKeys.lease(task_id), "fence-abc")
+
+        await PhoenixRegistry._monitor_resurrected_tasks(mock_redis)
+
+        # Held: monitor entry, lease, and absence from the expiry index all
+        # preserved so the queued replay survives until a worker returns.
+        assert await mock_redis.hexists(RedisKeys.monitor(), task_id) == 1
+        assert await mock_redis.exists(RedisKeys.lease(task_id)) == 1
+        members = await mock_redis.zrange(RedisKeys.phoenix_expiry_index(), 0, -1)
+        assert task_id not in members
+
+    async def test_monitor_stale_worker_score_counts_as_no_worker(
+        self, mock_redis
+    ) -> None:
+        """A worker whose heartbeat score is stale does not count as live."""
+        import time as _time
+
+        task_id = "stale_worker_task"
+        # Worker row exists but its last heartbeat is far outside the window.
+        await mock_redis.zadd(RedisKeys.workers(), {"worker_dead": _time.time() - 3600})
+        await mock_redis.hset(RedisKeys.monitor(), task_id, "0:0")
+        await mock_redis.hset(RedisKeys.phoenix(task_id), "payload", "{}")
+
+        await PhoenixRegistry._monitor_resurrected_tasks(mock_redis)
+
+        # Treated as "no live worker": held, not declared lost.
+        assert await mock_redis.hexists(RedisKeys.monitor(), task_id) == 1
+        members = await mock_redis.zrange(RedisKeys.phoenix_expiry_index(), 0, -1)
+        assert task_id not in members
 
     async def test_monitor_grace_period_suppresses_lost_transition(
         self, mock_redis

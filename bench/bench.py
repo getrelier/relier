@@ -708,6 +708,114 @@ def test_oom_recovery() -> None:
     )
 
 
+# -- Test 4b: Idempotent recovery (resurrection must not stall on idem lock) --
+
+
+def test_idempotent_recovery() -> None:
+    """
+    SIGKILL a worker running an *idempotent* task, restart after a delay, and
+    verify the resurrected task re-runs promptly instead of stalling on the dead
+    worker's idempotency in-flight lock until its TTL (~120s) expires.
+
+    Unlike Test 4, the replacement worker is intentionally NOT brought up
+    immediately, so the resurrector also exercises the "no live worker -> hold"
+    path (it must not self-lock its own lease while nothing can consume the
+    replay). A regression in either fix shows up as a recovery time near the
+    in-flight TTL rather than a few seconds.
+    """
+    console.print(
+        "\n[bold cyan]Test 4b * Idempotent recovery (delayed restart)[/bold cyan]"
+    )
+
+    from bench.relier_tasks import idempotent_oom_probe
+
+    # The replacement worker is offline while the resurrector first replays, so
+    # the held message must survive until a consumer returns.
+    restart_delay = 15 if SYNTHETIC else 20
+
+    _flush_queues()
+    _r.delete(
+        f"{BENCH_NS}:relier:idem_oom_done",
+        f"{BENCH_NS}:relier:idem_oom_exec",
+        f"{BENCH_NS}:relier:idem_oom_started",
+    )
+
+    res = _start_resurrector()
+    wk = _start_worker(
+        "bench.worker_app", "default,high_priority,low_priority,re-queue"
+    )
+    time.sleep(WORKER_BOOT_WAIT)
+
+    task_key = f"idem-oom-{uuid.uuid4().hex[:8]}"
+    idempotent_oom_probe.push(task_key, OOM_PROBE_S)
+
+    # Wait until the body starts (idempotency in-flight lock now held), then let
+    # the heartbeat register before the kill.
+    _ = _wait_for_list(
+        f"{BENCH_NS}:relier:idem_oom_started", 1, timeout=WORKER_BOOT_WAIT + 15
+    )
+    time.sleep(OOM_KILL_WAIT)
+    _kill(wk)
+
+    # Hold window: no worker is online to consume the replay.
+    time.sleep(restart_delay)
+
+    # Bring up the replacement worker and time how long until the resurrected
+    # task actually re-executes its body.
+    recovery_boot_ts = time.time()
+    wk2 = _start_worker(
+        "bench.worker_app", "default,high_priority,low_priority,re-queue"
+    )
+
+    # 2 started = initial start + resurrected start. The timeout is generous so a
+    # regression (stalling on the idempotency lock) is recorded as a slow time,
+    # not a hang.
+    started_recovery = _wait_for_list(
+        f"{BENCH_NS}:relier:idem_oom_started", 2, timeout=OOM_PROBE_S + 150
+    )
+    exec_delay_s = (
+        round(time.time() - recovery_boot_ts, 1) if started_recovery >= 2 else None
+    )
+
+    done = _wait_for_list(
+        f"{BENCH_NS}:relier:idem_oom_done", 1, timeout=OOM_PROBE_S + 60
+    )
+    _kill(wk2)
+    _kill(res)
+
+    recovered = done >= 1
+    # The fix's signal: the resurrected body re-runs shortly after the
+    # replacement worker boots, NOT after the ~120s idempotency in-flight TTL.
+    # The threshold sits far below that TTL so a regression is unambiguous.
+    no_stall = exec_delay_s is not None and exec_delay_s < 30
+    claim_met = recovered and no_stall
+
+    results["idempotent_recovery"] = {
+        "restart_delay_s": restart_delay,
+        "recovered": recovered,
+        "exec_delay_after_boot_s": exec_delay_s,
+        "claim_met": claim_met,
+        "inflight_ttl_s": 120,
+    }
+
+    if recovered and exec_delay_s is not None:
+        color = "green" if no_stall else "red"
+        verdict = (
+            "[green]no idem-lock stall[/green]"
+            if no_stall
+            else "[red]STALLED on idempotency lock[/red]"
+        )
+        console.print(
+            f"  Relier: [green]recovered[/green]  body re-ran "
+            f"[{color}]{exec_delay_s}s[/{color}] after restart  ->  {verdict}"
+        )
+    else:
+        console.print(
+            f"  Relier: [red]not recovered "
+            f"({started_recovery} started, {done} done)[/red]"
+        )
+
+
 # -- Test 5: Delivery rate under crash ----------------------------------------
 
 
@@ -1397,6 +1505,23 @@ def print_results() -> None:
                 _yn(du["claim_met"]),
             )
 
+    if "idempotent_recovery" in results:
+        d = results["idempotent_recovery"]
+        delay = d.get("exec_delay_after_boot_s")
+        if d["recovered"] and delay is not None:
+            r_val = (
+                f"re-ran {delay}s after restart\n"
+                f"(idem TTL {d['inflight_ttl_s']}s, {d['restart_delay_s']}s gap)"
+            )
+        else:
+            r_val = "not recovered"
+        table.add_row(
+            "Idempotent recovery  (delayed restart)",
+            r_val,
+            "inf -- lost",
+            _yn(d["claim_met"]),
+        )
+
     if "idempotency" in results:
         d = results["idempotency"]
         table.add_row(
@@ -1589,6 +1714,7 @@ def main() -> None:
 
     test_idempotency()
     test_oom_recovery()
+    test_idempotent_recovery()
     test_delivery_rate()
     test_graceful_shutdown()
     test_resource_overhead()  # extended with steady-state ops/sec (Test 7)

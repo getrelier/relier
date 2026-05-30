@@ -671,7 +671,7 @@ def rl_task(
                             },
                         ) as idem_span:
                             idem_result = await idempotency_manager.check_or_claim(
-                                idem_key, idempotency_ttl
+                                idem_key, idempotency_ttl, task_id=task_id
                             )
                             idem_span.set_attribute(
                                 ATTR_TASK_IDEMPOTENCY_HIT,

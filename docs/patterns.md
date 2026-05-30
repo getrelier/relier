@@ -74,7 +74,7 @@ progress somewhere accessible, and you have three honest choices.
 ### 3a: Checkpoint inline (simplest, most crash-resilient)
 
 The task body calls `ctx.set_partial` after each item. No soft hook needed:
-the latest progress is in Redis the moment the worker dies, so even a SIGKILL
+the latest progress is in Redis the moment the worker dies, so even a `SIGKILL`
 loses at most one item.
 
 ```python
@@ -121,7 +121,7 @@ async def reprocess_items(start_cursor: str = "0", ctx: TaskContext = None) -> d
     return {"processed": count}
 ```
 
-⚠️ **Caveat:** the soft-timeout hook **only fires on timeout**. A SIGKILL or
+⚠️ **Caveat:** the soft-timeout hook **only fires on timeout**. A `SIGKILL` or
 OOM-kill or `kill -9` bypasses it entirely. If the worker dies in any way
 other than running out the clock, the resurrected task starts from
 `partial_result` as it was when the previous incarnation began, usually
@@ -151,7 +151,7 @@ async def reprocess_items(start_cursor: str = "0", ctx: TaskContext = None) -> d
     return {"processed": count}
 ```
 
-The most you re-do after a SIGKILL is the items since the last 100-item
+The most you re-do after a `SIGKILL` is the items since the last 100-item
 durable save. The soft hook (using the same `save_progress` from 3b) saves a
 final checkpoint at the timeout boundary so an orderly handoff loses nothing.
 

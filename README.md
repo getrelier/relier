@@ -207,31 +207,32 @@ Full guide: [docs/chaos-guide.md](https://getrelier.github.io/relier/chaos-guide
 
 Measured by the built-in bench suite (`docker compose -f docker-compose.bench.yml up --build`) on Linux with prefork workers and synthetic 0.5 s tasks. All claims verified end-to-end not microbenchmarks against a mock.
 
-_Numbers below: Relier `v0.1.4`, captured 2026-05-29. Re-run with `make bench-docker` to compare on your hardware._
+_Numbers below: Relier `v0.1.5`, captured 2026-05-30 (9/9 claims verified). Re-run with `make bench-docker` to compare on your hardware._
 
 ```
 Linux (Docker, python:3.11-slim, prefork=4) | Redis 7.2 AOF | 500 tasks × 5 kills
 
-Metric                              Relier 0.1.4       Vanilla Celery     Vanilla +acks_late
+Metric                              Relier 0.1.5       Vanilla Celery     Vanilla +acks_late
 ----------------------------------------------------------------------------------------------
 Task delivery rate (5 SIGKILL)      100%   500/500     92.0%  460/500     96.0%  480/500  (0 dup)
-OOM recovery avg / p99              7.4 s / 8.6 s      ∞ lost             partial (visibility)
-Dual-OOM (2 concurrent tasks)       2/2 · 7.6 s        both lost          partial (visibility)
+OOM recovery avg / p99              7.1 s / 8.6 s      ∞ lost             partial (visibility)
+Dual-OOM (2 concurrent tasks)       2/2 · 7.5 s        both lost          partial (visibility)
+Idempotent recovery (delayed)       re-ran 3.5 s       ∞ lost             partial (visibility)
 Idempotency (50 submissions)        1 execution        50 executions      50 executions
-Admission control p99 / max         0.568 ms / 1.2 ms  n/a                n/a
+Admission control p99 / max         0.483 ms / 1.2 ms  n/a                n/a
 Graceful shutdown (3 cycles)        100%               0%                 0%
-Dispatch overhead (net avg)         +2.07 ms           n/a                n/a
-Cold-start to first task            4.14 s avg         n/a                n/a
-Resurrection under load (5 kill)    5/5 · 5.6 s p99    all lost           partial (visibility)
-File descriptor leak                Δ +1 (stable)      n/a                n/a
+Dispatch overhead (net avg)         +1.48 ms           n/a                n/a
+Cold-start to first task            3.84 s avg         n/a                n/a
+Resurrection under load (5 kill)    5/5 · 7.6 s p99    all lost           partial (visibility)
+File descriptor leak                Δ +0 (stable)      n/a                n/a
 ----------------------------------------------------------------------------------------------
 ```
 
-**+2.07 ms per dispatch** pays for: atomic admission check, SHA-256-signed envelope wrap, heartbeat registration. On any task that does real work (a DB query, an HTTP call, an AI inference), this is invisible.
+**+1.48 ms per dispatch** pays for: atomic admission check, SHA-256-signed envelope wrap, heartbeat registration. On any task that does real work (a DB query, an HTTP call, an AI inference), this is invisible.
 
-At 3.01 ms average per dispatch, **a single async producer sustains ~330 `apush()` calls/second** per thread. FastAPI producers fan out well past 1,000/second.
+At 2.32 ms average per dispatch, **a single async producer sustains ~430 `apush()` calls/second** per thread. FastAPI producers fan out well past 1,000/second.
 
-The admission control Lua script stays under 1 ms at p99 (0.568 ms), meaning the tail-latency cost of the admission check is bounded for the vast majority of requests. The "Vanilla +acks_late" column shows what flipping `task_acks_late=True` actually buys you: partial recovery (96.0% vs 92.0%) but not Relier's 100%, because the Redis broker's `visibility_timeout` default (~1 hour) gates redelivery long after most completions would have happened.
+The admission control Lua script stays under 1 ms at p99 (0.483 ms), meaning the tail-latency cost of the admission check is bounded for the vast majority of requests. The "Vanilla +acks_late" column shows what flipping `task_acks_late=True` actually buys you: partial recovery (96.0% vs 92.0%) but not Relier's 100%, because the Redis broker's `visibility_timeout` default (~1 hour) gates redelivery long after most completions would have happened.
 
 ![Bench dashboard end of run](docs/assets/images/screenshot-2.png)
 
@@ -295,11 +296,11 @@ Full feature reference: [docs/](https://getrelier.github.io/relier/).
 
 ---
 
-## Recent fixes (v0.1.4)
+## Recent fixes (v0.1.5)
 
-- **Typed dispatch receipts**: `apush`/`push` are now typed as `TaskReceipt` (importable from `relier`), so `receipt.id` autocompletes as `str` and typos are caught — without any runtime wrapper. Celery's untyped `AsyncResult` no longer leaks `Any` into your editor.
-- **Clearer dispatch errors**: stacking `@rl_task` twice now fails fast with an explanatory `ValueError` (previously an opaque `RecursionError`), and calling sync `push()` from async code raises a clear `RuntimeError` telling you to use `apush()` instead of silently deadlocking the event loop.
-- **Quieter resurrection logs**: the Phoenix scanner no longer repeats a "pass complete" line every scan interval while a task is merely being monitored; it logs only when a task is actually recovered, and successful recoveries are now visible.
+- **Faster idempotent-task recovery**: a resurrected or retried run of the same task now reclaims its own idempotency in-flight lock instead of spinning in `IdempotencyInFlightError` until the lock's TTL (~120 s) expires. Cross-task deduplication is unchanged.
+- **No resurrector self-lockout**: when no worker is online to consume a replayed task, the resurrector now holds it (and its lease) until a worker returns, rather than declaring it lost and colliding with its own lease ("claimed by another resurrector").
+- **Bench coverage**: added Test 4b (idempotent recovery under a delayed restart) to guard both fixes — verified at 3.5 s recovery in the latest run.
 
 Full history in the [CHANGELOG](CHANGELOG.md).
 

@@ -86,7 +86,7 @@ An atomic Redis Lua script ensures a task only executes once, even when retried 
 Two-tier timeout: a soft timeout fires your cleanup hook so you can save partial progress. A hard timeout terminates unconditionally. Both emit OpenTelemetry events.
 
 ### Graceful shutdown
-Relier intercepts SIGTERM (deploys, scale-downs, Kubernetes evictions) and waits for in-flight tasks to finish. Tasks that won't finish in time are handed off to another worker not dropped.
+Relier intercepts `SIGTERM` (deploys, scale-downs, Kubernetes evictions) and waits for in-flight tasks to finish. Tasks that won't finish in time are handed off to another worker not dropped.
 
 ### Dead Letter Queue
 Tasks that can't be recovered after repeated attempts are quarantined in the DLQ with a full payload, stack trace, and resurrection history. Inspect and re-release them at any time via the CLI.

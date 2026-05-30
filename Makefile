@@ -1,6 +1,6 @@
 .PHONY: setup format lint check test test-integration clean \
         worker resurrector dev dev-down dev-logs prod prod-down \
-        bench bench-docker bench-docker-down
+        bench bench-docker bench-docker-down docs docs-serve docs-build
 
 # =============================================================================
 # Setup & quality
@@ -35,6 +35,27 @@ clean:
 	find . -type d -name ".mypy_cache" -exec rm -rf {} +
 	find . -type d -name ".ruff_cache" -exec rm -rf {} +
 	@echo "Local cache cleared."
+
+# =============================================================================
+# Docs (MkDocs Material)
+# =============================================================================
+# Docs deps live in the `docs` dependency group, not the base install, so a
+# plain `mkdocs serve` in the project venv fails with "No module named mkdocs".
+# These targets pull the group on demand via uv, matching the CI build in
+# .github/workflows/docs.yml.
+
+# Live-reload server at http://127.0.0.1:8001
+# Port 8001 (not mkdocs' default 8000) avoids clashing with a Relier app
+# served by `uvicorn main:app`, which also binds 8000. On Windows both can
+# bind 8000 and the OS routes requests to whichever started first, so the
+# docs would silently show the app's 404 instead. Override with PORT=...
+PORT ?= 8001
+docs docs-serve:
+	uv run --group docs mkdocs serve -a 127.0.0.1:$(PORT)
+
+# Strict build (fails on broken links / nav), same as CI.
+docs-build:
+	uv run --group docs mkdocs build --strict
 
 # =============================================================================
 # Run bare-metal (no Docker)
