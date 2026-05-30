@@ -30,7 +30,7 @@
   --md-code-hl-number-color:      #b5cea8;
   --md-code-hl-comment-color:     #6a9955;
   --md-code-hl-constant-color:    #569cd6;
-  --md-code-hl-name-color:        #d4d4d4;
+  --md-code-hl-name-color:        #9cdcfe;
   --md-code-hl-operator-color:    #d4d4d4;
   --md-code-hl-punctuation-color: #d4d4d4;
   --md-code-hl-variable-color:    #9cdcfe;
@@ -72,7 +72,7 @@
   --md-code-hl-number-color:      #098658;
   --md-code-hl-comment-color:     #008000;
   --md-code-hl-constant-color:    #0000ff;
-  --md-code-hl-name-color:        #1f1f1f;
+  --md-code-hl-name-color:        #001080;
   --md-code-hl-operator-color:    #1f1f1f;
   --md-code-hl-punctuation-color: #1f1f1f;
   --md-code-hl-variable-color:    #001080;
@@ -260,35 +260,47 @@
    "Dark+" hues and light uses "Light+". */
 
 /* Dark — VS Code Dark+ */
-[data-md-color-scheme="slate"] .highlight .nc,   /* class name      */
-[data-md-color-scheme="slate"] .highlight .kt,   /* type keyword    */
-[data-md-color-scheme="slate"] .highlight .ne {  /* exception name  */
+[data-md-color-scheme="slate"] .highlight .nc,   /* class name        */
+[data-md-color-scheme="slate"] .highlight .kt,   /* type keyword      */
+[data-md-color-scheme="slate"] .highlight .nb,   /* builtin type/hint */
+[data-md-color-scheme="slate"] .highlight .ne {  /* exception name    */
   color: #4ec9b0;
 }
-[data-md-color-scheme="slate"] .highlight .nf,   /* function def    */
-[data-md-color-scheme="slate"] .highlight .fm,   /* magic method    */
-[data-md-color-scheme="slate"] .highlight .nd,   /* decorator       */
-[data-md-color-scheme="slate"] .highlight .nb {  /* builtin (print) */
+[data-md-color-scheme="slate"] .highlight .nf,   /* function def/call */
+[data-md-color-scheme="slate"] .highlight .fm,   /* magic method      */
+[data-md-color-scheme="slate"] .highlight .nd {  /* decorator         */
   color: #dcdcaa;
 }
-[data-md-color-scheme="slate"] .highlight .bp,   /* self / cls      */
-[data-md-color-scheme="slate"] .highlight .ow {  /* and/or/in/not   */
+[data-md-color-scheme="slate"] .highlight .n,    /* names / variables */
+[data-md-color-scheme="slate"] .highlight .nx,   /* other identifier  */
+[data-md-color-scheme="slate"] .highlight .na,   /* attribute / kwarg */
+[data-md-color-scheme="slate"] .highlight .nv,   /* variable          */
+[data-md-color-scheme="slate"] .highlight .bp {  /* self / cls        */
+  color: #9cdcfe;
+}
+[data-md-color-scheme="slate"] .highlight .ow {  /* and / or / in / not */
   color: #569cd6;
 }
 
 /* Light — VS Code Light+ */
 [data-md-color-scheme="default"] .highlight .nc,
 [data-md-color-scheme="default"] .highlight .kt,
+[data-md-color-scheme="default"] .highlight .nb,
 [data-md-color-scheme="default"] .highlight .ne {
   color: #267f99;
 }
 [data-md-color-scheme="default"] .highlight .nf,
 [data-md-color-scheme="default"] .highlight .fm,
-[data-md-color-scheme="default"] .highlight .nd,
-[data-md-color-scheme="default"] .highlight .nb {
+[data-md-color-scheme="default"] .highlight .nd {
   color: #795e26;
 }
-[data-md-color-scheme="default"] .highlight .bp,
+[data-md-color-scheme="default"] .highlight .n,
+[data-md-color-scheme="default"] .highlight .nx,
+[data-md-color-scheme="default"] .highlight .na,
+[data-md-color-scheme="default"] .highlight .nv,
+[data-md-color-scheme="default"] .highlight .bp {
+  color: #001080;
+}
 [data-md-color-scheme="default"] .highlight .ow {
   color: #0000ff;
 }
