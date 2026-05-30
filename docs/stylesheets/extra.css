@@ -47,6 +47,7 @@
   --rl-table-th-color:          #fafafa;
 
   --rl-code-bg:                 rgba(255, 255, 255, 0.08);
+  --rl-inline-code-color:       #4ec9b0;
 }
 
 /* ── Light mode ──────────────────────────────────────────────────────────── */
@@ -99,6 +100,7 @@
   --rl-table-th-color:          #111111;
 
   --rl-code-bg:                 rgba(0, 0, 0, 0.06);
+  --rl-inline-code-color:       #0e7490;
 }
 
 /* ── Header bar ──────────────────────────────────────────────────────────── */
@@ -176,10 +178,10 @@
   color: var(--rl-table-th-color);
 }
 
-/* Inline code */
-.md-typeset code {
+/* Inline code (not fenced blocks — those keep the VS Code token colours). */
+.md-typeset :not(pre) > code {
   background-color: var(--rl-code-bg);
-  color: var(--md-code-fg-color);
+  color: var(--rl-inline-code-color);
   border-radius: 4px;
   padding: 0.1em 0.35em;
 }
