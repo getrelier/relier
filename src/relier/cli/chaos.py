@@ -75,7 +75,7 @@ async def _stream_resurrection_events(duration: int) -> None:
                 label = "[green]ALIVE[/green] (revived by replacement worker)"
             else:
                 label = f"state={state}"
-            console.print(f"  [cyan]->[/cyan] {tid}: {label}")
+            console.print(f"  [#2DD4BF]->[/#2DD4BF] {tid}: {label}")
 
         await asyncio.sleep(0.5)
 

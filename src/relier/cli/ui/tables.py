@@ -24,7 +24,7 @@ def create_worker_table() -> Table:
     table = Table(box=box.SIMPLE, header_style=f"bold {PRIMARY_COLOR}")
     table.add_column("Worker ID", style="bold")
     table.add_column("Status", justify="center")
-    table.add_column("In-Flight", justify="right", style="magenta")
+    table.add_column("In-Flight", justify="right", style="#94A3B8")
     table.add_column("Uptime", justify="right", style="dim")
     return table
 
@@ -57,10 +57,10 @@ def render_inflight_table(
     table = Table(box=box.SIMPLE, header_style=f"bold {PRIMARY_COLOR}", expand=True)
     table.add_column("Worker", style="bold", no_wrap=True)
     table.add_column("Status", justify="center")
-    table.add_column("In-Flight", justify="right", style="magenta")
+    table.add_column("In-Flight", justify="right", style="#94A3B8")
     table.add_column("✓ Completed", justify="right", style="green")
     table.add_column("✗ Failed", justify="right", style="red")
-    table.add_column("Success Rate", justify="right", style="cyan")
+    table.add_column("Success Rate", justify="right", style="#2DD4BF")
 
     # Group running tasks by worker
     tasks_by_worker: dict[str, list[dict[str, Any]]] = {}
@@ -135,9 +135,9 @@ def render_inflight_table(
         [
             Text(f"● {total_inflight} Active", style="bold green"),
             Text(f"✔ {session_completed} Session (24h)", style="bold green"),
-            Text(f"✔ {cluster_completed} Lifetime", style="bold blue"),
+            Text(f"✔ {cluster_completed} Lifetime", style="bold #94A3B8"),
             Text(f"✗ {cluster_failed} Failed", style="bold yellow"),
-            Text(f"♻ {cluster_resurrected} Resurrected", style="bold cyan"),  # ← new
+            Text(f"♻ {cluster_resurrected} Resurrected", style="bold #2DD4BF"),
             Text(f"☢ {cluster_quarantined} Quarantined", style="bold red"),
             Text(
                 f"Depth: {queue_depth if queue_depth is not None else 'N/A'}",

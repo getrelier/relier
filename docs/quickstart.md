@@ -275,8 +275,18 @@ worker process (`Ctrl+C` or `kill <pid>`). Within about 12 seconds you'll see
 the resurrector log:
 
 ```
-[Phoenix] Orphan detected: task_abc123 — re-queuing to default
-[Phoenix] task_abc123 picked up by rl-worker-2
+PHOENIX Resurrector initializing...
+[23:17:12] INFO     Initialising loop-local Relier Redis connection pool. [loop=2239067885072 -> redis://***@localhost:6379/0]
+           INFO     Redis connectivity verified.
+[23:21:05] WARNING  Worker death detected; replaying orphaned task.  task_id='1cb7407c-88ae-47b1-b3f5-83ad36d31116'
+                    task_name='tasks.send_invoice'  attempt=1  max_attempts=5  ghost_worker='rl-worker-default@b7e3d96be88d'  queue='default'
+                    has_checkpoint=False
+           INFO     Acquired resurrection lease  task_id='1cb7407c-88ae-47b1-b3f5-83ad36d31116'
+                    lease_key='rl:lease:{1cb7407c-88ae-47b1-b3f5-83ad36d31116}'  lease_ttl=180
+           INFO     Submitting resurrected task to broker.  task_id='1cb7407c-88ae-47b1-b3f5-83ad36d31116'  task_name='tasks.send_invoice'
+                    queue='default'
+           INFO     Phoenix recovered 1 orphaned task(s) onto healthy workers  resurrected=1  monitored=0  duration_ms=62
+           INFO     Resurrected task successfully re-queued.  task_id='1cb7407c-88ae-47b1-b3f5-83ad36d31116'  task_name='tasks.send_invoice'
 ```
 
 The task completes on a healthy worker. No data loss, no duplicate execution

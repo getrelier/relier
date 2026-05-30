@@ -14,7 +14,7 @@ from relier.storage.redis import redis_manager
 
 logger = logging.getLogger(__name__)
 
-PRIMARY_COLOR = "#6366F1"
+PRIMARY_COLOR = "#2DD4BF"
 
 
 def coro(f: Callable) -> Callable:
