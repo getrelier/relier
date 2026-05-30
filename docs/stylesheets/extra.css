@@ -19,9 +19,22 @@
   --md-default-bg-color:        #0a0a0a;
   --md-default-bg-color--light: #121212;
 
-  /* Code blocks */
-  --md-code-bg-color:           #121212;
-  --md-code-fg-color:           #e5e5e5;
+  /* Code blocks — VS Code "Dark+" editor surface */
+  --md-code-bg-color:           #1e1e1e;
+  --md-code-fg-color:           #d4d4d4;
+
+  /* Syntax highlighting — VS Code Dark+ palette */
+  --md-code-hl-keyword-color:     #569cd6;
+  --md-code-hl-function-color:    #dcdcaa;
+  --md-code-hl-string-color:      #ce9178;
+  --md-code-hl-number-color:      #b5cea8;
+  --md-code-hl-comment-color:     #6a9955;
+  --md-code-hl-constant-color:    #569cd6;
+  --md-code-hl-name-color:        #d4d4d4;
+  --md-code-hl-operator-color:    #d4d4d4;
+  --md-code-hl-punctuation-color: #d4d4d4;
+  --md-code-hl-variable-color:    #9cdcfe;
+  --md-code-hl-special-color:     #9cdcfe;
 
   /* Sidebar + header surfaces */
   --md-footer-bg-color:         #121212;
@@ -48,8 +61,22 @@
   --md-default-bg-color:        #ffffff;
   --md-default-bg-color--light: #f7f7f7;
 
+  /* Code blocks — VS Code "Light+" editor surface */
   --md-code-bg-color:           #f4f4f4;
-  --md-code-fg-color:           #111111;
+  --md-code-fg-color:           #1f1f1f;
+
+  /* Syntax highlighting — VS Code Light+ palette */
+  --md-code-hl-keyword-color:     #0000ff;
+  --md-code-hl-function-color:    #795e26;
+  --md-code-hl-string-color:      #a31515;
+  --md-code-hl-number-color:      #098658;
+  --md-code-hl-comment-color:     #008000;
+  --md-code-hl-constant-color:    #0000ff;
+  --md-code-hl-name-color:        #1f1f1f;
+  --md-code-hl-operator-color:    #1f1f1f;
+  --md-code-hl-punctuation-color: #1f1f1f;
+  --md-code-hl-variable-color:    #001080;
+  --md-code-hl-special-color:     #001080;
 
   --md-footer-bg-color:         #f2f2f2;
   --md-footer-bg-color--dark:   #e8e8e8;
@@ -224,6 +251,47 @@
 .rl-terminal .rl-info{ color: #9ca3af; }
 .rl-terminal .rl-mag { color: #d4d4d4; }
 .rl-terminal em      { color: #e5e5e5; font-style: normal; }
+
+/* ── Code syntax: VS Code accents ────────────────────────────────────────────
+   The --md-code-hl-* variables above colour the bulk of the tokens. These
+   rules add the VS-Code-specific touches Pygments' generic buckets miss:
+   teal classes/types, yellow function names & decorators & builtins, and
+   blue word-operators (and / or / in / not). Scheme-scoped so dark uses the
+   "Dark+" hues and light uses "Light+". */
+
+/* Dark — VS Code Dark+ */
+[data-md-color-scheme="slate"] .highlight .nc,   /* class name      */
+[data-md-color-scheme="slate"] .highlight .kt,   /* type keyword    */
+[data-md-color-scheme="slate"] .highlight .ne {  /* exception name  */
+  color: #4ec9b0;
+}
+[data-md-color-scheme="slate"] .highlight .nf,   /* function def    */
+[data-md-color-scheme="slate"] .highlight .fm,   /* magic method    */
+[data-md-color-scheme="slate"] .highlight .nd,   /* decorator       */
+[data-md-color-scheme="slate"] .highlight .nb {  /* builtin (print) */
+  color: #dcdcaa;
+}
+[data-md-color-scheme="slate"] .highlight .bp,   /* self / cls      */
+[data-md-color-scheme="slate"] .highlight .ow {  /* and/or/in/not   */
+  color: #569cd6;
+}
+
+/* Light — VS Code Light+ */
+[data-md-color-scheme="default"] .highlight .nc,
+[data-md-color-scheme="default"] .highlight .kt,
+[data-md-color-scheme="default"] .highlight .ne {
+  color: #267f99;
+}
+[data-md-color-scheme="default"] .highlight .nf,
+[data-md-color-scheme="default"] .highlight .fm,
+[data-md-color-scheme="default"] .highlight .nd,
+[data-md-color-scheme="default"] .highlight .nb {
+  color: #795e26;
+}
+[data-md-color-scheme="default"] .highlight .bp,
+[data-md-color-scheme="default"] .highlight .ow {
+  color: #0000ff;
+}
 
 /* Mermaid diagram theming */
 .mermaid {
