@@ -1758,8 +1758,18 @@ See <a href="../api-reference/#dispatch-methods-apush-push-delay">API reference 
 <p>With your worker and resurrector both running, dispatch a task and then kill the
 worker process (<code>Ctrl+C</code> or <code>kill &lt;pid&gt;</code>). Within about 12 seconds you'll see
 the resurrector log:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>[Phoenix] Orphan detected: task_abc123 — re-queuing to default
-</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>[Phoenix] task_abc123 picked up by rl-worker-2
+<div class="language-text highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>PHOENIX Resurrector initializing...
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>[23:17:12] INFO     Initialising loop-local Relier Redis connection pool. [loop=2239067885072 -&gt; redis://***@localhost:6379/0]
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>           INFO     Redis connectivity verified.
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>[23:21:05] WARNING  Worker death detected; replaying orphaned task.  task_id=&#39;1cb7407c-88ae-47b1-b3f5-83ad36d31116&#39;
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>                    task_name=&#39;tasks.send_invoice&#39;  attempt=1  max_attempts=5  ghost_worker=&#39;rl-worker-default@b7e3d96be88d&#39;  queue=&#39;default&#39;
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>                    has_checkpoint=False
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>           INFO     Acquired resurrection lease  task_id=&#39;1cb7407c-88ae-47b1-b3f5-83ad36d31116&#39;
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>                    lease_key=&#39;rl:lease:{1cb7407c-88ae-47b1-b3f5-83ad36d31116}&#39;  lease_ttl=180
+</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>           INFO     Submitting resurrected task to broker.  task_id=&#39;1cb7407c-88ae-47b1-b3f5-83ad36d31116&#39;  task_name=&#39;tasks.send_invoice&#39;
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>                    queue=&#39;default&#39;
+</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>           INFO     Phoenix recovered 1 orphaned task(s) onto healthy workers  resurrected=1  monitored=0  duration_ms=62
+</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a>           INFO     Resurrected task successfully re-queued.  task_id=&#39;1cb7407c-88ae-47b1-b3f5-83ad36d31116&#39;  task_name=&#39;tasks.send_invoice&#39;
 </span></code></pre></div>
 <p>The task completes on a healthy worker. No data loss, no duplicate execution
 (idempotency blocks the re-run from charging twice), no manual intervention.</p>
