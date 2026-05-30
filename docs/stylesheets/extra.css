@@ -186,6 +186,18 @@
   padding: 0.1em 0.35em;
 }
 
+/* No-language fenced blocks (``` with no lexer) are ASCII flow diagrams and
+   plain output — Pygments emits no tokens, so they'd render in the default
+   near-white. Tint them with the teal code accent so they read as technical
+   content rather than washed-out prose in a box. Language-tagged blocks keep
+   their full VS Code token colouring. */
+[data-md-color-scheme="slate"] .md-typeset .language-text > pre > code {
+  color: #4ec9b0;
+}
+[data-md-color-scheme="default"] .md-typeset .language-text > pre > code {
+  color: #0e7490;
+}
+
 /* Selection — inverted monochrome per scheme */
 [data-md-color-scheme="slate"] ::selection {
   background: #fafafa;
