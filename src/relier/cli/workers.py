@@ -23,10 +23,10 @@ def create_enhanced_worker_table() -> Table:
     table = Table(box=box.SIMPLE, header_style=f"bold {PRIMARY_COLOR}")
     table.add_column("Worker ID", style="bold")
     table.add_column("Status", justify="center")
-    table.add_column("Active", justify="right", style="magenta")
+    table.add_column("Active", justify="right", style="#94A3B8")
     table.add_column("✓ Success", justify="right", style="green")
     table.add_column("✗ Failed", justify="right", style="red")
-    table.add_column("Success Rate", justify="right", style="cyan")
+    table.add_column("Success Rate", justify="right", style="#2DD4BF")
     return table
 
 
@@ -131,8 +131,8 @@ async def status() -> None:
             f"[dim]Cluster Summary:[/dim] "
             f"[green]{total_completed} completed[/green] | "
             f"[red]{total_failed} failed[/red] | "
-            f"[magenta]{total_active} active[/magenta] | "
-            f"[cyan]{overall_rate:.1f}% success rate[/cyan]"
+            f"[#94A3B8]{total_active} active[/#94A3B8] | "
+            f"[#2DD4BF]{overall_rate:.1f}% success rate[/#2DD4BF]"
         )
     console.print()
 

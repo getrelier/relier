@@ -15,6 +15,38 @@ intended for adopters who need a single place to read migration impact.
 
 
 
+## [0.1.6] — 2026-05-31
+
+Patch release: documentation polish and CLI colour-palette rebrand to black /
+white / teal / grey. No public API changes, no behavioural changes, no
+benchmark impact.
+
+### Documentation
+
+- **Teal hyperlinks, syntax-highlighted bash blocks, and env-var / flag
+  highlighting.** All hyperlinks in the MkDocs site now render in brand teal.
+  Fenced bash code blocks use explicit colouring, and environment-variable
+  names and CLI flags are highlighted consistently across all pages.
+
+- **Quickstart resurrector log replaced with real output.** The placeholder
+  `[Phoenix] Orphan detected` / `picked up by rl-worker-2` snippet in the
+  "What happens when a worker dies?" section is replaced with a real
+  `rl run-resurrector` terminal capture, showing the full detection → lease →
+  re-queue → recovery lifecycle with structured log fields.
+
+### CLI
+
+- **Brand colour palette: teal `#2DD4BF` and slate `#94A3B8`.** The CLI
+  replaces the previous indigo (`#6366F1`) primary with brand teal across all
+  headers, panel borders, section labels, and brand markers (`PHOENIX`, `WATCH`,
+  `SEED`). In-flight / active task count columns move from magenta to slate grey
+  (`#94A3B8`); the Lifetime completed stat in the cluster footer moves from blue
+  to the same slate. Success-rate columns and the Resurrected count move from
+  cyan to teal. Semantic traffic-light colours (green / yellow / red) are
+  unchanged — these carry operational meaning and are not part of the brand
+  palette.
+
+
 ## [0.1.5] — 2026-05-30
 
 Patch release fixing two resurrection-recovery stalls that surface when a
@@ -399,7 +431,11 @@ stable, the public API surface may still shift in `0.y.0` bumps.
   `admission`, `chaos`, `config`, `admin` command groups, plus
   `doctor`, `run-resurrector`, `bench`, `man`.
 
-[Unreleased]: https://github.com/getrelier/relier/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/getrelier/relier/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/getrelier/relier/compare/v0.1.5...v0.1.6
+[0.1.5]: https://github.com/getrelier/relier/compare/v0.1.4...v0.1.5
+[0.1.4]: https://github.com/getrelier/relier/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/getrelier/relier/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/getrelier/relier/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/getrelier/relier/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/getrelier/relier/releases/tag/v0.1.0

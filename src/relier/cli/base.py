@@ -15,7 +15,7 @@ from relier.cli.utils import PRIMARY_COLOR
 console = Console()
 
 # ---------------------------------------------------------------------------
-# Root help text. Indigo highlight on group names; everything else stays plain
+# Root help text. Teal highlight on group names; everything else stays plain
 # so the output reads more like a polished man page than a colourful demo.
 # ---------------------------------------------------------------------------
 _HELP = (

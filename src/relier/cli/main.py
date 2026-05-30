@@ -34,7 +34,7 @@ _RECORD_ATTRS: frozenset[str] = frozenset(
     logging.LogRecord("", 0, "", 0, "", (), None).__dict__
 ) | frozenset({"message", "asctime"})
 
-_PRIMARY = "#6366F1"  # Relier brand purple
+_PRIMARY = "#2DD4BF"  # Relier brand teal
 
 
 class _StructuredRichFormatter(logging.Formatter):
