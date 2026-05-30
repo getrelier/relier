@@ -44,9 +44,14 @@ clean:
 # These targets pull the group on demand via uv, matching the CI build in
 # .github/workflows/docs.yml.
 
-# Live-reload server at http://127.0.0.1:8000
+# Live-reload server at http://127.0.0.1:8001
+# Port 8001 (not mkdocs' default 8000) avoids clashing with a Relier app
+# served by `uvicorn main:app`, which also binds 8000. On Windows both can
+# bind 8000 and the OS routes requests to whichever started first, so the
+# docs would silently show the app's 404 instead. Override with PORT=...
+PORT ?= 8001
 docs docs-serve:
-	uv run --group docs mkdocs serve
+	uv run --group docs mkdocs serve -a 127.0.0.1:$(PORT)
 
 # Strict build (fails on broken links / nav), same as CI.
 docs-build:
