@@ -47,6 +47,7 @@ extra_css:
 extra_javascript:
   - https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js
   - assets/js/mermaid-init.js
+  - assets/js/flag-highlight.js
 
 nav:
   - Home: index.md
