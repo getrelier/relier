@@ -62,11 +62,11 @@
 
   --md-accent-fg-color:         #000000;
 
-  --md-default-bg-color:        #ffffff;
-  --md-default-bg-color--light: #f7f7f7;
+  --md-default-bg-color:        #faf9f5;
+  --md-default-bg-color--light: #f3f2ee;
 
   /* Code blocks — VS Code "Light+" editor surface */
-  --md-code-bg-color:           #f4f4f4;
+  --md-code-bg-color:           #f0efe9;
   --md-code-fg-color:           #1f1f1f;
 
   /* Syntax highlighting — VS Code Light+ palette */
@@ -96,13 +96,13 @@
   --md-footer-fg-color--light:  rgba(17, 17, 17, 0.75);
   --md-footer-fg-color--lighter: rgba(17, 17, 17, 0.54);
 
-  --rl-header-bg:               rgba(255, 255, 255, 0.92);
-  --rl-header-border:           rgba(0, 0, 0, 0.12);
-  --rl-tabs-bg:                 #f7f7f7;
-  --rl-table-th-bg:             #f0f0f0;
+  --rl-header-bg:               rgba(250, 249, 245, 0.92);
+  --rl-header-border:           rgba(0, 0, 0, 0.10);
+  --rl-tabs-bg:                 #f3f2ee;
+  --rl-table-th-bg:             #edece8;
   --rl-table-th-color:          #111111;
 
-  --rl-code-bg:                 rgba(0, 0, 0, 0.06);
+  --rl-code-bg:                 rgba(0, 0, 0, 0.05);
   --rl-inline-code-color:       #0e7490;
 
   --rl-link-color:              #0e7490;
@@ -120,8 +120,8 @@
 
 /* Give the round logo a little breathing room so the disc reads cleanly. */
 .md-header__button.md-logo img {
-  height: 1.7rem;
-  width: 1.7rem;
+  height: 1.0rem;
+  width: 1.0rem;
 }
 
 /* ── Nav tabs ────────────────────────────────────────────────────────────── */
@@ -287,6 +287,7 @@
 .rl-terminal .rl-dim { color: #6b7280; }
 .rl-terminal .rl-info{ color: #9ca3af; }
 .rl-terminal .rl-mag { color: #d4d4d4; }
+.rl-terminal .rl-key { color: #6366f1; }
 .rl-terminal em      { color: #e5e5e5; font-style: normal; }
 
 /* ── Code syntax: VS Code accents ────────────────────────────────────────────
@@ -368,6 +369,27 @@
 [data-md-color-scheme="default"] .md-typeset .language-shell .highlight .nb,
 [data-md-color-scheme="default"] .md-typeset .language-sh .highlight .nb { color: #0000ff; }
 
+/* Shell comments — grey, not teal */
+[data-md-color-scheme="slate"] .md-typeset .language-bash .c1,
+[data-md-color-scheme="slate"] .md-typeset .language-bash .c,
+[data-md-color-scheme="slate"] .md-typeset .language-bash .cm,
+[data-md-color-scheme="slate"] .md-typeset .language-shell .c1,
+[data-md-color-scheme="slate"] .md-typeset .language-shell .c,
+[data-md-color-scheme="slate"] .md-typeset .language-shell .cm,
+[data-md-color-scheme="slate"] .md-typeset .language-sh .c1,
+[data-md-color-scheme="slate"] .md-typeset .language-sh .c,
+[data-md-color-scheme="slate"] .md-typeset .language-sh .cm { color: #6b7280; }
+
+[data-md-color-scheme="default"] .md-typeset .language-bash .c1,
+[data-md-color-scheme="default"] .md-typeset .language-bash .c,
+[data-md-color-scheme="default"] .md-typeset .language-bash .cm,
+[data-md-color-scheme="default"] .md-typeset .language-shell .c1,
+[data-md-color-scheme="default"] .md-typeset .language-shell .c,
+[data-md-color-scheme="default"] .md-typeset .language-shell .cm,
+[data-md-color-scheme="default"] .md-typeset .language-sh .c1,
+[data-md-color-scheme="default"] .md-typeset .language-sh .c,
+[data-md-color-scheme="default"] .md-typeset .language-sh .cm { color: #6b7280; }
+
 /* ENV_VAR=value: value is near-white so it reads apart from the teal key */
 [data-md-color-scheme="slate"] .md-typeset .language-bash .rl-env-val,
 [data-md-color-scheme="slate"] .md-typeset .language-shell .rl-env-val,
@@ -377,7 +399,7 @@
 [data-md-color-scheme="default"] .md-typeset .language-shell .rl-env-val,
 [data-md-color-scheme="default"] .md-typeset .language-sh .rl-env-val { color: #1f1f1f; }
 
-/* --flag options: light-blue, distinct from teal command text */
+/* --flag and -f options: light-blue, distinct from teal command text */
 [data-md-color-scheme="slate"] .md-typeset .language-bash .rl-flag,
 [data-md-color-scheme="slate"] .md-typeset .language-shell .rl-flag,
 [data-md-color-scheme="slate"] .md-typeset .language-sh .rl-flag,
@@ -387,6 +409,23 @@
 [data-md-color-scheme="default"] .md-typeset .language-shell .rl-flag,
 [data-md-color-scheme="default"] .md-typeset .language-sh .rl-flag,
 [data-md-color-scheme="default"] .md-typeset .language-powershell .rl-flag { color: #0969da; }
+
+/* $ prompt and ─── separator lines — dim, injected by flag-highlight.js */
+[data-md-color-scheme="slate"] .md-typeset .language-bash .rl-prompt,
+[data-md-color-scheme="slate"] .md-typeset .language-shell .rl-prompt,
+[data-md-color-scheme="slate"] .md-typeset .language-sh .rl-prompt { color: #6b7280; }
+
+[data-md-color-scheme="default"] .md-typeset .language-bash .rl-prompt,
+[data-md-color-scheme="default"] .md-typeset .language-shell .rl-prompt,
+[data-md-color-scheme="default"] .md-typeset .language-sh .rl-prompt { color: #9ca3af; }
+
+[data-md-color-scheme="slate"] .md-typeset .language-bash .rl-sep,
+[data-md-color-scheme="slate"] .md-typeset .language-shell .rl-sep,
+[data-md-color-scheme="slate"] .md-typeset .language-sh .rl-sep { color: #374151; }
+
+[data-md-color-scheme="default"] .md-typeset .language-bash .rl-sep,
+[data-md-color-scheme="default"] .md-typeset .language-shell .rl-sep,
+[data-md-color-scheme="default"] .md-typeset .language-sh .rl-sep { color: #d1d5db; }
 
 
 /* Mermaid diagram theming */

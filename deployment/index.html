@@ -957,6 +957,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#managed-redis-compatibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Managed Redis compatibility
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1956,6 +1967,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#managed-redis-compatibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Managed Redis compatibility
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2123,14 +2145,16 @@ dead workers. Only the surrounding infrastructure changes.</p>
    wrong. See <a href="#production-redis-configuration">Production Redis configuration</a>.</p>
 </li>
 <li>
-<p><strong>A running resurrector process</strong> (<code>rl run-resurrector</code>). This is the
-   separate process that scans for dead workers and re-queues their orphaned
-   tasks. If it is not running, tasks that die with a worker stay dead.</p>
+<p><strong>A running resurrector process</strong> (<code>rl run-resurrector</code>). Every worker
+   already embeds a resurrection scanner, so surviving workers will pick up
+   tasks from a dead worker automatically. The dedicated <code>rl run-resurrector</code>
+   process provides coverage for the one edge case the embedded scanners cannot
+   handle: all workers dying simultaneously. It is strongly recommended for
+   production.</p>
 </li>
 </ol>
 <p>Everything else, admission control, SLO tracking, DLQ, idempotency is
-already inside the worker process. You only need to run the worker and the
-resurrector.</p>
+already inside the worker process.</p>
 <hr />
 <h2 id="tier-1-bare-metal-no-docker">Tier 1: Bare metal (no Docker)<a class="headerlink" href="#tier-1-bare-metal-no-docker" title="Permanent link">&para;</a></h2>
 <p>The simplest way to run Relier. Useful for local development, CI, and any host
@@ -2387,7 +2411,7 @@ primitives. You need three workloads:</p>
 <tr>
 <td>Resurrector</td>
 <td>Deployment with <code>replicas: 1</code></td>
-<td>A single resurrector is enough, no distributed locking needed between resurrectors</td>
+<td>One dedicated process is enough; every worker also embeds a scanner. Distributed locks prevent double-resurrection if you run more.</td>
 </tr>
 </tbody>
 </table>
@@ -2626,6 +2650,45 @@ measured in tens of minutes, not seconds.</p>
 <p>If your latency is still unacceptable after the tuning above, raise an issue
 upstream rather than reaching for either of these knobs, the right fix is on
 the I/O path, not the durability contract.</p>
+<h3 id="managed-redis-compatibility">Managed Redis compatibility<a class="headerlink" href="#managed-redis-compatibility" title="Permanent link">&para;</a></h3>
+<p>If you're using a hosted Redis service, here's whether it can satisfy Relier's two hard requirements (AOF persistence + <code>noeviction</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>AOF persistence</th>
+<th><code>noeviction</code></th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Redis Cloud</td>
+<td>✅ Available</td>
+<td>✅ Available</td>
+<td>Set in database config</td>
+</tr>
+<tr>
+<td>AWS ElastiCache</td>
+<td>✅ Available</td>
+<td>✅ Available</td>
+<td>Set via parameter group</td>
+</tr>
+<tr>
+<td>Upstash</td>
+<td>⚠️ Always-on</td>
+<td>❌ Not configurable</td>
+<td>Use Upstash only for dev/staging</td>
+</tr>
+<tr>
+<td>Heroku Redis</td>
+<td>✅ Available</td>
+<td>✅ Available</td>
+<td>Premium plans only</td>
+</tr>
+</tbody>
+</table>
+<p>Relier validates <code>maxmemory-policy</code> at startup and refuses to start if it is wrong, so a misconfigured managed instance will surface immediately rather than silently breaking the zero-job-loss guarantee.</p>
 <hr />
 <h2 id="capacity-planning">Capacity planning<a class="headerlink" href="#capacity-planning" title="Permanent link">&para;</a></h2>
 <h3 id="connection-pool-sizing">Connection pool sizing<a class="headerlink" href="#connection-pool-sizing" title="Permanent link">&para;</a></h3>

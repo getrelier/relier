@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#relier" class="md-skip">
+        <a href="#built-for-fastapi-works-with-anything" class="md-skip">
           Skip to content
         </a>
       
@@ -378,8 +378,6 @@
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
       
       
-        
-      
       
         <label class="md-nav__link md-nav__link--active" for="__toc">
           
@@ -421,8 +419,6 @@
 <nav class="md-nav md-nav--secondary" aria-label="Table of contents">
   
   
-  
-    
   
   
     <label class="md-nav__title" for="__toc">
@@ -514,6 +510,17 @@
     <span class="md-ellipsis">
       
         Dead Letter Queue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-versioning-rolling-deploys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema versioning (Rolling deploys)
       
     </span>
   </a>
@@ -1395,8 +1402,6 @@
   
   
   
-    
-  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
@@ -1487,6 +1492,17 @@
     <span class="md-ellipsis">
       
         Dead Letter Queue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#schema-versioning-rolling-deploys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema versioning (Rolling deploys)
       
     </span>
   </a>
@@ -1620,8 +1636,10 @@
 
 
 
-<h1 id="relier">Relier<a class="headerlink" href="#relier" title="Permanent link">&para;</a></h1>
-<p><strong>Reliability layer for Celery. Zero job loss.</strong></p>
+  <h1>Home</h1>
+
+<p><img src="assets/images/logo-docs.png" alt="Relier — Reliability layer for Celery" /></p>
+
 <div class="admonition warning">
 <p class="admonition-title">Pre-1.0: public API may change</p>
 <p>Relier is currently <code>v0.x.y</code>. The <strong>core engine</strong> (Phoenix resurrector,
@@ -1648,7 +1666,7 @@ Dead Letter Queue with a full traceable reason.</p>
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">send_receipt</span><span class="p">(</span><span class="n">order_id</span><span class="p">)</span>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="c1"># After Relier, same function, zero changes to your business logic.</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># Worker dies? Relier re-queues it automatically, within 35 seconds.</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># Worker dies? Relier re-queues it automatically, within ~9 seconds p99.</span>
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="c1"># Called twice with the same order_id? Runs once. Card charged once.</span>
 </span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="nd">@rl_task</span><span class="p">(</span><span class="n">idempotent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">process_order</span><span class="p">(</span><span class="n">order_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
@@ -1723,7 +1741,7 @@ reliability guarantees are identical either way.</p>
 <hr />
 <h2 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h2>
 <h3 id="zero-job-loss-phoenix-pattern">Zero job loss (Phoenix Pattern)<a class="headerlink" href="#zero-job-loss-phoenix-pattern" title="Permanent link">&para;</a></h3>
-<p>Every task registers a heartbeat in Redis. If a worker is killed mid-task, the heartbeat expires. A background resurrector detects this within 35 seconds and re-queues the task on a healthy worker automatically, with the original payload intact.</p>
+<p>Every task registers a heartbeat in Redis. If a worker is killed mid-task, the heartbeat expires. A background resurrector detects this within ~9 seconds p99 and re-queues the task on a healthy worker automatically, with the original payload intact.</p>
 <h3 id="safe-retries-idempotency">Safe retries (Idempotency)<a class="headerlink" href="#safe-retries-idempotency" title="Permanent link">&para;</a></h3>
 <p>An atomic Redis Lua script ensures a task only executes once, even when retried multiple times after failure. Pass <code>idempotent=True</code> and Relier handles the rest.</p>
 <h3 id="timeout-enforcement">Timeout enforcement<a class="headerlink" href="#timeout-enforcement" title="Permanent link">&para;</a></h3>
@@ -1732,6 +1750,8 @@ reliability guarantees are identical either way.</p>
 <p>Relier intercepts <code>SIGTERM</code> (deploys, scale-downs, Kubernetes evictions) and waits for in-flight tasks to finish. Tasks that won't finish in time are handed off to another worker not dropped.</p>
 <h3 id="dead-letter-queue">Dead Letter Queue<a class="headerlink" href="#dead-letter-queue" title="Permanent link">&para;</a></h3>
 <p>Tasks that can't be recovered after repeated attempts are quarantined in the DLQ with a full payload, stack trace, and resurrection history. Inspect and re-release them at any time via the CLI.</p>
+<h3 id="schema-versioning-rolling-deploys">Schema versioning (Rolling deploys)<a class="headerlink" href="#schema-versioning-rolling-deploys" title="Permanent link">&para;</a></h3>
+<p>Every task payload is wrapped in a signed, versioned envelope. When you change a task's signature during a rolling deploy, old workers and new workers can run simultaneously without payload mismatches, register a migration function and Relier upgrades in-flight payloads automatically.</p>
 <h3 id="admission-control">Admission control<a class="headerlink" href="#admission-control" title="Permanent link">&para;</a></h3>
 <p>A Redis Lua script enforces cluster-wide rate limits atomically. Returns <code>Retry-After</code> on rejection. Workers never see traffic above configured capacity.</p>
 <h3 id="full-opentelemetry-observability">Full OpenTelemetry observability<a class="headerlink" href="#full-opentelemetry-observability" title="Permanent link">&para;</a></h3>

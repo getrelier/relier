@@ -1665,11 +1665,11 @@ See <a href="../api-reference/#dispatch-methods-apush-push-delay">API reference 
 </span></code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Why two processes?</p>
-<p>The Celery worker executes tasks. The Phoenix resurrector is a separate recovery service responsible for heartbeat monitoring, orphan detection, and re-queuing tasks after a worker crash. Keeping recovery isolated from workers means that a cascading worker failure cannot disable the recovery logic at the same time; the resurrector keeps running and draining the orphan backlog even as workers restart.</p>
+<p>The Celery worker executes tasks. <strong>Every worker also embeds the Phoenix resurrection scanner</strong> on its own event loop, so if one worker dies, the survivors detect its expired heartbeats and re-queue the orphaned tasks automatically — distributed locks make running many scanners side by side safe. <code>rl run-resurrector</code> runs that same scan loop in a standalone process. You don't strictly need it for partial failures, but it covers the one case the embedded scanners can't: <em>all</em> workers dying at once, when there's no surviving worker left to scan. Running it as a separate failure domain is recommended for production so recovery is already in flight the moment workers return.</p>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Workers must import your task modules</p>
-<p><strong>Relier wraps Celery's worker entry system: it does not replace it.</strong> You must provide a module that imports your task definitions so Celery registers them at startup.</p>
+<p><strong>Relier wraps Celery's worker entry system, it does not replace it.</strong> You must provide a module that imports your task definitions so Celery registers them at startup.</p>
 <p>The simplest way is <code>--include</code>:</p>
 <ul>
 <li>Tasks in <code>tasks.py</code> → <code>--include=tasks</code></li>
@@ -1720,22 +1720,12 @@ See <a href="../api-reference/#dispatch-methods-apush-push-delay">API reference 
 </span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="c1"># Check your SLO burn rate</span>
 </span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>rl<span class="w"> </span>slo<span class="w"> </span>status
 </span></code></pre></div>
-<p>You should see output like:</p>
-<div class="rl-terminal">
-<pre>
-<span class="rl-p">$</span> rl tasks inflight
-
-  Worker           Status       In-Flight  ✓ Completed  ✗ Failed  Success Rate
-  <span class="rl-ok">rl-worker-1</span>      <span class="rl-ok">● BUSY</span>       <span class="rl-mag">1</span>          <span class="rl-ok">42</span>           <span class="rl-dim">0</span>         <span class="rl-ok">100.0%</span>
-    <span class="rl-dim">└─</span> <em>send_invoice</em>   <span class="rl-dim">4f8a1b…</span>   <span class="rl-dim">12.4s</span>
-  <span class="rl-ok">rl-worker-2</span>      <span class="rl-dim">○ IDLE</span>       <span class="rl-dim">0</span>          <span class="rl-ok">38</span>           <span class="rl-dim">0</span>         <span class="rl-ok">100.0%</span>
-
- ┌ Cluster Health ────────────────────────────────────────────────────────────────────┐
- │ <span class="rl-ok">● 1 Active</span>  <span class="rl-ok">✔ 80 Session (24h)</span>  <span class="rl-info">✔ 80 Lifetime</span>  <span class="rl-warn">✗ 0 Failed</span>  <span class="rl-ok">♻ 0 Resurrected</span>  <span class="rl-dim">☢ 0 Quarantined  Depth: 0  p95: N/A</span> │
- └────────────────────────────────────────────────────────────────────────────────────┘
-</pre>
-</div>
-
+<p><strong><code>rl doctor</code></strong> — connectivity and configuration check:</p>
+<p><img alt="rl doctor output" src="../assets/images/screenshot-doctor.png" /></p>
+<p><strong><code>rl tasks inflight</code></strong> — live view of workers and in-flight tasks:</p>
+<p><img alt="rl tasks inflight output" src="../assets/images/screenshot-tasks-inflight.png" /></p>
+<p><strong><code>rl slo status</code></strong> — SLO burn rate across 1h / 6h / 3d windows:</p>
+<p><img alt="rl slo status output" src="../assets/images/screenshot-slo.png" /></p>
 <hr />
 <h2 id="what-just-happened">What just happened?<a class="headerlink" href="#what-just-happened" title="Permanent link">&para;</a></h2>
 <p>When you called <code>await send_invoice.apush(invoice_id)</code>:</p>
@@ -1775,6 +1765,19 @@ the resurrector log:</p>
 (idempotency blocks the re-run from charging twice), no manual intervention.</p>
 <p>That guarantee holds whether the worker was killed by OOM, a deploy <code>SIGTERM</code>, a
 kernel panic, or a <code>kill -9</code>. Phoenix detects the missed heartbeat and acts.</p>
+<div class="admonition note">
+<p class="admonition-title">Where these logs come from — and <code>rl run-resurrector</code> is optional</p>
+<p>Every worker embeds this same scanner, so in a multi-worker cluster a
+<em>surviving</em> worker detects the death and re-queues the task on its own —
+printing these exact lines to its own console (as structured JSON at <code>INFO</code>,
+rather than the colorized form <code>rl run-resurrector</code> renders above; set
+<code>RELIER_LOG_LEVEL=DEBUG</code> for the colorized form). No extra config is needed
+to "turn on" resurrection logging — it rides the standard logger.</p>
+<p>The demo runs the standalone resurrector because killing your <em>only</em> worker
+leaves nothing behind to scan. In production it's the guard for the one case
+the embedded scanners can't cover — <em>all</em> workers dying at once — so it's
+recommended but not required.</p>
+</div>
 <p>To verify the full failure surface (network partitions, load spikes, payload
 corruption), the repo ships a first-party chaos suite:</p>
 <div class="admonition info">

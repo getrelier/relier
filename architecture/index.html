@@ -1977,16 +1977,27 @@
 <p>Here's the exact boot sequence:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Worker process spawns (via Celery&#39;s prefork)
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  │
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  ├─ init_worker_process() fires (Celery signal hook in app.py)
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  ├─ init_worker_process() fires (worker_process_init signal, app.py)
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  │    ├─ asyncio.new_event_loop() — fresh loop, not inherited from parent
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  │    ├─ daemon thread started: runs loop.run_forever() in the background
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  │    ├─ loop stored in module-level worker_loop variable
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  │    ├─ Redis pool pre-warmed: get_relier_redis() called immediately
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  │    │   (first task pays zero connection cost)
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  │    ├─ Worker presence heartbeat loop started (updates rl:presence:{worker_id} every 5s)
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  │    └─ GracefulShutdownHandler installed (SIGTERM/SIGINT → drain)
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  │
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  └─ Worker is ready to accept tasks
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  │    ├─ Redis validation: reachable check, noeviction check, pool size check
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  │    │   (refuses to start if any check fails)
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  │    ├─ SchemaRegistry.validate() — confirms migration chain is consistent
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  │    ├─ setup_logging() + setup_telemetry() bound to child process
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  │    ├─ GracefulShutdownHandler installed (SIGTERM/SIGINT → drain)
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  │    └─ Redis pool pre-warmed: connection established immediately
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>  │        (first task pays zero connection cost)
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>  │
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>  ├─ start_relier_identity() fires (worker_ready signal, app.py)
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>  │    ├─ Worker presence heartbeat loop started
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>  │    │   (updates rl:presence:{worker_id} every 5s)
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>  │    ├─ Stale worker cleanup loop started
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>  │    │   (prunes dead entries from rl:workers registry)
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>  │    └─ Phoenix resurrection scanner started
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>  │        (runs alongside the dedicated rl run-resurrector process)
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>  │
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>  └─ Worker is ready to accept tasks
 </span></code></pre></div>
 <h3 id="how-task-execution-flows-across-the-thread-boundary">How task execution flows across the thread boundary<a class="headerlink" href="#how-task-execution-flows-across-the-thread-boundary" title="Permanent link">&para;</a></h3>
 <p>When Celery hands a task to the worker, it calls the sync wrapper in the <strong>Celery thread</strong>. That wrapper schedules the async orchestration onto the <strong>event loop thread</strong>:</p>
@@ -2028,7 +2039,7 @@
 <tr>
 <td><code>_cleanup_dead_workers</code></td>
 <td>Removes stale worker IDs from <code>rl:workers</code></td>
-<td>60s</td>
+<td><code>heartbeat_ttl / 5</code> (default: 2s)</td>
 </tr>
 </tbody>
 </table>
@@ -2288,15 +2299,16 @@
 </span><span id="__span-2-64"><a id="__codelineno-2-64" name="__codelineno-2-64" href="#__codelineno-2-64"></a>       │        redis.incr(rl:m:global:success), redis.incr(rl:m:w:{worker_id}:success)
 </span><span id="__span-2-65"><a id="__codelineno-2-65" name="__codelineno-2-65" href="#__codelineno-2-65"></a>       │
 </span><span id="__span-2-66"><a id="__codelineno-2-66" name="__codelineno-2-66" href="#__codelineno-2-66"></a>       └─ 12. Cleanup (finally block — always runs)
-</span><span id="__span-2-67"><a id="__codelineno-2-67" name="__codelineno-2-67" href="#__codelineno-2-67"></a>                Cancel _refresh_loop
-</span><span id="__span-2-68"><a id="__codelineno-2-68" name="__codelineno-2-68" href="#__codelineno-2-68"></a>                PhoenixRegistry.complete(task_id):
-</span><span id="__span-2-69"><a id="__codelineno-2-69" name="__codelineno-2-69" href="#__codelineno-2-69"></a>                  redis.delete(rl:hb:{task_id})
-</span><span id="__span-2-70"><a id="__codelineno-2-70" name="__codelineno-2-70" href="#__codelineno-2-70"></a>                  redis.delete(rl:phoenix:{task_id})
-</span><span id="__span-2-71"><a id="__codelineno-2-71" name="__codelineno-2-71" href="#__codelineno-2-71"></a>                  redis.delete(rl:resurrections:{task_id})
-</span><span id="__span-2-72"><a id="__codelineno-2-72" name="__codelineno-2-72" href="#__codelineno-2-72"></a>                  redis.zrem(rl:phoenix:expiry_index, task_id)
-</span><span id="__span-2-73"><a id="__codelineno-2-73" name="__codelineno-2-73" href="#__codelineno-2-73"></a>                redis.zrem(rl:inflight:{worker_id}, task_id)
-</span><span id="__span-2-74"><a id="__codelineno-2-74" name="__codelineno-2-74" href="#__codelineno-2-74"></a>                task_duration_ms histogram recorded
-</span><span id="__span-2-75"><a id="__codelineno-2-75" name="__codelineno-2-75" href="#__codelineno-2-75"></a>                redis.lpush(rl:task_durations, duration)  ← for p95 queries
+</span><span id="__span-2-67"><a id="__codelineno-2-67" name="__codelineno-2-67" href="#__codelineno-2-67"></a>                task_duration_ms histogram recorded
+</span><span id="__span-2-68"><a id="__codelineno-2-68" name="__codelineno-2-68" href="#__codelineno-2-68"></a>                redis.lpush(rl:task_durations, duration)  ← for p95 queries
+</span><span id="__span-2-69"><a id="__codelineno-2-69" name="__codelineno-2-69" href="#__codelineno-2-69"></a>                shutdown_handler.untrack_task(task_id)
+</span><span id="__span-2-70"><a id="__codelineno-2-70" name="__codelineno-2-70" href="#__codelineno-2-70"></a>                redis.zrem(rl:inflight:{worker_id}, task_id)
+</span><span id="__span-2-71"><a id="__codelineno-2-71" name="__codelineno-2-71" href="#__codelineno-2-71"></a>                PhoenixRegistry.complete(task_id):
+</span><span id="__span-2-72"><a id="__codelineno-2-72" name="__codelineno-2-72" href="#__codelineno-2-72"></a>                  Cancel _refresh_loop
+</span><span id="__span-2-73"><a id="__codelineno-2-73" name="__codelineno-2-73" href="#__codelineno-2-73"></a>                  redis.delete(rl:phoenix:{task_id})   ← payload first, closes resurrection window
+</span><span id="__span-2-74"><a id="__codelineno-2-74" name="__codelineno-2-74" href="#__codelineno-2-74"></a>                  redis.delete(rl:hb:{task_id})
+</span><span id="__span-2-75"><a id="__codelineno-2-75" name="__codelineno-2-75" href="#__codelineno-2-75"></a>                  redis.delete(rl:resurrections:{task_id})
+</span><span id="__span-2-76"><a id="__codelineno-2-76" name="__codelineno-2-76" href="#__codelineno-2-76"></a>                  redis.zrem(rl:phoenix:expiry_index, task_id)
 </span></code></pre></div>
 <h3 id="error-paths">Error paths<a class="headerlink" href="#error-paths" title="Permanent link">&para;</a></h3>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>PayloadIntegrityError (checksum mismatch)
@@ -2307,22 +2319,24 @@
 </span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>  → self.retry(countdown=5, max_retries=10)
 </span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>  → Celery backs off and retries; eventually IN_FLIGHT expires and it claims
 </span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>HardTimeoutError / asyncio.CancelledError (hard timeout)
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>TimeoutError (hard timeout exceeded)
 </span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>  → SLOMetrics.record_event(&quot;failure&quot;)
 </span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>  → DLQ.quarantine(task_id, reason=&quot;TimeoutError&quot;)
-</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>
-</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>Any other exception
-</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>  → SLOMetrics.record_event(&quot;failure&quot;)
-</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>  → DLQ.quarantine(task_id, reason=type(exc).__name__)
-</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>  → Exception re-raised (Celery sees the failure)
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>  → Re-raised as SoftTimeLimitExceeded (Celery sees the failure)
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>Any other exception
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>  → SLOMetrics.record_event(&quot;failure&quot;)
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>  → DLQ.quarantine(task_id, reason=type(exc).__name__)
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>  → Exception re-raised (Celery sees the failure)
 </span></code></pre></div>
 <hr />
 <h2 id="the-resurrection-lifecycle-in-detail">The Resurrection Lifecycle in Detail<a class="headerlink" href="#the-resurrection-lifecycle-in-detail" title="Permanent link">&para;</a></h2>
 <p>The resurrector is a long-running async process, not a scheduled job. It runs continuously:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">resurrection_loop</span><span class="p">():</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>        <span class="k">await</span> <span class="n">_scan_and_resurrect</span><span class="p">()</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>        <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">resurrection_check_interval</span><span class="p">)</span>  <span class="c1"># default: 2s</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>        <span class="k">await</span> <span class="n">_monitor_resurrected_tasks</span><span class="p">()</span>   <span class="c1"># track previously resurrected tasks</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>        <span class="k">await</span> <span class="n">_scan_and_resurrect</span><span class="p">()</span>          <span class="c1"># find new orphans and replay them</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>        <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">resurrection_check_interval</span><span class="p">)</span>  <span class="c1"># default: 2s</span>
 </span></code></pre></div>
 <h3 id="scan-step">Scan step<a class="headerlink" href="#scan-step" title="Permanent link">&para;</a></h3>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>redis.zrangebyscore(rl:phoenix:expiry_index, 0, now)
@@ -2330,7 +2344,7 @@
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>For each task_id:
 </span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>  → Check: exists(rl:hb:{task_id})
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>  → If heartbeat alive: worker is fine, update score in expiry_index, skip
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>  → If heartbeat alive: remove stale index entry (refresh loop re-adds with updated score), skip
 </span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>  → If heartbeat expired:
 </span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>      Load: hgetall(rl:phoenix:{task_id})
 </span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>      If payload missing: remove from index (task completed cleanly), skip
@@ -2359,7 +2373,7 @@
 </span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>
 </span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>AFTER broker confirms receipt (not before):
 </span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a>  → INCR rl:resurrections:{task_id}
-</span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a>  → HSET rl:monitoring task_id &quot;0&quot;
+</span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a>  → HSET rl:monitoring task_id &quot;0:{resurrected_at_timestamp}&quot;
 </span><span id="__span-6-23"><a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a>  → ZREM rl:phoenix:expiry_index task_id
 </span></code></pre></div>
 <p>The order matters: resurrection count is only incremented after the broker has confirmed the task was received. A network partition between the resurrector and broker won't inflate the count.</p>
@@ -2453,15 +2467,12 @@
 <p>The critical design constraint: in-flight sentinels use a <strong>short, bounded TTL</strong> (<code>RELIER_IDEMPOTENCY_INFLIGHT_TTL</code>, default 120 s) so a worker that is killed mid-execution cannot permanently block future duplicate calls for the full result TTL. The committed result is written with the result TTL (<code>ttl</code> argument) in a separate <code>SET</code> call.</p>
 <h3 id="commit_check_lua-verify-fence-on-success">COMMIT_CHECK_LUA (verify fence on success)<a class="headerlink" href="#commit_check_lua-verify-fence-on-success" title="Permanent link">&para;</a></h3>
 <div class="language-lua highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kd">local</span><span class="w"> </span><span class="nv">fence_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">KEYS</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="kd">local</span><span class="w"> </span><span class="nv">fence_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">ARGV</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="kd">local</span><span class="w"> </span><span class="nv">current_fence</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">redis</span><span class="p">.</span><span class="nf">call</span><span class="p">(</span><span class="s1">&#39;GET&#39;</span><span class="p">,</span><span class="w"> </span><span class="nv">fence_key</span><span class="p">)</span>
-</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="kr">if</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="nv">current_fence</span><span class="w"> </span><span class="kr">then</span>
-</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">    </span><span class="kr">return</span><span class="w"> </span><span class="mi">0</span><span class="w">  </span><span class="c1">-- fence expired — safe to commit (no competing incarnation)</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="kd">local</span><span class="w"> </span><span class="nv">expected</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">ARGV</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="kd">local</span><span class="w"> </span><span class="nv">current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">redis</span><span class="p">.</span><span class="nf">call</span><span class="p">(</span><span class="s1">&#39;GET&#39;</span><span class="p">,</span><span class="w"> </span><span class="nv">fence_key</span><span class="p">)</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="kr">if</span><span class="w"> </span><span class="nv">current</span><span class="w"> </span><span class="o">~=</span><span class="w"> </span><span class="nv">expected</span><span class="w"> </span><span class="kr">then</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">    </span><span class="kr">return</span><span class="w"> </span><span class="mi">0</span><span class="w">  </span><span class="c1">-- expired or stale: reject this commit</span>
 </span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="kr">end</span>
-</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="kr">if</span><span class="w"> </span><span class="nv">current_fence</span><span class="w"> </span><span class="o">~=</span><span class="w"> </span><span class="nv">fence_token</span><span class="w"> </span><span class="kr">then</span>
-</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">    </span><span class="kr">return</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="w">  </span><span class="c1">-- stale: a newer incarnation has taken over, reject this commit</span>
-</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="kr">end</span>
-</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="kr">return</span><span class="w"> </span><span class="mi">1</span><span class="w">  </span><span class="c1">-- valid: this incarnation still owns the task</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="kr">return</span><span class="w"> </span><span class="mi">1</span><span class="w">  </span><span class="c1">-- valid: this incarnation still owns the task</span>
 </span></code></pre></div>
 <hr />
 <h2 id="slo-burn-rate-calculation">SLO Burn Rate Calculation<a class="headerlink" href="#slo-burn-rate-calculation" title="Permanent link">&para;</a></h2>

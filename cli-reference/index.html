@@ -2534,9 +2534,7 @@ loop that every <code>resurrection_check_interval</code> seconds:
 5. Atomic Lua: mint a fence token, set <code>rl:lease:{task_id}</code> and
    <code>rl:fence:{task_id}</code>, then re-dispatch the task to the internal <code>re-queue</code>
    queue with the fence tokens injected into kwargs.</p>
-<p>The resurrector is <strong>single-instance by design</strong>. Running two does not cause
-duplicate execution (the distributed lock prevents it), but it wastes scan
-cycles.</p>
+<p>Every Celery worker also embeds a Phoenix resurrection scanner on its own event loop. <code>rl run-resurrector</code> is a dedicated additional process — distributed locks make running multiple scanners safe, and the extra coverage improves recovery latency.</p>
 <hr />
 <h2 id="rl-doctor"><code>rl doctor</code><a class="headerlink" href="#rl-doctor" title="Permanent link">&para;</a></h2>
 <p>Check the health of Relier's infrastructure dependencies (Redis, etc.) and exit with code 1 if anything is unreachable.</p>
@@ -3217,7 +3215,7 @@ any checkpoint blobs referenced by the quarantined envelopes.</p>
 </table>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-56-1"><a id="__codelineno-56-1" name="__codelineno-56-1" href="#__codelineno-56-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill
 </span><span id="__span-56-2"><a id="__codelineno-56-2" name="__codelineno-56-2" href="#__codelineno-56-2"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span>--seed<span class="w"> </span>--watch<span class="w"> </span>--watch-duration<span class="w"> </span><span class="m">60</span>
-</span><span id="__span-56-3"><a id="__codelineno-56-3" name="__codelineno-56-3" href="#__codelineno-56-3"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span>--worker<span class="w"> </span>relier-worker-1<span class="w"> </span>--seed
+</span><span id="__span-56-3"><a id="__codelineno-56-3" name="__codelineno-56-3" href="#__codelineno-56-3"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span>--worker-id<span class="w"> </span>relier-worker-1<span class="w"> </span>--seed
 </span></code></pre></div>
 <hr />
 <h3 id="rl-chaos-network-partition"><code>rl chaos network-partition</code><a class="headerlink" href="#rl-chaos-network-partition" title="Permanent link">&para;</a></h3>

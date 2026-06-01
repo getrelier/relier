@@ -1493,6 +1493,14 @@ instance).</p>
 </div>
 </div>
 </div>
+<div class="admonition note">
+<p class="admonition-title">Is the resurrector required?</p>
+<p>Every worker embeds the Phoenix scanner, so the survivors already resurrect a
+dead worker's tasks on their own. <code>rl run-resurrector</code> runs the same loop in a
+standalone process — optional for partial failures, but recommended in
+production because it's the only scanner that survives <em>all</em> workers dying at
+once. (Tasks still only re-run once a worker is back to consume the <code>re-queue</code>.)</p>
+</div>
 <h3 id="if-you-cloned-the-repo-contributing-dev">If you cloned the repo (contributing / dev)<a class="headerlink" href="#if-you-cloned-the-repo-contributing-dev" title="Permanent link">&para;</a></h3>
 <div class="language-sh highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>make<span class="w"> </span>setup<span class="w">                       </span><span class="c1"># create the venv and install Relier</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">RELIER_REDIS_URL</span><span class="o">=</span>redis://localhost:6379/0<span class="w">   </span><span class="c1"># the default; override as needed</span>

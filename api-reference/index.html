@@ -2476,7 +2476,7 @@
 <h1 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h1>
 <p>Relier exposes one decorator (<code>@rl_task</code>) and a handful of supporting types.
 Everything else is internal.</p>
-<p>The library is <strong>async-first</strong>: the orchestration layer is built on asyncio,
+<p>The library is <strong>async-first</strong>, the orchestration layer is built on asyncio,
 and every Relier worker process runs a persistent event loop that lives for the
 worker's lifetime. Your tasks can be <code>async def</code> or plain <code>def</code>, Relier
 bridges them either way. The producer-side API (<code>apush</code> / <code>push</code>) is the same
@@ -2566,11 +2566,10 @@ non-deterministic arguments (random IDs, timestamps, large blobs), use
 <p><strong>Type:</strong> <code>int</code> (seconds) <strong>Default:</strong> <code>3600</code></p>
 <p>How long to cache the result of a completed idempotent task. After this TTL
 expires, the same arguments can trigger a fresh execution.</p>
-<p><strong>Constraint:</strong> <code>idempotency_ttl</code> must be greater than <code>RELIER_IDEMPOTENCY_INFLIGHT_TTL</code>
-(default 120 s), which itself must be greater than <code>hard_timeout</code>. Relier
-validates this at decoration time and raises <code>ValueError</code> if violated. The
-reason: if the in-flight sentinel expires before the task hard-times-out,
-another worker could claim the same key and run a duplicate.</p>
+<p><strong>Constraint:</strong> <code>hard_timeout</code> must be less than <code>RELIER_IDEMPOTENCY_INFLIGHT_TTL</code>
+(default 120 s). Relier validates this at decoration time and raises <code>ValueError</code>
+if violated. The reason: if the in-flight sentinel expires before the task
+hard-times-out, another worker could claim the same key and run a duplicate.</p>
 <hr />
 <h4 id="soft_timeout"><code>soft_timeout</code><a class="headerlink" href="#soft_timeout" title="Permanent link">&para;</a></h4>
 <p><strong>Type:</strong> <code>int | None</code> (seconds) <strong>Default:</strong> <code>None</code></p>
@@ -2863,7 +2862,7 @@ only intended user of <code>.delay()</code>. <strong>In application code, always
 </tbody>
 </table>
 <h4 id="handling-admissionrejectederror">Handling <code>AdmissionRejectedError</code><a class="headerlink" href="#handling-admissionrejectederror" title="Permanent link">&para;</a></h4>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.core.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdmissionRejectedError</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdmissionRejectedError</span>
 </span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
 </span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="k">try</span><span class="p">:</span>
 </span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>    <span class="k">await</span> <span class="n">my_task</span><span class="o">.</span><span class="n">apush</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
@@ -2948,7 +2947,7 @@ that a previous incarnation wrote.</p>
 <h3 id="accessing-the-context-inside-a-task">Accessing the context inside a task<a class="headerlink" href="#accessing-the-context-inside-a-task" title="Permanent link">&para;</a></h3>
 <p>Two ways. Pick whichever fits the call site:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># 1. Inject via kwarg: Relier detects the `ctx` parameter and fills it in.</span>
-</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.context</span><span class="w"> </span><span class="kn">import</span> <span class="n">TaskContext</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier</span><span class="w"> </span><span class="kn">import</span> <span class="n">TaskContext</span>
 </span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>
 </span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="nd">@rl_task</span><span class="p">()</span>
 </span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">my_task</span><span class="p">(</span><span class="n">item_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
@@ -2957,7 +2956,7 @@ that a previous incarnation wrote.</p>
 </span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">item_id</span><span class="p">}</span>
 </span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>
 </span><span id="__span-19-10"><a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a><span class="c1"># 2. Read from the contextvar proxy: no parameter needed.</span>
-</span><span id="__span-19-11"><a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.context</span><span class="w"> </span><span class="kn">import</span> <span class="n">task_context</span>
+</span><span id="__span-19-11"><a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier</span><span class="w"> </span><span class="kn">import</span> <span class="n">task_context</span>
 </span><span id="__span-19-12"><a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a>
 </span><span id="__span-19-13"><a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a><span class="nd">@rl_task</span><span class="p">()</span>
 </span><span id="__span-19-14"><a id="__codelineno-19-14" name="__codelineno-19-14" href="#__codelineno-19-14"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">my_task</span><span class="p">(</span><span class="n">item_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
@@ -2967,7 +2966,7 @@ that a previous incarnation wrote.</p>
 </span></code></pre></div>
 <h4 id="when-to-use-the-proxy-task_context">When to use the proxy (<code>task_context</code>)<a class="headerlink" href="#when-to-use-the-proxy-task_context" title="Permanent link">&para;</a></h4>
 <p>The proxy is most useful when you need to reach the context from a <strong>helper function</strong> that the task calls, without threading <code>ctx</code> through every intermediate signature:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.context</span><span class="w"> </span><span class="kn">import</span> <span class="n">task_context</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier</span><span class="w"> </span><span class="kn">import</span> <span class="n">task_context</span>
 </span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>
 </span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">save_progress</span><span class="p">(</span><span class="n">cursor</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Called from deep inside the task; no ctx parameter needed.&quot;&quot;&quot;</span>
@@ -3057,7 +3056,7 @@ one that fits your workload.</p>
 <p>The task body itself calls <code>ctx.set_partial</code> after each unit of work. The
 soft-timeout hook is unnecessary because the latest progress is already in
 Redis when the worker dies.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.context</span><span class="w"> </span><span class="kn">import</span> <span class="n">TaskContext</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier</span><span class="w"> </span><span class="kn">import</span> <span class="n">TaskContext</span>
 </span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>
 </span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="nd">@rl_task</span><span class="p">(</span><span class="n">hard_timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
 </span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">process_items</span><span class="p">(</span><span class="n">cursor</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;start&quot;</span><span class="p">,</span> <span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
@@ -3083,7 +3082,7 @@ Redis when the worker dies.</p>
 context object, no Redis writes). The soft-timeout hook reads
 <code>ctx.metadata</code> and persists a final checkpoint just before the hard timeout
 fires.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.context</span><span class="w"> </span><span class="kn">import</span> <span class="n">TaskContext</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier</span><span class="w"> </span><span class="kn">import</span> <span class="n">TaskContext</span>
 </span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>
 </span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">save_checkpoint</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>    <span class="c1"># Reads whatever the task body recorded into ctx.metadata.</span>
@@ -3582,14 +3581,13 @@ for custom integrations.</p>
 </ul>
 <hr />
 <h2 id="exceptions">Exceptions<a class="headerlink" href="#exceptions" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-44-1"><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.core.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-44-1"><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
 </span><span id="__span-44-2"><a id="__codelineno-44-2" name="__codelineno-44-2" href="#__codelineno-44-2"></a>    <span class="n">RelierError</span><span class="p">,</span>                <span class="c1"># base class</span>
 </span><span id="__span-44-3"><a id="__codelineno-44-3" name="__codelineno-44-3" href="#__codelineno-44-3"></a>    <span class="n">IdempotencyInFlightError</span><span class="p">,</span>   <span class="c1"># another worker holds the idempotency key</span>
 </span><span id="__span-44-4"><a id="__codelineno-44-4" name="__codelineno-44-4" href="#__codelineno-44-4"></a>    <span class="n">AdmissionRejectedError</span><span class="p">,</span>     <span class="c1"># cluster at capacity (check exc.retry_after)</span>
 </span><span id="__span-44-5"><a id="__codelineno-44-5" name="__codelineno-44-5" href="#__codelineno-44-5"></a>    <span class="n">PayloadIntegrityError</span><span class="p">,</span>      <span class="c1"># checksum mismatch on received payload</span>
 </span><span id="__span-44-6"><a id="__codelineno-44-6" name="__codelineno-44-6" href="#__codelineno-44-6"></a>    <span class="n">SchemaMigrationError</span><span class="p">,</span>       <span class="c1"># migration function raised</span>
-</span><span id="__span-44-7"><a id="__codelineno-44-7" name="__codelineno-44-7" href="#__codelineno-44-7"></a>    <span class="n">HardTimeoutError</span><span class="p">,</span>           <span class="c1"># task exceeded hard_timeout</span>
-</span><span id="__span-44-8"><a id="__codelineno-44-8" name="__codelineno-44-8" href="#__codelineno-44-8"></a><span class="p">)</span>
+</span><span id="__span-44-7"><a id="__codelineno-44-7" name="__codelineno-44-7" href="#__codelineno-44-7"></a><span class="p">)</span>
 </span></code></pre></div>
 <p><code>from relier.core.checkpoint import CheckpointTooLargeError</code> raised by
 <code>ctx.set_partial(...)</code> when the checkpoint exceeds the inline limit and no
@@ -3606,7 +3604,7 @@ retry with 5-second backoff. You should not need to handle it yourself unless
 you're using <code>idempotency_lock</code> manually.</p>
 <hr />
 <h2 id="settings">Settings<a class="headerlink" href="#settings" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-46-1"><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_settings</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-46-1"><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_settings</span>
 </span><span id="__span-46-2"><a id="__codelineno-46-2" name="__codelineno-46-2" href="#__codelineno-46-2"></a>
 </span><span id="__span-46-3"><a id="__codelineno-46-3" name="__codelineno-46-3" href="#__codelineno-46-3"></a><span class="n">settings</span> <span class="o">=</span> <span class="n">get_settings</span><span class="p">()</span>
 </span><span id="__span-46-4"><a id="__codelineno-46-4" name="__codelineno-46-4" href="#__codelineno-46-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">settings</span><span class="o">.</span><span class="n">heartbeat_ttl</span><span class="p">)</span>     <span class="c1"># 10</span>

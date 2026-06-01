@@ -890,6 +890,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#manual-drain-operational-escape-hatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual drain (operational escape hatch)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1906,6 +1917,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#manual-drain-operational-escape-hatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual drain (operational escape hatch)
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1990,7 +2012,7 @@
 <p>Getting this right up front saves a lot of confusion.</p>
 <p><strong>Relier is a thin wrapper around Celery, not a replacement for it.</strong> Your workers are still plain Celery workers. Your Redis is still the broker. Your tasks still look like Celery tasks. Relier adds a lifecycle layer: heartbeat tracking, crash detection, resurrection, idempotency enforcement, timeouts, graceful shutdown, without changing your function bodies or your infrastructure.</p>
 <h3 id="not-a-workflow-engine">Not a workflow engine<a class="headerlink" href="#not-a-workflow-engine" title="Permanent link">&para;</a></h3>
-<p><a href="https://temporal.io">Temporal</a> and <a href="https://hatchet.run">Hatchet</a> are <em>workflow engines</em>. They model multi-step processes with deterministic replay, durable execution across restarts, and saga-style compensation. That is a different problem and a different programming model: you restructure your code around their execution model and deploy their server.</p>
+<p><a href="https://temporal.io">Temporal</a> and <a href="https://hatchet.run">Hatchet</a> are <em>workflow engines</em>. They model multi-step processes with deterministic replay, durable execution across restarts, and saga-style compensation. That is a different problem and a different programming model, you restructure your code around their execution model and deploy their server.</p>
 <p>Relier is not that. It handles individual task reliability, not workflow orchestration. The choice isn't "Relier vs. Temporal", it's "naked Celery vs. Relier + Celery." If you need multi-step workflows spanning hours or approval gates, reach for Temporal or Hatchet. If you have Celery tasks and want them to stop disappearing, that's Relier.</p>
 <h3 id="not-a-dag-runner">Not a DAG runner<a class="headerlink" href="#not-a-dag-runner" title="Permanent link">&para;</a></h3>
 <p><a href="https://prefect.io">Prefect</a>, <a href="https://airflow.apache.org">Airflow</a>, <a href="https://dagster.io">Dagster</a> schedule and orchestrate pipelines of <em>dependent</em> tasks. They have schedulers, UIs, backfill, and pipeline-level retry. Relier has none of that. It makes individual tasks reliable; what those tasks do and when they run is still Celery's responsibility.</p>
@@ -2114,7 +2136,7 @@ second endpoint reports status without ever blocking the loop.</p>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi.responses</span><span class="w"> </span><span class="kn">import</span> <span class="n">JSONResponse</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">celery.result</span><span class="w"> </span><span class="kn">import</span> <span class="n">AsyncResult</span>
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.core.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdmissionRejectedError</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdmissionRejectedError</span>
 </span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.app</span><span class="w"> </span><span class="kn">import</span> <span class="n">celery_app</span>
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tasks</span><span class="w"> </span><span class="kn">import</span> <span class="n">send_invoice</span>
 </span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
@@ -2156,7 +2178,7 @@ second endpoint reports status without ever blocking the loop.</p>
 <h3 id="copy-paste-flask-sync-push">Copy-paste: Flask (sync → <code>push</code>)<a class="headerlink" href="#copy-paste-flask-sync-push" title="Permanent link">&para;</a></h3>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># app.py</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">flask</span><span class="w"> </span><span class="kn">import</span> <span class="n">Flask</span><span class="p">,</span> <span class="n">jsonify</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.core.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdmissionRejectedError</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdmissionRejectedError</span>
 </span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tasks</span><span class="w"> </span><span class="kn">import</span> <span class="n">send_invoice</span>          <span class="c1"># same tasks.py as above</span>
 </span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
 </span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="n">app</span> <span class="o">=</span> <span class="n">Flask</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -2177,7 +2199,7 @@ second endpoint reports status without ever blocking the loop.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># views.py</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">django.http</span><span class="w"> </span><span class="kn">import</span> <span class="n">JsonResponse</span>
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">django.views.decorators.http</span><span class="w"> </span><span class="kn">import</span> <span class="n">require_POST</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.core.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdmissionRejectedError</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdmissionRejectedError</span>
 </span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">.tasks</span><span class="w"> </span><span class="kn">import</span> <span class="n">send_invoice</span>
 </span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
 </span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="nd">@require_POST</span>
@@ -2253,11 +2275,11 @@ rest of this page explains the <em>why</em> behind each mechanism.</p>
 <p>Steps 2–8 above only happen when your workers are started with <strong>Relier's Celery app</strong> (<code>relier.tasks.app</code>):</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>celery<span class="w"> </span>-A<span class="w"> </span>relier.tasks.app<span class="w"> </span>worker<span class="w"> </span>...
 </span></code></pre></div>
-<p>If you create your own <code>Celery()</code> instance and start workers with <code>-A your_app</code>, the worker will run the task but bypass the entire lifecycle: no heartbeating, no Phoenix registration, no idempotency enforcement, no graceful shutdown. The <code>@rl_task</code> decorator will still run, but only the dispatch-side features (admission control, signed envelope) work outside the managed worker. When in doubt, use <code>rl worker start</code> which wires everything correctly.</p>
+<p>If you create your own <code>Celery()</code> instance and start workers with <code>-A your_app</code>, the worker will run the task but bypass the entire lifecycle, no heartbeating, no Phoenix registration, no idempotency enforcement, no graceful shutdown. The <code>@rl_task</code> decorator will still run, but only the dispatch-side features (admission control, signed envelope) work outside the managed worker.</p>
 </div>
 <hr />
 <h2 id="the-phoenix-pattern-zero-job-loss">The Phoenix Pattern (Zero-Job-Loss)<a class="headerlink" href="#the-phoenix-pattern-zero-job-loss" title="Permanent link">&para;</a></h2>
-<p>This is Relier's core guarantee: <strong>no task is silently lost when a worker dies</strong>.</p>
+<p>This is Relier's core guarantee, <strong>no task is silently lost when a worker dies</strong>.</p>
 <h3 id="the-problem">The problem<a class="headerlink" href="#the-problem" title="Permanent link">&para;</a></h3>
 <p>Imagine a worker is halfway through processing a payment when it's OOM-killed by the OS. In most default Celery setups, a worker crash during execution leaves the task orphaned: it disappears from the queue without completing, with no error and no trace. The payment never completes.</p>
 <h3 id="how-phoenix-works">How Phoenix works<a class="headerlink" href="#how-phoenix-works" title="Permanent link">&para;</a></h3>
@@ -2268,25 +2290,27 @@ rest of this page explains the <em>why</em> behind each mechanism.</p>
 </span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>  → background loop refreshes heartbeat every 5s
 </span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
 </span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>Task completes
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>  → heartbeat deleted
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>  → Phoenix registry cleared
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>  → Phoenix registry cleared   ← first, to close the resurrection window
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>  → heartbeat deleted
 </span></code></pre></div>
-<p>Meanwhile, a <strong>resurrector</strong> process runs continuously, scanning for heartbeats that have expired without the payload being cleared. An expired heartbeat + existing payload = dead worker.</p>
+<p>Meanwhile, a <strong>resurrector</strong> process runs continuously, querying a sorted-set expiry index for tasks whose heartbeat timestamp has passed. If the Phoenix payload still exists and no heartbeat key is present, the worker is considered dead.</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>Resurrector scans every 2 seconds
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>  → finds rl:hb:{task_id} expired but rl:phoenix:{task_id} still exists
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>  → acquires a distributed lock (prevents duplicate resurrection)
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>  → re-queues the task to a fresh worker
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>  → logs the resurrection in rl:monitoring
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>  → queries expiry index for tasks past their heartbeat deadline
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>  → confirms rl:phoenix:{task_id} still exists (payload not cleaned up)
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>  → acquires a distributed lock (prevents duplicate resurrection)
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>  → re-queues the task onto the dedicated re-queue for recovery workers
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>  → logs the resurrection in rl:monitoring
 </span></code></pre></div>
-<p><strong>The result:</strong> the task is back in queue on a healthy worker, typically within <strong>~12 seconds</strong> of a crash (heartbeat TTL of 10s + the 2s scan interval), and within <strong>35 seconds</strong> as a conservative worst-case ceiling. The task's original arguments are preserved exactly as they were at enqueue time.</p>
+<p><strong>The result:</strong> the task is back in queue on a healthy worker. Measured p99 is <strong>8.9 seconds</strong>. The theoretical ceiling is <code>heartbeat_ttl + resurrector_scan_interval</code> = 10s + 2s = <strong>12 seconds</strong> — the resurrector catches most heartbeat expiries within one TTL window rather than waiting for the full interval. The task's original arguments are preserved exactly as they were at enqueue time.</p>
 <h3 id="the-resurrection-limit">The resurrection limit<a class="headerlink" href="#the-resurrection-limit" title="Permanent link">&para;</a></h3>
 <p>A task that consistently crashes workers is dangerous. After <code>max_resurrections</code> attempts (default: 5), Relier quarantines the task in the <a href="#dead-letter-queue">Dead Letter Queue</a> instead of re-queuing it, so it can't keep taking down workers.</p>
 <h3 id="the-resurrector-process">The resurrector process<a class="headerlink" href="#the-resurrector-process" title="Permanent link">&para;</a></h3>
-<p>The resurrector is a separate process you run alongside your workers. It's usually a single dedicated container:</p>
+<p>Every Celery worker already embeds a resurrection scanner on its own event loop — so if worker-1 dies and its scanner goes with it, worker-2 and worker-3 will still detect the orphaned tasks and re-queue them.</p>
+<p><code>rl run-resurrector</code> is a dedicated additional scanner process, recommended for production:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>rl<span class="w"> </span>run-resurrector
 </span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="c1"># or in Docker Compose: a &#39;guardian&#39; service</span>
 </span></code></pre></div>
-<p>It needs read/write access to Redis but doesn't process any task payloads it only moves them between queues.</p>
+<p>It provides coverage for the edge case where all workers die simultaneously — the only scenario where embedded scanners are not enough. Distributed locks prevent any two scanners from re-queuing the same task. It doesn't process task payloads; it only moves them between queues.</p>
 <hr />
 <h2 id="idempotency-safe-retries">Idempotency (Safe Retries)<a class="headerlink" href="#idempotency-safe-retries" title="Permanent link">&para;</a></h2>
 <p><strong>Idempotency</strong> means: calling a function multiple times with the same input produces the same result as calling it once. For tasks, it means: a task that runs twice doesn't cause side effects twice.</p>
@@ -2370,7 +2394,7 @@ rest of this page explains the <em>why</em> behind each mechanism.</p>
 <p class="admonition-title">Always set <code>hard_timeout</code>: omitting it does not mean no timeout</p>
 <p>When <code>hard_timeout</code> is not set, Relier's internal async bridge applies a <strong>300-second fallback</strong> deadline. After 300 s the bridge raises <code>TimeoutError</code> and Celery marks the task failed, but the coroutine may still be running in the background until its next <code>await</code> checkpoint. Always set <code>hard_timeout</code> to match your task's expected worst-case duration. See <a href="../api-reference/#hard_timeout">API reference → <code>hard_timeout</code></a> and <a href="../troubleshooting/">Troubleshooting → Async bridge timeout</a> for details.</p>
 </div>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier.tasks.context</span><span class="w"> </span><span class="kn">import</span> <span class="n">TaskContext</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">relier</span><span class="w"> </span><span class="kn">import</span> <span class="n">TaskContext</span>
 </span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
 </span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">save_progress</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span> <span class="n">TaskContext</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Called at soft timeout. You have (hard - soft) seconds to clean up.&quot;&quot;&quot;</span>
@@ -2501,12 +2525,15 @@ full lifecycle.</p>
 <h2 id="graceful-shutdown">Graceful Shutdown<a class="headerlink" href="#graceful-shutdown" title="Permanent link">&para;</a></h2>
 <p>Every production system restarts workers eventually, deploys, autoscaling, Kubernetes node rotation. Vanilla Celery's <code>SIGTERM</code> handler drops all in-flight tasks immediately. Relier's doesn't.</p>
 <h3 id="what-happens-when-relier-receives-sigterm">What happens when Relier receives <code>SIGTERM</code><a class="headerlink" href="#what-happens-when-relier-receives-sigterm" title="Permanent link">&para;</a></h3>
+<p>Relier intercepts <code>SIGTERM</code> and <code>SIGINT</code> automatically at worker startup, no code changes or manual commands required. When the OS, Kubernetes, or your process manager sends a signal, the drain sequence runs immediately:</p>
 <ol>
 <li><strong>Drain mode</strong>: the worker stops accepting new tasks from the queue.</li>
 <li><strong>Wait</strong>: Relier waits up to <code>graceful_shutdown_timeout</code> seconds (default: 30) for running tasks to finish.</li>
 <li><strong>Handoff</strong>: tasks that won't finish in time have their heartbeats deleted. The resurrector picks them up on the next scan and re-queues them on a different worker.</li>
 <li><strong>Clean exit</strong>: zero tasks dropped.</li>
 </ol>
+<h3 id="manual-drain-operational-escape-hatch">Manual drain (operational escape hatch)<a class="headerlink" href="#manual-drain-operational-escape-hatch" title="Permanent link">&para;</a></h3>
+<p><code>rl worker drain</code> triggers the same sequence remotely, without sending a signal yourself. Use it when you want to pull a specific worker out of a pool. For example, before maintenance or a targeted rollout, without touching the process directly:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>$<span class="w"> </span>rl<span class="w"> </span>worker<span class="w"> </span>drain<span class="w"> </span>rl-worker-2
 </span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>Initiating<span class="w"> </span>drain<span class="w"> </span>sequence:<span class="w"> </span>rl-worker-2
 </span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>Signal<span class="w"> </span>broadcasted.
@@ -2645,7 +2672,7 @@ a <code>Retry-After</code> header. Here it is in all three frameworks:</p>
 <p>Old payloads in the queue are automatically migrated when picked up. No failed tasks, no manual intervention, no deploy window restrictions. Full reference: <a href="../api-reference/#schemaregistry">API → <code>SchemaRegistry</code></a>.</p>
 <hr />
 <h2 id="slo-burn-rate-monitoring">SLO Burn Rate Monitoring<a class="headerlink" href="#slo-burn-rate-monitoring" title="Permanent link">&para;</a></h2>
-<p>Relier tracks your task delivery rate against a target SLO (default: 99.9%). It calculates <strong>burn rates</strong> across multiple rolling windows using the same model as Google SRE:</p>
+<p>Relier tracks your task delivery rate against a target SLO (default: 99.9%). It calculates <strong>burn rates</strong> across multiple rolling windows using the model from <a href="https://sre.google/workbook/alerting-on-slos/">Google's SRE Workbook</a>:</p>
 <table>
 <thead>
 <tr>
@@ -2672,7 +2699,7 @@ a <code>Retry-After</code> header. Here it is in all three frameworks:</p>
 </tr>
 <tr>
 <td><code>14.4×</code></td>
-<td>Budget exhausted in 2 hours, critical</td>
+<td>Budget exhausted in ~2 days if sustained — critical threshold</td>
 </tr>
 </tbody>
 </table>

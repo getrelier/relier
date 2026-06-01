@@ -1154,6 +1154,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Prerequisites">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#register-the-chaos-target-tasks-on-your-worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Register the chaos target tasks on your worker
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#two-scenarios-additionally-require-docker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two scenarios additionally require Docker
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#scenarios" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1379,6 +1418,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Prerequisites">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#register-the-chaos-target-tasks-on-your-worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Register the chaos target tasks on your worker
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#two-scenarios-additionally-require-docker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Two scenarios additionally require Docker
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#scenarios" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1553,10 +1631,78 @@
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span>--seed<span class="w"> </span>--watch<span class="w"> </span>--watch-duration<span class="w"> </span><span class="m">60</span>
 </span></code></pre></div>
 <hr />
+<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
+<p>The chaos suite ships inside the installed package, <code>rl chaos</code> is available from any <code>pip install relier</code>. You do not need a repo clone. What each scenario needs <em>at runtime</em> differs, and getting this wrong is the most common reason a scenario appears to "do nothing".</p>
+<h3 id="register-the-chaos-target-tasks-on-your-worker">Register the chaos target tasks on your worker<a class="headerlink" href="#register-the-chaos-target-tasks-on-your-worker" title="Permanent link">&para;</a></h3>
+<p>Every scenario except <code>network-partition</code> dispatches a task from <code>relier.chaos.tasks</code> (<code>chaos_noop</code> for <code>load-spike</code> and <code>task-corrupt</code>, <code>chaos_slow</code> for <code>slow-task</code>, <code>chaos_long_running</code> for <code>worker-kill --seed</code>). The default worker command does <strong>not</strong> import this module, so a worker started without it will log:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Received unregistered task of type &#39;relier.chaos.tasks.…&#39;.
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>The message has been ignored and discarded.
+</span></code></pre></div>
+<p>and the scenario will appear to run but nothing happens on the worker. Start your worker with <code>--include=relier.chaos.tasks</code>:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Linux / macOS</label><label for="__tabbed_1_2">Windows (PowerShell)</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>celery<span class="w"> </span>-A<span class="w"> </span>relier.tasks.app<span class="w"> </span>worker<span class="w"> </span>-l<span class="w"> </span>info<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>-Q<span class="w"> </span>high_priority,default,low_priority,re-queue<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span>--include<span class="o">=</span>relier.chaos.tasks
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-powershell highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c"># --pool=solo is required on Windows; prefork&#39;s named-pipe IPC crashes under spawn.</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">celery</span> <span class="n">-A</span> <span class="n">relier</span><span class="p">.</span><span class="n">tasks</span><span class="p">.</span><span class="n">app</span> <span class="n">worker</span> <span class="n">-l</span> <span class="n">info</span> <span class="n">-Q</span> <span class="n">high_priority</span><span class="p">,</span><span class="k">default</span><span class="p">,</span><span class="n">low_priority</span><span class="p">,</span><span class="n">re-queue</span> <span class="p">-</span><span class="n">-include</span><span class="p">=</span><span class="n">relier</span><span class="p">.</span><span class="n">chaos</span><span class="p">.</span><span class="n">tasks</span> <span class="p">-</span><span class="n">-pool</span><span class="p">=</span><span class="n">solo</span>
+</span></code></pre></div>
+</div>
+</div>
+</div>
+<h3 id="two-scenarios-additionally-require-docker">Two scenarios additionally require Docker<a class="headerlink" href="#two-scenarios-additionally-require-docker" title="Permanent link">&para;</a></h3>
+<p><code>worker-kill</code> and <code>network-partition</code> act on containers through the Docker CLI (<code>docker kill</code>, <code>docker network disconnect</code>). They only work against the <code>make dev</code> Compose stack. On bare-metal workers they find no containers and exit early without doing anything. This is not Windows-specific, these two are Docker-only on <strong>every</strong> platform.</p>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th style="text-align: center;">Needs Docker</th>
+<th style="text-align: center;">Needs <code>--include=relier.chaos.tasks</code></th>
+<th style="text-align: center;">Bare metal (incl. Windows)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>worker-kill</code></td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">Yes (for <code>--seed</code>)</td>
+<td style="text-align: center;">No</td>
+</tr>
+<tr>
+<td><code>network-partition</code></td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">No</td>
+<td style="text-align: center;">No</td>
+</tr>
+<tr>
+<td><code>load-spike</code></td>
+<td style="text-align: center;">No</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">Yes</td>
+</tr>
+<tr>
+<td><code>slow-task</code></td>
+<td style="text-align: center;">No</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">Yes</td>
+</tr>
+<tr>
+<td><code>task-corrupt</code></td>
+<td style="text-align: center;">No</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">Yes</td>
+</tr>
+</tbody>
+</table>
+<hr />
 <h2 id="scenarios">Scenarios<a class="headerlink" href="#scenarios" title="Permanent link">&para;</a></h2>
 <h3 id="rl-chaos-worker-kill-kill-a-worker-process"><code>rl chaos worker-kill</code>, Kill a worker process<a class="headerlink" href="#rl-chaos-worker-kill-kill-a-worker-process" title="Permanent link">&para;</a></h3>
 <p>The most fundamental chaos test. Terminates a Celery worker with <code>SIGKILL</code> (not <code>SIGTERM</code>, this is an unclean death with no graceful shutdown). The goal is to confirm Phoenix resurrects any task the worker was running.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -1595,15 +1741,15 @@
 </tbody>
 </table>
 <p><strong>The full test: seed, kill, watch:</strong></p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span>--seed<span class="w"> </span>--watch<span class="w"> </span>--watch-duration<span class="w"> </span><span class="m">60</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span>--seed<span class="w"> </span>--watch<span class="w"> </span>--watch-duration<span class="w"> </span><span class="m">60</span>
 </span></code></pre></div>
 <p>You should see output like:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>SEED  Dispatched 30s long-running task. marker=chaos-kill-seed-a3f9c1
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>CHAOS Worker terminated.
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>WATCH Streaming resurrection events for 60s...
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>  -&gt; task_abc123: RESURRECTED (awaiting pickup)
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>  -&gt; task_abc123: ALIVE (revived by replacement worker)
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>WATCH Done. 1 task(s) observed in monitor.
+<div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>SEED  Dispatched 30s long-running task. marker=chaos-kill-seed-a3f9c1
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>CHAOS Worker terminated.
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>WATCH Streaming resurrection events for 60s...
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>  -&gt; task_abc123: RESURRECTED (awaiting pickup)
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>  -&gt; task_abc123: ALIVE (revived by replacement worker)
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>WATCH Done. 1 task(s) observed in monitor.
 </span></code></pre></div>
 <p><strong>What to verify:</strong></p>
 <ul>
@@ -1639,51 +1785,11 @@
 <p>The kill step uses <code>docker ps</code> and <code>docker kill</code> to find and terminate worker containers. It <strong>only works</strong> when the stack is running via <code>make dev</code>. On bare-metal workers, the Docker commands will find no containers and exit early without killing anything.</p>
 <p>If you see the message <em>"No worker container was killed"</em>, the stack is not running under Docker.</p>
 </div>
-<p><strong>Running chaos scenarios with bare-metal workers:</strong></p>
-<p>The <code>--seed</code> flag dispatches <code>relier.chaos.tasks.chaos_long_running</code> to the broker. This module is not imported by the default worker start command, so bare-metal workers will log:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Received unregistered task of type &#39;relier.chaos.tasks.chaos_long_running&#39;.
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>The message has been ignored and discarded.
-</span></code></pre></div>
-<p>To include chaos tasks on a bare-metal worker, add <code>--include=relier.chaos.tasks</code>:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>celery<span class="w"> </span>-A<span class="w"> </span>relier.tasks.app<span class="w"> </span>worker<span class="w"> </span>-l<span class="w"> </span>info<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>-Q<span class="w"> </span>high_priority,default,low_priority,re-queue<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>--include<span class="o">=</span>relier.chaos.tasks
-</span></code></pre></div>
-<p>Note that even with chaos tasks registered, <strong>the kill step will still not work on bare metal</strong>; only the scenarios that do not rely on Docker (<code>load-spike</code>, <code>slow-task</code>, <code>task-corrupt</code>) work without the Docker dev stack.</p>
-<table>
-<thead>
-<tr>
-<th>Scenario</th>
-<th>Works on bare metal?</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>worker-kill</code></td>
-<td>No: requires Docker</td>
-</tr>
-<tr>
-<td><code>network-partition</code></td>
-<td>No: requires Docker</td>
-</tr>
-<tr>
-<td><code>load-spike</code></td>
-<td>Yes</td>
-</tr>
-<tr>
-<td><code>slow-task</code></td>
-<td>Yes</td>
-</tr>
-<tr>
-<td><code>task-corrupt</code></td>
-<td>Yes</td>
-</tr>
-</tbody>
-</table>
+<p><strong>On bare metal:</strong> the <code>--seed</code> flag dispatches <code>relier.chaos.tasks.chaos_long_running</code>, which your worker must have registered (<code>--include=relier.chaos.tasks</code>, see <a href="#prerequisites">Prerequisites</a>) or it is silently discarded as an unregistered task. The kill step itself still requires Docker, as noted above, so <code>worker-kill</code> cannot complete on bare metal even with the tasks registered.</p>
 <hr />
 <h3 id="rl-chaos-network-partition-isolate-redis-from-workers"><code>rl chaos network-partition</code>, Isolate Redis from workers<a class="headerlink" href="#rl-chaos-network-partition-isolate-redis-from-workers" title="Permanent link">&para;</a></h3>
 <p>Simulates a network partition between the workers and Redis for a fixed duration. This tests two things: that workers handle Redis unavailability gracefully (they should), and that they recover correctly when connectivity is restored.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>network-partition<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>network-partition<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -1701,7 +1807,7 @@
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>network-partition<span class="w"> </span>--secs<span class="w"> </span><span class="m">20</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>network-partition<span class="w"> </span>--secs<span class="w"> </span><span class="m">20</span>
 </span></code></pre></div>
 <p><strong>What to verify:</strong></p>
 <ul>
@@ -1733,7 +1839,7 @@
 <hr />
 <h3 id="rl-chaos-load-spike-flood-the-dispatch-path"><code>rl chaos load-spike</code>, Flood the dispatch path<a class="headerlink" href="#rl-chaos-load-spike-flood-the-dispatch-path" title="Permanent link">&para;</a></h3>
 <p>Generates a burst of dispatch requests to exercise admission control. Tasks are sent via <code>apush()</code> so the full admission control path runs.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>load-spike<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>load-spike<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -1756,10 +1862,10 @@
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>load-spike<span class="w"> </span>--rps<span class="w"> </span><span class="m">2000</span><span class="w"> </span>--duration<span class="w"> </span><span class="m">10</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>load-spike<span class="w"> </span>--rps<span class="w"> </span><span class="m">2000</span><span class="w"> </span>--duration<span class="w"> </span><span class="m">10</span>
 </span></code></pre></div>
 <p>Output:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>CHAOS Load spike of 2000 RPS finished — accepted=5000 rejected=14983 errored=0
+<div class="language-text highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>CHAOS Load spike of 2000 RPS finished — accepted=5000 rejected=14983 errored=0
 </span></code></pre></div>
 <p><strong>What to verify:</strong></p>
 <ul>
@@ -1769,12 +1875,12 @@
 <li>No <code>errored</code> count, errors indicate exceptions outside of admission control (Redis unavailable, etc.).</li>
 </ul>
 <p><strong>Checking admission status during the spike:</strong></p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>rl<span class="w"> </span>admission<span class="w"> </span>status
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>rl<span class="w"> </span>admission<span class="w"> </span>status
 </span></code></pre></div>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>Admission Control Status
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
-</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>Status: SHEDDING (5001/5000, 100.0%)
-</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>Window: 10s
+<div class="language-text highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>Admission Control Status
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>Status: SHEDDING (5001/5000, 100.0%)
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>Window: 10s
 </span></code></pre></div>
 <p><strong>What could go wrong:</strong></p>
 <table>
@@ -1802,10 +1908,10 @@
 <hr />
 <h3 id="rl-chaos-task-corrupt-inject-a-poison-pill"><code>rl chaos task-corrupt</code>, Inject a poison pill<a class="headerlink" href="#rl-chaos-task-corrupt-inject-a-poison-pill" title="Permanent link">&para;</a></h3>
 <p>Injects a malformed task envelope directly into the queue, one with a bad checksum. When a worker picks this up, the payload integrity check fails and the task is sent to the DLQ immediately, without executing.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>task-corrupt
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>task-corrupt
 </span></code></pre></div>
 <p>Output:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>CHAOS Poison pill injected — expect a DLQ quarantine.
+<div class="language-text highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>CHAOS Poison pill injected — expect a DLQ quarantine.
 </span></code></pre></div>
 <p><strong>What to verify:</strong></p>
 <ul>
@@ -1814,12 +1920,12 @@
 <li>No task code was executed, a corrupted payload must never run.</li>
 <li>The rest of the cluster continues processing normally, one bad task should not affect other workers.</li>
 </ul>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># After running task-corrupt:</span>
-</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>rl<span class="w"> </span>dlq<span class="w"> </span>list
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># After running task-corrupt:</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>rl<span class="w"> </span>dlq<span class="w"> </span>list
 </span></code></pre></div>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>ID              TASK               RESURRECTIONS  QUARANTINED_AT       LAST_ERROR
-</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>───────────────────────────────────────────────────────────────────────────────────────────
-</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>task_f8a2b1     (corrupted)        0/5            2026-05-20 14:22     PayloadIntegrityError
+<div class="language-text highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>ID              TASK               RESURRECTIONS  QUARANTINED_AT       LAST_ERROR
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>───────────────────────────────────────────────────────────────────────────────────────────
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>task_f8a2b1     (corrupted)        0/5            2026-05-20 14:22     PayloadIntegrityError
 </span></code></pre></div>
 <p><strong>What could go wrong:</strong></p>
 <table>
@@ -1843,7 +1949,7 @@
 <hr />
 <h3 id="rl-chaos-slow-task-trigger-timeout-enforcement"><code>rl chaos slow-task</code>, Trigger timeout enforcement<a class="headerlink" href="#rl-chaos-slow-task-trigger-timeout-enforcement" title="Permanent link">&para;</a></h3>
 <p>Dispatches a task that sleeps for longer than the configured <code>hard_timeout</code>. This exercises the full timeout path: soft timeout fires, cleanup hook runs (if configured), hard timeout fires, task is cancelled, and the task ends up in the DLQ.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>slow-task<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>slow-task<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -1861,22 +1967,22 @@
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>slow-task<span class="w"> </span>--duration<span class="w"> </span><span class="m">60</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>slow-task<span class="w"> </span>--duration<span class="w"> </span><span class="m">60</span>
 </span></code></pre></div>
 <p>Output:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>CHAOS Slow task (60s) dispatched. marker=chaos-slow-abc123
+<div class="language-text highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>CHAOS Slow task (60s) dispatched. marker=chaos-slow-abc123
 </span></code></pre></div>
 <p><strong>What to verify:</strong></p>
 <ul>
 <li>If <code>RELIER_SOFT_TIMEOUT</code> is set (default: 25s), the soft timeout fires and any cleanup hook runs.</li>
 <li>At <code>RELIER_HARD_TIMEOUT</code> (default: 30s), the task is unconditionally cancelled.</li>
-<li>The task appears in <code>rl dlq list</code> with <code>reason: HardTimeoutError</code>.</li>
+<li>The task appears in <code>rl dlq list</code> with <code>reason: TimeoutError</code>.</li>
 <li>The worker that ran the task is still alive and accepting new work, a timed-out task must not bring down the worker.</li>
 </ul>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># Watch for the quarantine:</span>
-</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>rl<span class="w"> </span>tasks<span class="w"> </span>inflight<span class="w"> </span>--follow
-</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="c1"># Then:</span>
-</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>rl<span class="w"> </span>dlq<span class="w"> </span>list
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># Watch for the quarantine:</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>rl<span class="w"> </span>tasks<span class="w"> </span>inflight<span class="w"> </span>--follow
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="c1"># Then:</span>
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>rl<span class="w"> </span>dlq<span class="w"> </span>list
 </span></code></pre></div>
 <p><strong>What could go wrong:</strong></p>
 <table>
@@ -1905,24 +2011,24 @@
 <h2 id="composing-chaos-tests">Composing chaos tests<a class="headerlink" href="#composing-chaos-tests" title="Permanent link">&para;</a></h2>
 <p>These scenarios are more useful in combination. Some things worth testing:</p>
 <h3 id="can-phoenix-handle-multiple-simultaneous-worker-deaths">Can Phoenix handle multiple simultaneous worker deaths?<a class="headerlink" href="#can-phoenix-handle-multiple-simultaneous-worker-deaths" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># Scale to 4 workers first</span>
-</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>rl<span class="w"> </span>cluster<span class="w"> </span>scale<span class="w"> </span><span class="m">4</span>
-</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>
-</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="c1"># Kill them all and watch</span>
-</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span>--seed<span class="w"> </span>--seed-duration<span class="w"> </span><span class="m">60</span><span class="w"> </span>--watch<span class="w"> </span>--watch-duration<span class="w"> </span><span class="m">120</span>
-</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span>--seed<span class="w"> </span>--seed-duration<span class="w"> </span><span class="m">60</span>
-</span><span id="__span-21-7"><a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span>--seed<span class="w"> </span>--seed-duration<span class="w"> </span><span class="m">60</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="c1"># Scale to 4 workers first</span>
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>rl<span class="w"> </span>cluster<span class="w"> </span>scale<span class="w"> </span><span class="m">4</span>
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>
+</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="c1"># Kill them all and watch</span>
+</span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span>--seed<span class="w"> </span>--seed-duration<span class="w"> </span><span class="m">60</span><span class="w"> </span>--watch<span class="w"> </span>--watch-duration<span class="w"> </span><span class="m">120</span>
+</span><span id="__span-22-6"><a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span>--seed<span class="w"> </span>--seed-duration<span class="w"> </span><span class="m">60</span>
+</span><span id="__span-22-7"><a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill<span class="w"> </span>--seed<span class="w"> </span>--seed-duration<span class="w"> </span><span class="m">60</span>
 </span></code></pre></div>
 <p>Check that all seeded tasks are resurrected, and that the resurrection batch size (<code>RELIER_RESURRECTION_BATCH_SIZE</code>) doesn't become a bottleneck.</p>
 <h3 id="does-admission-control-hold-during-a-load-spike-after-a-worker-kill">Does admission control hold during a load spike after a worker kill?<a class="headerlink" href="#does-admission-control-hold-during-a-load-spike-after-a-worker-kill" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="c1"># Kill a worker to reduce capacity</span>
-</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill
-</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>
-</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="c1"># Immediately spike load</span>
-</span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>rl<span class="w"> </span>chaos<span class="w"> </span>load-spike<span class="w"> </span>--rps<span class="w"> </span><span class="m">1000</span><span class="w"> </span>--duration<span class="w"> </span><span class="m">30</span>
-</span><span id="__span-22-6"><a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>
-</span><span id="__span-22-7"><a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="c1"># Check that rejection is happening at the right rate</span>
-</span><span id="__span-22-8"><a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a>rl<span class="w"> </span>admission<span class="w"> </span>status
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="c1"># Kill a worker to reduce capacity</span>
+</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill
+</span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>
+</span><span id="__span-23-4"><a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="c1"># Immediately spike load</span>
+</span><span id="__span-23-5"><a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>rl<span class="w"> </span>chaos<span class="w"> </span>load-spike<span class="w"> </span>--rps<span class="w"> </span><span class="m">1000</span><span class="w"> </span>--duration<span class="w"> </span><span class="m">30</span>
+</span><span id="__span-23-6"><a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>
+</span><span id="__span-23-7"><a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="c1"># Check that rejection is happening at the right rate</span>
+</span><span id="__span-23-8"><a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a>rl<span class="w"> </span>admission<span class="w"> </span>status
 </span></code></pre></div>
 <h3 id="does-idempotency-survive-a-resurrection">Does idempotency survive a resurrection?<a class="headerlink" href="#does-idempotency-survive-a-resurrection" title="Permanent link">&para;</a></h3>
 <p>If a task is <code>idempotent=True</code> and gets resurrected:</p>
@@ -1934,20 +2040,20 @@
 <hr />
 <h2 id="watching-the-cluster-during-chaos">Watching the cluster during chaos<a class="headerlink" href="#watching-the-cluster-during-chaos" title="Permanent link">&para;</a></h2>
 <p>These commands are useful to run alongside chaos scenarios:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="c1"># Live view of running tasks (refreshes every 2s)</span>
-</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>rl<span class="w"> </span>tasks<span class="w"> </span>inflight<span class="w"> </span>--follow
-</span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>
-</span><span id="__span-23-4"><a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="c1"># SLO burn rate: goes up during chaos</span>
-</span><span id="__span-23-5"><a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>rl<span class="w"> </span>slo<span class="w"> </span>status
-</span><span id="__span-23-6"><a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>
-</span><span id="__span-23-7"><a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="c1"># DLQ: tasks that didn&#39;t survive</span>
-</span><span id="__span-23-8"><a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a>rl<span class="w"> </span>dlq<span class="w"> </span>list
-</span><span id="__span-23-9"><a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a>
-</span><span id="__span-23-10"><a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a><span class="c1"># Worker status: which workers are alive</span>
-</span><span id="__span-23-11"><a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a>rl<span class="w"> </span>worker<span class="w"> </span>status
-</span><span id="__span-23-12"><a id="__codelineno-23-12" name="__codelineno-23-12" href="#__codelineno-23-12"></a>
-</span><span id="__span-23-13"><a id="__codelineno-23-13" name="__codelineno-23-13" href="#__codelineno-23-13"></a><span class="c1"># Admission control pressure</span>
-</span><span id="__span-23-14"><a id="__codelineno-23-14" name="__codelineno-23-14" href="#__codelineno-23-14"></a>rl<span class="w"> </span>admission<span class="w"> </span>status
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="c1"># Live view of running tasks (refreshes every 2s)</span>
+</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>rl<span class="w"> </span>tasks<span class="w"> </span>inflight<span class="w"> </span>--follow
+</span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>
+</span><span id="__span-24-4"><a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="c1"># SLO burn rate: goes up during chaos</span>
+</span><span id="__span-24-5"><a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a>rl<span class="w"> </span>slo<span class="w"> </span>status
+</span><span id="__span-24-6"><a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a>
+</span><span id="__span-24-7"><a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a><span class="c1"># DLQ: tasks that didn&#39;t survive</span>
+</span><span id="__span-24-8"><a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a>rl<span class="w"> </span>dlq<span class="w"> </span>list
+</span><span id="__span-24-9"><a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a>
+</span><span id="__span-24-10"><a id="__codelineno-24-10" name="__codelineno-24-10" href="#__codelineno-24-10"></a><span class="c1"># Worker status: which workers are alive</span>
+</span><span id="__span-24-11"><a id="__codelineno-24-11" name="__codelineno-24-11" href="#__codelineno-24-11"></a>rl<span class="w"> </span>worker<span class="w"> </span>status
+</span><span id="__span-24-12"><a id="__codelineno-24-12" name="__codelineno-24-12" href="#__codelineno-24-12"></a>
+</span><span id="__span-24-13"><a id="__codelineno-24-13" name="__codelineno-24-13" href="#__codelineno-24-13"></a><span class="c1"># Admission control pressure</span>
+</span><span id="__span-24-14"><a id="__codelineno-24-14" name="__codelineno-24-14" href="#__codelineno-24-14"></a>rl<span class="w"> </span>admission<span class="w"> </span>status
 </span></code></pre></div>
 <hr />
 <h2 id="interpreting-results">Interpreting results<a class="headerlink" href="#interpreting-results" title="Permanent link">&para;</a></h2>

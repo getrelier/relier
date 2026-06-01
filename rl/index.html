@@ -1493,14 +1493,13 @@
 <ul>
 <li><code>rl dlq list</code>: List quarantined tasks in the DLQ.</li>
 <li><code>rl dlq inspect &lt;task_id&gt;</code>: View full DLQ payload and error context.</li>
-<li><code>rl dlq retry &lt;task_id&gt;</code>: Re-submit a quarantined task to its original queue.</li>
+<li><code>rl dlq release &lt;task_id&gt;</code>: Re-submit a quarantined task to its original queue.</li>
 <li><code>rl dlq purge --confirm</code>: Permanently delete all DLQ entries.</li>
 </ul>
 <h2 id="reliability-resurrector">Reliability &amp; Resurrector<a class="headerlink" href="#reliability-resurrector" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>rl resurrect [--interval &lt;seconds&gt;]</code>: Start the Phoenix resurrector loop.</li>
-<li><code>rl run-resurrector [--interval &lt;seconds&gt;]</code>: Alias for <code>rl resurrect</code>.</li>
-<li><code>rl doctor</code>: Check Redis, PostgreSQL, and cluster dependency health.</li>
+<li><code>rl run-resurrector [--interval &lt;seconds&gt;]</code>: Start the dedicated Phoenix resurrector process.</li>
+<li><code>rl doctor</code>: Check Redis and cluster dependency health.</li>
 <li><code>rl bench</code>: Run a local benchmark to measure Relier overhead.</li>
 </ul>
 <h2 id="admission-control">Admission Control<a class="headerlink" href="#admission-control" title="Permanent link">&para;</a></h2>
@@ -1535,11 +1534,11 @@
 <p>Inspect a quarantined task:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>rl<span class="w"> </span>tasks<span class="w"> </span>inspect<span class="w"> </span>5df7f30a-8404-41e1-bb80-6d480771f13f
 </span></code></pre></div>
-<p>Retry a DLQ task:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>rl<span class="w"> </span>dlq<span class="w"> </span>retry<span class="w"> </span>5df7f30a-8404-41e1-bb80-6d480771f13f
+<p>Release a DLQ task:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>rl<span class="w"> </span>dlq<span class="w"> </span>release<span class="w"> </span>5df7f30a-8404-41e1-bb80-6d480771f13f
 </span></code></pre></div>
 <p>Start the resurrector with a custom interval:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>rl<span class="w"> </span>resurrect<span class="w"> </span>--interval<span class="w"> </span><span class="m">10</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>rl<span class="w"> </span>run-resurrector<span class="w"> </span>--interval<span class="w"> </span><span class="m">10</span>
 </span></code></pre></div>
 <p>Run a chaos worker kill:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>rl<span class="w"> </span>chaos<span class="w"> </span>worker-kill

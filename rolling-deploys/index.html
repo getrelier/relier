@@ -1528,7 +1528,7 @@
 
 
 <h1 id="rolling-deploys-schema-migrations">Rolling Deploys &amp; Schema Migrations<a class="headerlink" href="#rolling-deploys-schema-migrations" title="Permanent link">&para;</a></h1>
-<p>A rolling deploy means new code goes out gradually: half your workers run the
+<p>A rolling deploy means new code goes out gradually, half your workers run the
 new version while the other half still run the old one, and Redis holds tasks
 enqueued by <em>either</em>. If the new code changes a task's argument shape, the
 deploy can produce silently failing tasks unless you migrate the schema.</p>
