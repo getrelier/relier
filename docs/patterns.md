@@ -78,7 +78,7 @@ the latest progress is in Redis the moment the worker dies, so even a `SIGKILL`
 loses at most one item.
 
 ```python
-from relier.tasks.context import TaskContext
+from relier import TaskContext
 
 @rl_task(hard_timeout=60)
 async def reprocess_items(start_cursor: str = "0", ctx: TaskContext = None) -> dict:
@@ -102,7 +102,7 @@ no Redis traffic). A soft-timeout hook reads `ctx.metadata` and persists a
 single checkpoint just before the hard timeout fires.
 
 ```python
-from relier.tasks.context import TaskContext
+from relier import TaskContext
 
 async def save_progress(ctx: TaskContext) -> None:
     # ctx.metadata holds whatever the task body wrote into it.
@@ -296,7 +296,7 @@ Always handle `AdmissionRejectedError` at your API boundary. The client
 deserves to know it should retry, and when.
 
 ```python
-from relier.core.exceptions import AdmissionRejectedError
+from relier import AdmissionRejectedError
 
 @app.post("/tasks/submit")
 async def submit(req: TaskRequest):
@@ -328,7 +328,7 @@ async def with_ctx(item_id: str, ctx: TaskContext) -> None:
     print(ctx.task_id)
 
 # B) Read it from the contextvar proxy
-from relier.tasks.context import task_context
+from relier import task_context
 @rl_task()
 async def with_proxy(item_id: str) -> None:
     print(task_context.task_id)

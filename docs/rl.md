@@ -26,14 +26,13 @@ Global options:
 
 - `rl dlq list`: List quarantined tasks in the DLQ.
 - `rl dlq inspect <task_id>`: View full DLQ payload and error context.
-- `rl dlq retry <task_id>`: Re-submit a quarantined task to its original queue.
+- `rl dlq release <task_id>`: Re-submit a quarantined task to its original queue.
 - `rl dlq purge --confirm`: Permanently delete all DLQ entries.
 
 ## Reliability & Resurrector
 
-- `rl resurrect [--interval <seconds>]`: Start the Phoenix resurrector loop.
-- `rl run-resurrector [--interval <seconds>]`: Alias for `rl resurrect`.
-- `rl doctor`: Check Redis, PostgreSQL, and cluster dependency health.
+- `rl run-resurrector [--interval <seconds>]`: Start the dedicated Phoenix resurrector process.
+- `rl doctor`: Check Redis and cluster dependency health.
 - `rl bench`: Run a local benchmark to measure Relier overhead.
 
 ## Admission Control
@@ -75,16 +74,16 @@ Inspect a quarantined task:
 rl tasks inspect 5df7f30a-8404-41e1-bb80-6d480771f13f
 ```
 
-Retry a DLQ task:
+Release a DLQ task:
 
 ```bash
-rl dlq retry 5df7f30a-8404-41e1-bb80-6d480771f13f
+rl dlq release 5df7f30a-8404-41e1-bb80-6d480771f13f
 ```
 
 Start the resurrector with a custom interval:
 
 ```bash
-rl resurrect --interval 10
+rl run-resurrector --interval 10
 ```
 
 Run a chaos worker kill:

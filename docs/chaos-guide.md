@@ -20,6 +20,50 @@ rl chaos worker-kill --seed --watch --watch-duration 60
 
 ---
 
+## Prerequisites
+
+The chaos suite ships inside the installed package, `rl chaos` is available from any `pip install relier`. You do not need a repo clone. What each scenario needs *at runtime* differs, and getting this wrong is the most common reason a scenario appears to "do nothing".
+
+### Register the chaos target tasks on your worker
+
+Every scenario except `network-partition` dispatches a task from `relier.chaos.tasks` (`chaos_noop` for `load-spike` and `task-corrupt`, `chaos_slow` for `slow-task`, `chaos_long_running` for `worker-kill --seed`). The default worker command does **not** import this module, so a worker started without it will log:
+
+```
+Received unregistered task of type 'relier.chaos.tasks.…'.
+The message has been ignored and discarded.
+```
+
+and the scenario will appear to run but nothing happens on the worker. Start your worker with `--include=relier.chaos.tasks`:
+
+=== "Linux / macOS"
+
+    ```bash
+    celery -A relier.tasks.app worker -l info \
+      -Q high_priority,default,low_priority,re-queue \
+      --include=relier.chaos.tasks
+    ```
+
+=== "Windows (PowerShell)"
+
+    ```powershell
+    # --pool=solo is required on Windows; prefork's named-pipe IPC crashes under spawn.
+    celery -A relier.tasks.app worker -l info -Q high_priority,default,low_priority,re-queue --include=relier.chaos.tasks --pool=solo
+    ```
+
+### Two scenarios additionally require Docker
+
+`worker-kill` and `network-partition` act on containers through the Docker CLI (`docker kill`, `docker network disconnect`). They only work against the `make dev` Compose stack. On bare-metal workers they find no containers and exit early without doing anything. This is not Windows-specific, these two are Docker-only on **every** platform.
+
+| Scenario | Needs Docker | Needs `--include=relier.chaos.tasks` | Bare metal (incl. Windows) |
+|----------|:---:|:---:|:---:|
+| `worker-kill` | Yes | Yes (for `--seed`) | No |
+| `network-partition` | Yes | No | No |
+| `load-spike` | No | Yes | Yes |
+| `slow-task` | No | Yes | Yes |
+| `task-corrupt` | No | Yes | Yes |
+
+---
+
 ## Scenarios
 
 ### `rl chaos worker-kill`, Kill a worker process
@@ -74,32 +118,7 @@ WATCH Done. 1 task(s) observed in monitor.
 
     If you see the message _"No worker container was killed"_, the stack is not running under Docker.
 
-**Running chaos scenarios with bare-metal workers:**
-
-The `--seed` flag dispatches `relier.chaos.tasks.chaos_long_running` to the broker. This module is not imported by the default worker start command, so bare-metal workers will log:
-
-```
-Received unregistered task of type 'relier.chaos.tasks.chaos_long_running'.
-The message has been ignored and discarded.
-```
-
-To include chaos tasks on a bare-metal worker, add `--include=relier.chaos.tasks`:
-
-```bash
-celery -A relier.tasks.app worker -l info \
-  -Q high_priority,default,low_priority,re-queue \
-  --include=relier.chaos.tasks
-```
-
-Note that even with chaos tasks registered, **the kill step will still not work on bare metal**; only the scenarios that do not rely on Docker (`load-spike`, `slow-task`, `task-corrupt`) work without the Docker dev stack.
-
-| Scenario | Works on bare metal? |
-|----------|---------------------|
-| `worker-kill` | No: requires Docker |
-| `network-partition` | No: requires Docker |
-| `load-spike` | Yes |
-| `slow-task` | Yes |
-| `task-corrupt` | Yes |
+**On bare metal:** the `--seed` flag dispatches `relier.chaos.tasks.chaos_long_running`, which your worker must have registered (`--include=relier.chaos.tasks`, see [Prerequisites](#prerequisites)) or it is silently discarded as an unregistered task. The kill step itself still requires Docker, as noted above, so `worker-kill` cannot complete on bare metal even with the tasks registered.
 
 ---
 
@@ -257,7 +276,7 @@ CHAOS Slow task (60s) dispatched. marker=chaos-slow-abc123
 
 - If `RELIER_SOFT_TIMEOUT` is set (default: 25s), the soft timeout fires and any cleanup hook runs.
 - At `RELIER_HARD_TIMEOUT` (default: 30s), the task is unconditionally cancelled.
-- The task appears in `rl dlq list` with `reason: HardTimeoutError`.
+- The task appears in `rl dlq list` with `reason: TimeoutError`.
 - The worker that ran the task is still alive and accepting new work, a timed-out task must not bring down the worker.
 
 ```bash

@@ -143,8 +143,8 @@ Burn-rate scale
 | `0x`         | No failures observed                   |
 | `< 1x`       | Healthy - on or under budget           |
 | `1x – 6x`    | Warning - budget depleting             |
-| `6x – 14.4x` | High - exhausts budget in < 1 day      |
-| `> 14.4x`    | Critical - exhausts budget in < 2 hours|
+| `6x – 14.4x` | High - exhausts budget in 2–5 days     |
+| `> 14.4x`    | Critical - exhausts budget in < 2 days |
 
 ---
 

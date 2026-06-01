@@ -1,6 +1,6 @@
 # Rolling Deploys & Schema Migrations
 
-A rolling deploy means new code goes out gradually: half your workers run the
+A rolling deploy means new code goes out gradually, half your workers run the
 new version while the other half still run the old one, and Redis holds tasks
 enqueued by *either*. If the new code changes a task's argument shape, the
 deploy can produce silently failing tasks unless you migrate the schema.

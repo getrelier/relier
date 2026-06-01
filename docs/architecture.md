@@ -29,14 +29,25 @@ Here's the exact boot sequence:
 ```
 Worker process spawns (via Celery's prefork)
   │
-  ├─ init_worker_process() fires (Celery signal hook in app.py)
+  ├─ init_worker_process() fires (worker_process_init signal, app.py)
   │    ├─ asyncio.new_event_loop() — fresh loop, not inherited from parent
   │    ├─ daemon thread started: runs loop.run_forever() in the background
   │    ├─ loop stored in module-level worker_loop variable
-  │    ├─ Redis pool pre-warmed: get_relier_redis() called immediately
-  │    │   (first task pays zero connection cost)
-  │    ├─ Worker presence heartbeat loop started (updates rl:presence:{worker_id} every 5s)
-  │    └─ GracefulShutdownHandler installed (SIGTERM/SIGINT → drain)
+  │    ├─ Redis validation: reachable check, noeviction check, pool size check
+  │    │   (refuses to start if any check fails)
+  │    ├─ SchemaRegistry.validate() — confirms migration chain is consistent
+  │    ├─ setup_logging() + setup_telemetry() bound to child process
+  │    ├─ GracefulShutdownHandler installed (SIGTERM/SIGINT → drain)
+  │    └─ Redis pool pre-warmed: connection established immediately
+  │        (first task pays zero connection cost)
+  │
+  ├─ start_relier_identity() fires (worker_ready signal, app.py)
+  │    ├─ Worker presence heartbeat loop started
+  │    │   (updates rl:presence:{worker_id} every 5s)
+  │    ├─ Stale worker cleanup loop started
+  │    │   (prunes dead entries from rl:workers registry)
+  │    └─ Phoenix resurrection scanner started
+  │        (runs alongside the dedicated rl run-resurrector process)
   │
   └─ Worker is ready to accept tasks
 ```
@@ -71,7 +82,7 @@ Several tasks run concurrently on the worker's event loop in the background:
 |------|---------|----------|
 | `_presence_loop` | Refreshes `rl:presence:{worker_id}` | `heartbeat_ttl / 2` |
 | `PhoenixRegistry._refresh_loop` | Extends `rl:hb:{task_id}` per active task | `heartbeat_ttl / 2` |
-| `_cleanup_dead_workers` | Removes stale worker IDs from `rl:workers` | 60s |
+| `_cleanup_dead_workers` | Removes stale worker IDs from `rl:workers` | `heartbeat_ttl / 5` (default: 2s) |
 
 These loops coexist on the same event loop as your task execution. They're all `async def` coroutines scheduled via `asyncio.create_task`.
 
@@ -222,15 +233,16 @@ Celery pops envelope from queue
        │        redis.incr(rl:m:global:success), redis.incr(rl:m:w:{worker_id}:success)
        │
        └─ 12. Cleanup (finally block — always runs)
-                Cancel _refresh_loop
-                PhoenixRegistry.complete(task_id):
-                  redis.delete(rl:hb:{task_id})
-                  redis.delete(rl:phoenix:{task_id})
-                  redis.delete(rl:resurrections:{task_id})
-                  redis.zrem(rl:phoenix:expiry_index, task_id)
-                redis.zrem(rl:inflight:{worker_id}, task_id)
                 task_duration_ms histogram recorded
                 redis.lpush(rl:task_durations, duration)  ← for p95 queries
+                shutdown_handler.untrack_task(task_id)
+                redis.zrem(rl:inflight:{worker_id}, task_id)
+                PhoenixRegistry.complete(task_id):
+                  Cancel _refresh_loop
+                  redis.delete(rl:phoenix:{task_id})   ← payload first, closes resurrection window
+                  redis.delete(rl:hb:{task_id})
+                  redis.delete(rl:resurrections:{task_id})
+                  redis.zrem(rl:phoenix:expiry_index, task_id)
 ```
 
 ### Error paths
@@ -244,9 +256,10 @@ IdempotencyInFlightError (concurrent duplicate)
   → self.retry(countdown=5, max_retries=10)
   → Celery backs off and retries; eventually IN_FLIGHT expires and it claims
 
-HardTimeoutError / asyncio.CancelledError (hard timeout)
+TimeoutError (hard timeout exceeded)
   → SLOMetrics.record_event("failure")
   → DLQ.quarantine(task_id, reason="TimeoutError")
+  → Re-raised as SoftTimeLimitExceeded (Celery sees the failure)
 
 Any other exception
   → SLOMetrics.record_event("failure")
@@ -263,7 +276,8 @@ The resurrector is a long-running async process, not a scheduled job. It runs co
 ```python
 async def resurrection_loop():
     while True:
-        await _scan_and_resurrect()
+        await _monitor_resurrected_tasks()   # track previously resurrected tasks
+        await _scan_and_resurrect()          # find new orphans and replay them
         await asyncio.sleep(resurrection_check_interval)  # default: 2s
 ```
 
@@ -275,7 +289,7 @@ redis.zrangebyscore(rl:phoenix:expiry_index, 0, now)
 
 For each task_id:
   → Check: exists(rl:hb:{task_id})
-  → If heartbeat alive: worker is fine, update score in expiry_index, skip
+  → If heartbeat alive: remove stale index entry (refresh loop re-adds with updated score), skip
   → If heartbeat expired:
       Load: hgetall(rl:phoenix:{task_id})
       If payload missing: remove from index (task completed cleanly), skip
@@ -307,7 +321,7 @@ Dispatch to broker:
 
 AFTER broker confirms receipt (not before):
   → INCR rl:resurrections:{task_id}
-  → HSET rl:monitoring task_id "0"
+  → HSET rl:monitoring task_id "0:{resurrected_at_timestamp}"
   → ZREM rl:phoenix:expiry_index task_id
 ```
 
@@ -430,13 +444,10 @@ The critical design constraint: in-flight sentinels use a **short, bounded TTL**
 
 ```lua
 local fence_key = KEYS[1]
-local fence_token = ARGV[1]
-local current_fence = redis.call('GET', fence_key)
-if not current_fence then
-    return 0  -- fence expired — safe to commit (no competing incarnation)
-end
-if current_fence ~= fence_token then
-    return -1  -- stale: a newer incarnation has taken over, reject this commit
+local expected = ARGV[1]
+local current = redis.call('GET', fence_key)
+if current ~= expected then
+    return 0  -- expired or stale: reject this commit
 end
 return 1  -- valid: this incarnation still owns the task
 ```

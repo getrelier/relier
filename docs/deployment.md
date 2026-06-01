@@ -36,13 +36,15 @@ Two things, every tier:
    validates `maxmemory-policy` at worker startup and refuses to start if it is
    wrong. See [Production Redis configuration](#production-redis-configuration).
 
-2. **A running resurrector process** (`rl run-resurrector`). This is the
-   separate process that scans for dead workers and re-queues their orphaned
-   tasks. If it is not running, tasks that die with a worker stay dead.
+2. **A running resurrector process** (`rl run-resurrector`). Every worker
+   already embeds a resurrection scanner, so surviving workers will pick up
+   tasks from a dead worker automatically. The dedicated `rl run-resurrector`
+   process provides coverage for the one edge case the embedded scanners cannot
+   handle: all workers dying simultaneously. It is strongly recommended for
+   production.
 
 Everything else, admission control, SLO tracking, DLQ, idempotency is
-already inside the worker process. You only need to run the worker and the
-resurrector.
+already inside the worker process.
 
 ---
 
@@ -290,7 +292,7 @@ primitives. You need three workloads:
 |-----------|------|-------|
 | Redis | StatefulSet or managed service (ElastiCache, Memorystore, Upstash) | Must have AOF + `noeviction` |
 | Workers | Deployment | Scales horizontally; PodDisruptionBudget recommended |
-| Resurrector | Deployment with `replicas: 1` | A single resurrector is enough, no distributed locking needed between resurrectors |
+| Resurrector | Deployment with `replicas: 1` | One dedicated process is enough; every worker also embeds a scanner. Distributed locks prevent double-resurrection if you run more. |
 
 ### Redis (StatefulSet with persistence)
 
@@ -542,6 +544,19 @@ Two settings look tempting but cost more than they save:
 If your latency is still unacceptable after the tuning above, raise an issue
 upstream rather than reaching for either of these knobs, the right fix is on
 the I/O path, not the durability contract.
+
+### Managed Redis compatibility
+
+If you're using a hosted Redis service, here's whether it can satisfy Relier's two hard requirements (AOF persistence + `noeviction`):
+
+| Provider | AOF persistence | `noeviction` | Notes |
+|---|---|---|---|
+| Redis Cloud | ✅ Available | ✅ Available | Set in database config |
+| AWS ElastiCache | ✅ Available | ✅ Available | Set via parameter group |
+| Upstash | ⚠️ Always-on | ❌ Not configurable | Use Upstash only for dev/staging |
+| Heroku Redis | ✅ Available | ✅ Available | Premium plans only |
+
+Relier validates `maxmemory-policy` at startup and refuses to start if it is wrong, so a misconfigured managed instance will surface immediately rather than silently breaking the zero-job-loss guarantee.
 
 ---
 

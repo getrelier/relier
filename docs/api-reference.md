@@ -3,7 +3,7 @@
 Relier exposes one decorator (`@rl_task`) and a handful of supporting types.
 Everything else is internal.
 
-The library is **async-first**: the orchestration layer is built on asyncio,
+The library is **async-first**, the orchestration layer is built on asyncio,
 and every Relier worker process runs a persistent event loop that lives for the
 worker's lifetime. Your tasks can be `async def` or plain `def`, Relier
 bridges them either way. The producer-side API (`apush` / `push`) is the same
@@ -98,11 +98,10 @@ async def send_invoice(invoice_id: str) -> dict:
 How long to cache the result of a completed idempotent task. After this TTL
 expires, the same arguments can trigger a fresh execution.
 
-**Constraint:** `idempotency_ttl` must be greater than `RELIER_IDEMPOTENCY_INFLIGHT_TTL`
-(default 120 s), which itself must be greater than `hard_timeout`. Relier
-validates this at decoration time and raises `ValueError` if violated. The
-reason: if the in-flight sentinel expires before the task hard-times-out,
-another worker could claim the same key and run a duplicate.
+**Constraint:** `hard_timeout` must be less than `RELIER_IDEMPOTENCY_INFLIGHT_TTL`
+(default 120 s). Relier validates this at decoration time and raises `ValueError`
+if violated. The reason: if the in-flight sentinel expires before the task
+hard-times-out, another worker could claim the same key and run a duplicate.
 
 ---
 
@@ -433,7 +432,7 @@ only intended user of `.delay()`. **In application code, always use `apush` or
 #### Handling `AdmissionRejectedError`
 
 ```python
-from relier.core.exceptions import AdmissionRejectedError
+from relier import AdmissionRejectedError
 
 try:
     await my_task.apush(payload)
@@ -494,7 +493,7 @@ Two ways. Pick whichever fits the call site:
 
 ```python
 # 1. Inject via kwarg: Relier detects the `ctx` parameter and fills it in.
-from relier.tasks.context import TaskContext
+from relier import TaskContext
 
 @rl_task()
 async def my_task(item_id: str, ctx: TaskContext = None) -> dict:
@@ -503,7 +502,7 @@ async def my_task(item_id: str, ctx: TaskContext = None) -> dict:
     return {"id": item_id}
 
 # 2. Read from the contextvar proxy: no parameter needed.
-from relier.tasks.context import task_context
+from relier import task_context
 
 @rl_task()
 async def my_task(item_id: str) -> dict:
@@ -517,7 +516,7 @@ async def my_task(item_id: str) -> dict:
 The proxy is most useful when you need to reach the context from a **helper function** that the task calls, without threading `ctx` through every intermediate signature:
 
 ```python
-from relier.tasks.context import task_context
+from relier import task_context
 
 async def save_progress(cursor: str) -> None:
     """Called from deep inside the task; no ctx parameter needed."""
@@ -582,7 +581,7 @@ soft-timeout hook is unnecessary because the latest progress is already in
 Redis when the worker dies.
 
 ```python
-from relier.tasks.context import TaskContext
+from relier import TaskContext
 
 @rl_task(hard_timeout=60)
 async def process_items(cursor: str = "start", ctx: TaskContext = None) -> dict:
@@ -612,7 +611,7 @@ context object, no Redis writes). The soft-timeout hook reads
 fires.
 
 ```python
-from relier.tasks.context import TaskContext
+from relier import TaskContext
 
 async def save_checkpoint(ctx: TaskContext) -> None:
     # Reads whatever the task body recorded into ctx.metadata.
@@ -1059,13 +1058,12 @@ for custom integrations.
 ## Exceptions
 
 ```python
-from relier.core.exceptions import (
+from relier import (
     RelierError,                # base class
     IdempotencyInFlightError,   # another worker holds the idempotency key
     AdmissionRejectedError,     # cluster at capacity (check exc.retry_after)
     PayloadIntegrityError,      # checksum mismatch on received payload
     SchemaMigrationError,       # migration function raised
-    HardTimeoutError,           # task exceeded hard_timeout
 )
 ```
 
@@ -1093,7 +1091,7 @@ you're using `idempotency_lock` manually.
 ## Settings
 
 ```python
-from relier.config import get_settings
+from relier import get_settings
 
 settings = get_settings()
 print(settings.heartbeat_ttl)     # 10

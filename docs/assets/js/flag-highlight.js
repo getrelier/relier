@@ -20,10 +20,23 @@
         '<span class="rl-env-key">$1</span><span class="o">=</span><span class="rl-env-val">$2</span>'
       );
 
-      // --flag options: light-blue, distinct from teal command text.
+      // --flag and -f options: light-blue, distinct from teal command text.
+      // Matches both double-dash long flags and single-dash short flags.
       block.innerHTML = block.innerHTML.replace(
-        /(--[a-zA-Z][a-zA-Z0-9-]*)/g,
+        /(--[a-zA-Z][a-zA-Z0-9-]*|-[a-zA-Z]\b)/g,
         '<span class="rl-flag">$1</span>'
+      );
+
+      // $ prompt at the start of a line — grey/dim.
+      block.innerHTML = block.innerHTML.replace(
+        /(\n|^)(\s*)(\$ )/g,
+        '$1$2<span class="rl-prompt">$3</span>'
+      );
+
+      // Table separator lines (─── chars) — very dim.
+      block.innerHTML = block.innerHTML.replace(
+        /([ \t]*─{3,}[ ─]*)/g,
+        '<span class="rl-sep">$1</span>'
       );
 
       block.dataset.rlFlagProcessed = '1';
