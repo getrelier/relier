@@ -63,6 +63,13 @@ Set the Redis URL in your shell (or in a `.env` file) and start the two processe
     rl run-resurrector
     ```
 
+!!! note "Is the resurrector required?"
+    Every worker embeds the Phoenix scanner, so the survivors already resurrect a
+    dead worker's tasks on their own. `rl run-resurrector` runs the same loop in a
+    standalone process — optional for partial failures, but recommended in
+    production because it's the only scanner that survives *all* workers dying at
+    once. (Tasks still only re-run once a worker is back to consume the `re-queue`.)
+
 ### If you cloned the repo (contributing / dev)
 
 ```sh

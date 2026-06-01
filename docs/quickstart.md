@@ -156,7 +156,7 @@ rl run-resurrector
 ```
 
 !!! note "Why two processes?"
-    The Celery worker executes tasks. The Phoenix resurrector is a separate recovery service responsible for heartbeat monitoring, orphan detection, and re-queuing tasks after a worker crash. Keeping recovery isolated from workers means that a cascading worker failure cannot disable the recovery logic at the same time; the resurrector keeps running and draining the orphan backlog even as workers restart.
+    The Celery worker executes tasks. **Every worker also embeds the Phoenix resurrection scanner** on its own event loop, so if one worker dies, the survivors detect its expired heartbeats and re-queue the orphaned tasks automatically — distributed locks make running many scanners side by side safe. `rl run-resurrector` runs that same scan loop in a standalone process. You don't strictly need it for partial failures, but it covers the one case the embedded scanners can't: *all* workers dying at once, when there's no surviving worker left to scan. Running it as a separate failure domain is recommended for production so recovery is already in flight the moment workers return.
 
 !!! warning "Workers must import your task modules"
     **Relier wraps Celery's worker entry system, it does not replace it.** You must provide a module that imports your task definitions so Celery registers them at startup.
@@ -294,6 +294,19 @@ The task completes on a healthy worker. No data loss, no duplicate execution
 
 That guarantee holds whether the worker was killed by OOM, a deploy `SIGTERM`, a
 kernel panic, or a `kill -9`. Phoenix detects the missed heartbeat and acts.
+
+!!! note "Where these logs come from — and `rl run-resurrector` is optional"
+    Every worker embeds this same scanner, so in a multi-worker cluster a
+    *surviving* worker detects the death and re-queues the task on its own —
+    printing these exact lines to its own console (as structured JSON at `INFO`,
+    rather than the colorized form `rl run-resurrector` renders above; set
+    `RELIER_LOG_LEVEL=DEBUG` for the colorized form). No extra config is needed
+    to "turn on" resurrection logging — it rides the standard logger.
+
+    The demo runs the standalone resurrector because killing your *only* worker
+    leaves nothing behind to scan. In production it's the guard for the one case
+    the embedded scanners can't cover — *all* workers dying at once — so it's
+    recommended but not required.
 
 To verify the full failure surface (network partitions, load spikes, payload
 corruption), the repo ships a first-party chaos suite:
