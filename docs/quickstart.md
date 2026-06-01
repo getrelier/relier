@@ -269,25 +269,20 @@ With your worker and resurrector both running, dispatch a task and then kill the
 worker process (`Ctrl+C` or `kill <pid>`). Within about 12 seconds you'll see
 the resurrector log:
 
-<div class="rl-terminal">
-<div class="rl-terminal-bar">rl run-resurrector</div>
-<pre>
-<span class="rl-p">PHOENIX</span> Resurrector initializing...
-<span class="rl-dim">[23:17:12]</span> <span class="rl-ok">INFO    </span> Initialising loop-local Relier Redis connection pool. <span class="rl-dim">[loop=2239067885072 → redis://***@localhost:6379/0]</span>
-           <span class="rl-ok">INFO    </span> Redis connectivity verified.
-<span class="rl-dim">[23:21:05]</span> <span class="rl-warn">WARNING </span> Worker death detected; replaying orphaned task.
-                    <span class="rl-key">task_id</span>=<span class="rl-info">'1cb7407c-88ae-47b1-b3f5-83ad36d31116'</span>  <span class="rl-key">task_name</span>=<span class="rl-info">'tasks.send_invoice'</span>  <span class="rl-key">attempt</span>=<span class="rl-info">1</span>  <span class="rl-key">max_attempts</span>=<span class="rl-info">5</span>
-                    <span class="rl-key">ghost_worker</span>=<span class="rl-info">'rl-worker-default@b7e3d96be88d'</span>  <span class="rl-key">queue</span>=<span class="rl-info">'default'</span>  <span class="rl-key">has_checkpoint</span>=<span class="rl-info">False</span>
-           <span class="rl-ok">INFO    </span> Acquired resurrection lease
-                    <span class="rl-key">task_id</span>=<span class="rl-info">'1cb7407c-88ae-47b1-b3f5-83ad36d31116'</span>  <span class="rl-key">lease_key</span>=<span class="rl-info">'rl:lease:{1cb7407c-88ae-47b1-b3f5-83ad36d31116}'</span>  <span class="rl-key">lease_ttl</span>=<span class="rl-info">180</span>
-           <span class="rl-ok">INFO    </span> Submitting resurrected task to broker.
-                    <span class="rl-key">task_id</span>=<span class="rl-info">'1cb7407c-88ae-47b1-b3f5-83ad36d31116'</span>  <span class="rl-key">task_name</span>=<span class="rl-info">'tasks.send_invoice'</span>  <span class="rl-key">queue</span>=<span class="rl-info">'default'</span>
-           <span class="rl-ok">INFO    </span> Phoenix recovered 1 orphaned task(s) onto healthy workers
-                    <span class="rl-key">resurrected</span>=<span class="rl-info">1</span>  <span class="rl-key">monitored</span>=<span class="rl-info">0</span>  <span class="rl-key">duration_ms</span>=<span class="rl-info">62</span>
-           <span class="rl-ok">INFO    </span> Resurrected task successfully re-queued.
-                    <span class="rl-key">task_id</span>=<span class="rl-info">'1cb7407c-88ae-47b1-b3f5-83ad36d31116'</span>  <span class="rl-key">task_name</span>=<span class="rl-info">'tasks.send_invoice'</span>
-</pre>
-</div>
+```
+PHOENIX Resurrector initializing...
+[23:17:12] INFO     Initialising loop-local Relier Redis connection pool. [loop=2239067885072 -> redis://***@localhost:6379/0]
+           INFO     Redis connectivity verified.
+[23:21:05] WARNING  Worker death detected; replaying orphaned task.  task_id='1cb7407c-88ae-47b1-b3f5-83ad36d31116'
+                    task_name='tasks.send_invoice'  attempt=1  max_attempts=5  ghost_worker='rl-worker-default@b7e3d96be88d'  queue='default'
+                    has_checkpoint=False
+           INFO     Acquired resurrection lease  task_id='1cb7407c-88ae-47b1-b3f5-83ad36d31116'
+                    lease_key='rl:lease:{1cb7407c-88ae-47b1-b3f5-83ad36d31116}'  lease_ttl=180
+           INFO     Submitting resurrected task to broker.  task_id='1cb7407c-88ae-47b1-b3f5-83ad36d31116'  task_name='tasks.send_invoice'
+                    queue='default'
+           INFO     Phoenix recovered 1 orphaned task(s) onto healthy workers  resurrected=1  monitored=0  duration_ms=62
+           INFO     Resurrected task successfully re-queued.  task_id='1cb7407c-88ae-47b1-b3f5-83ad36d31116'  task_name='tasks.send_invoice'
+```
 
 The task completes on a healthy worker. No data loss, no duplicate execution
 (idempotency blocks the re-run from charging twice), no manual intervention.
