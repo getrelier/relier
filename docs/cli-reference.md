@@ -83,9 +83,7 @@ loop that every `resurrection_check_interval` seconds:
    `rl:fence:{task_id}`, then re-dispatch the task to the internal `re-queue`
    queue with the fence tokens injected into kwargs.
 
-The resurrector is **single-instance by design**. Running two does not cause
-duplicate execution (the distributed lock prevents it), but it wastes scan
-cycles.
+Every Celery worker also embeds a Phoenix resurrection scanner on its own event loop. `rl run-resurrector` is a dedicated additional process — distributed locks make running multiple scanners safe, and the extra coverage improves recovery latency.
 
 ---
 
@@ -705,7 +703,7 @@ rl chaos worker-kill [OPTIONS]
 ```bash
 rl chaos worker-kill
 rl chaos worker-kill --seed --watch --watch-duration 60
-rl chaos worker-kill --worker relier-worker-1 --seed
+rl chaos worker-kill --worker-id relier-worker-1 --seed
 ```
 
 ---

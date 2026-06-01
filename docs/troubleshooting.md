@@ -341,7 +341,7 @@ Relier's idempotency only kicks in when you ask for it. Check:
 |---|---|---|
 | `PayloadIntegrityError` | Envelope checksum mismatch, payload was tampered with or storage corrupted. | Re-enqueue from source, investigate broker corruption. Never auto-retry these. |
 | `SchemaMigrationError` | A migration function raised. | Inspect the migration in your code; fix it, redeploy, then `rl dlq release`. |
-| `TimeoutError` / `HardTimeoutError` | Task exceeded `hard_timeout`. | Profile and reduce work; or raise the timeout. |
+| `TimeoutError` | Task exceeded `hard_timeout`. | Profile and reduce work; or raise the timeout. |
 | `max_resurrections_exceeded` | Task crashed 5+ workers running it. | Likely a poison pill or a code bug. Inspect args; fix the bug; release. |
 | Any other exception name | Your task raised that exception. | Read the stack trace in the DLQ entry; fix the underlying code. |
 

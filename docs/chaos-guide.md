@@ -276,7 +276,7 @@ CHAOS Slow task (60s) dispatched. marker=chaos-slow-abc123
 
 - If `RELIER_SOFT_TIMEOUT` is set (default: 25s), the soft timeout fires and any cleanup hook runs.
 - At `RELIER_HARD_TIMEOUT` (default: 30s), the task is unconditionally cancelled.
-- The task appears in `rl dlq list` with `reason: HardTimeoutError`.
+- The task appears in `rl dlq list` with `reason: TimeoutError`.
 - The worker that ran the task is still alive and accepting new work, a timed-out task must not bring down the worker.
 
 ```bash

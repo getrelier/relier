@@ -13,7 +13,7 @@ RELIER_OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
 ```
 
 All instruments are registered under the OTel meter `relier` (version
-`0.1.0`). Names below match what Prometheus actually scrapes after the OTel
+`0.1.6`). Names below match what Prometheus actually scrapes after the OTel
 collector translates them.
 
 ---
@@ -78,7 +78,6 @@ Worker shutdown outcomes.
 | Label | Values | Meaning |
 |-------|--------|---------|
 | `type` | `clean` | Worker drained all tasks before exiting |
-| `type` | `handoff` | Some tasks were handed off to Phoenix via heartbeat deletion |
 | `type` | `forced` | Drain timeout expired before tasks finished |
 
 `forced` shutdowns indicate `RELIER_GRACEFUL_SHUTDOWN_TIMEOUT` may be too

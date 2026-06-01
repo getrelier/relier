@@ -145,7 +145,7 @@ With defaults the theoretical ceiling is 12 seconds; the measured p99 is 8.9 sec
 | `RELIER_IDEMPOTENCY_INFLIGHT_TTL` | `int` | `120` | How long the `IN_FLIGHT` sentinel lives. Must be longer than `RELIER_HARD_TIMEOUT`. |
 
 !!! warning "IN_FLIGHT TTL must exceed hard_timeout"
-    If `RELIER_IDEMPOTENCY_INFLIGHT_TTL` is shorter than `hard_timeout`, a task can time out while its sentinel is still live, then retry and see `IN_FLIGHT`, waiting for a worker that's already dead.
+    If `RELIER_IDEMPOTENCY_INFLIGHT_TTL` is shorter than `hard_timeout`, the in-flight sentinel can expire before the task hard-times-out, allowing another worker to claim the same key and begin a duplicate execution while the first worker is still running.
 
     Relier validates this at decoration time and raises `ValueError` if violated.
 

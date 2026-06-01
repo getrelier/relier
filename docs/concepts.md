@@ -12,7 +12,7 @@ Getting this right up front saves a lot of confusion.
 
 ### Not a workflow engine
 
-[Temporal](https://temporal.io) and [Hatchet](https://hatchet.run) are *workflow engines*. They model multi-step processes with deterministic replay, durable execution across restarts, and saga-style compensation. That is a different problem and a different programming model: you restructure your code around their execution model and deploy their server.
+[Temporal](https://temporal.io) and [Hatchet](https://hatchet.run) are *workflow engines*. They model multi-step processes with deterministic replay, durable execution across restarts, and saga-style compensation. That is a different problem and a different programming model, you restructure your code around their execution model and deploy their server.
 
 Relier is not that. It handles individual task reliability, not workflow orchestration. The choice isn't "Relier vs. Temporal", it's "naked Celery vs. Relier + Celery." If you need multi-step workflows spanning hours or approval gates, reach for Temporal or Hatchet. If you have Celery tasks and want them to stop disappearing, that's Relier.
 
@@ -281,13 +281,13 @@ rest of this page explains the *why* behind each mechanism.
     celery -A relier.tasks.app worker ...
     ```
 
-    If you create your own `Celery()` instance and start workers with `-A your_app`, the worker will run the task but bypass the entire lifecycle: no heartbeating, no Phoenix registration, no idempotency enforcement, no graceful shutdown. The `@rl_task` decorator will still run, but only the dispatch-side features (admission control, signed envelope) work outside the managed worker. When in doubt, use `rl worker start` which wires everything correctly.
+    If you create your own `Celery()` instance and start workers with `-A your_app`, the worker will run the task but bypass the entire lifecycle, no heartbeating, no Phoenix registration, no idempotency enforcement, no graceful shutdown. The `@rl_task` decorator will still run, but only the dispatch-side features (admission control, signed envelope) work outside the managed worker.
 
 ---
 
 ## The Phoenix Pattern (Zero-Job-Loss)
 
-This is Relier's core guarantee: **no task is silently lost when a worker dies**.
+This is Relier's core guarantee, **no task is silently lost when a worker dies**.
 
 ### The problem
 
@@ -304,17 +304,18 @@ Task starts
   → background loop refreshes heartbeat every 5s
 
 Task completes
+  → Phoenix registry cleared   ← first, to close the resurrection window
   → heartbeat deleted
-  → Phoenix registry cleared
 ```
 
-Meanwhile, a **resurrector** process runs continuously, scanning for heartbeats that have expired without the payload being cleared. An expired heartbeat + existing payload = dead worker.
+Meanwhile, a **resurrector** process runs continuously, querying a sorted-set expiry index for tasks whose heartbeat timestamp has passed. If the Phoenix payload still exists and no heartbeat key is present, the worker is considered dead.
 
 ```
 Resurrector scans every 2 seconds
-  → finds rl:hb:{task_id} expired but rl:phoenix:{task_id} still exists
+  → queries expiry index for tasks past their heartbeat deadline
+  → confirms rl:phoenix:{task_id} still exists (payload not cleaned up)
   → acquires a distributed lock (prevents duplicate resurrection)
-  → re-queues the task to a fresh worker
+  → re-queues the task onto the dedicated re-queue for recovery workers
   → logs the resurrection in rl:monitoring
 ```
 
@@ -326,14 +327,16 @@ A task that consistently crashes workers is dangerous. After `max_resurrections`
 
 ### The resurrector process
 
-The resurrector is a separate process you run alongside your workers. It's usually a single dedicated container:
+Every Celery worker already embeds a resurrection scanner on its own event loop — so if worker-1 dies and its scanner goes with it, worker-2 and worker-3 will still detect the orphaned tasks and re-queue them.
+
+`rl run-resurrector` is a dedicated additional scanner process, recommended for production:
 
 ```bash
 rl run-resurrector
 # or in Docker Compose: a 'guardian' service
 ```
 
-It needs read/write access to Redis but doesn't process any task payloads it only moves them between queues.
+It provides coverage for the edge case where all workers die simultaneously — the only scenario where embedded scanners are not enough. Distributed locks prevent any two scanners from re-queuing the same task. It doesn't process task payloads; it only moves them between queues.
 
 ---
 
@@ -546,10 +549,16 @@ Every production system restarts workers eventually, deploys, autoscaling, Kuber
 
 ### What happens when Relier receives `SIGTERM`
 
+Relier intercepts `SIGTERM` and `SIGINT` automatically at worker startup, no code changes or manual commands required. When the OS, Kubernetes, or your process manager sends a signal, the drain sequence runs immediately:
+
 1. **Drain mode**: the worker stops accepting new tasks from the queue.
 2. **Wait**: Relier waits up to `graceful_shutdown_timeout` seconds (default: 30) for running tasks to finish.
 3. **Handoff**: tasks that won't finish in time have their heartbeats deleted. The resurrector picks them up on the next scan and re-queues them on a different worker.
 4. **Clean exit**: zero tasks dropped.
+
+### Manual drain (operational escape hatch)
+
+`rl worker drain` triggers the same sequence remotely, without sending a signal yourself. Use it when you want to pull a specific worker out of a pool. For example, before maintenance or a targeted rollout, without touching the process directly:
 
 ```bash
 $ rl worker drain rl-worker-2
@@ -719,7 +728,7 @@ Old payloads in the queue are automatically migrated when picked up. No failed t
 
 ## SLO Burn Rate Monitoring
 
-Relier tracks your task delivery rate against a target SLO (default: 99.9%). It calculates **burn rates** across multiple rolling windows using the same model as Google SRE:
+Relier tracks your task delivery rate against a target SLO (default: 99.9%). It calculates **burn rates** across multiple rolling windows using the model from [Google's SRE Workbook](https://sre.google/workbook/alerting-on-slos/):
 
 | Burn Rate | Meaning |
 |-----------|---------|
@@ -727,7 +736,7 @@ Relier tracks your task delivery rate against a target SLO (default: 99.9%). It 
 | `< 1×` | On or under budget, healthy |
 | `1×` | Consuming budget at exactly the target rate |
 | `> 1×` | Consuming budget faster than allowed |
-| `14.4×` | Budget exhausted in 2 hours, critical |
+| `14.4×` | Budget exhausted in ~2 days if sustained — critical threshold |
 
 ```bash
 $ rl slo status

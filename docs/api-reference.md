@@ -3,7 +3,7 @@
 Relier exposes one decorator (`@rl_task`) and a handful of supporting types.
 Everything else is internal.
 
-The library is **async-first**: the orchestration layer is built on asyncio,
+The library is **async-first**, the orchestration layer is built on asyncio,
 and every Relier worker process runs a persistent event loop that lives for the
 worker's lifetime. Your tasks can be `async def` or plain `def`, Relier
 bridges them either way. The producer-side API (`apush` / `push`) is the same
@@ -98,11 +98,10 @@ async def send_invoice(invoice_id: str) -> dict:
 How long to cache the result of a completed idempotent task. After this TTL
 expires, the same arguments can trigger a fresh execution.
 
-**Constraint:** `idempotency_ttl` must be greater than `RELIER_IDEMPOTENCY_INFLIGHT_TTL`
-(default 120 s), which itself must be greater than `hard_timeout`. Relier
-validates this at decoration time and raises `ValueError` if violated. The
-reason: if the in-flight sentinel expires before the task hard-times-out,
-another worker could claim the same key and run a duplicate.
+**Constraint:** `hard_timeout` must be less than `RELIER_IDEMPOTENCY_INFLIGHT_TTL`
+(default 120 s). Relier validates this at decoration time and raises `ValueError`
+if violated. The reason: if the in-flight sentinel expires before the task
+hard-times-out, another worker could claim the same key and run a duplicate.
 
 ---
 

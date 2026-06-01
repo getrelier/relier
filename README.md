@@ -246,7 +246,7 @@ At 2.7 ms average per dispatch, **a single async producer sustains ~370 `apush()
 
 The admission control Lua script stays under 1 ms at p99 (0.559 ms), meaning the tail-latency cost of the admission check is bounded for the vast majority of requests. The "Vanilla +acks_late" column shows what flipping `task_acks_late=True` actually buys you: partial recovery (96.0% vs 92.0%) but not Relier's 100%, because the Redis broker's `visibility_timeout` default (~1 hour) gates redelivery long after most completions would have happened.
 
-![Bench dashboard end of run](docs/assets/images/screenshot-2.png)
+![Bench dashboard end of run](docs/assets/images/screenshot-1.png)
 
 Full methodology, per-test breakdowns, and Docker Compose instructions: [docs/benchmarks.md](docs/benchmarks.md).
 
@@ -263,7 +263,7 @@ The real Redis cost is per-task **lifecycle ops** (dispatch + register + complet
 | 100M tasks/day | ~1,200 | ~18,000 | comfortable |
 | 1B tasks/day | ~12,000 | ~180,000 | needs sharding |
 
-![Redis Commands/sec — Steady-state ops (Test 7). Spikes during task turnover bursts, flat baseline at steady state. Per-task coordination cost below measurement noise.](docs/assets/images/screenshot-1.png)
+![Redis Commands/sec — Steady-state ops (Test 7). Spikes during task turnover bursts, flat baseline at steady state. Per-task coordination cost below measurement noise.](docs/assets/images/screenshot-2.png)
 
 Long-running tasks are effectively free at the steady-state level; you can have tens of thousands of concurrent ETL jobs holding inflight without saturating Redis. Single-master Redis tops out around 10,000 tasks/sec end-to-end (100k–150k ops/sec ÷ ~15 ops/task); past that, the path is vertical Redis, Redis Cluster (v0.1.3 ships hash-tagged keys for this), or a RabbitMQ broker. Full breakdown: [docs/benchmarks.md § Scaling ceiling](docs/benchmarks.md#scaling-ceiling-and-per-task-coordination-cost).
 
@@ -276,7 +276,7 @@ Long-running tasks are effectively free at the steady-state level; you can have 
 - **Two-tier timeouts**: soft (cleanup hook) + hard (asyncio cancellation), enforced on async tasks.
 - **Checkpointing**: `ctx.set_partial(state)` in the soft-timeout hook saves progress to Redis; the next resurrection resumes from that state instead of starting over.
 - **Graceful shutdown**: SIGTERM drain phase, handoff to Phoenix for tasks that won't finish in time.
-- **Dead Letter Queue**: full payload + reason + resurrection history. CLI to inspect, release, retry, purge.
+- **Dead Letter Queue**: full payload + reason + resurrection history. CLI to inspect, release, retry-all, purge.
 - **Admission control**: atomic Lua-based fixed-window limiter, returns `Retry-After`.
 - **SLO burn-rate tracking**: 1h / 6h / 3d windows, Google SRE-style burn rates, JSON or table output.
 - **Schema versioning**: signed envelopes with sequential migrations for rolling deploys, old workers and new workers can run simultaneously without payload mismatches.

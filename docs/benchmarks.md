@@ -163,15 +163,15 @@ While the bench is running, open Grafana at http://localhost:3001 (admin / bench
 
 **Mid-run** (around 22:15 WAT in the reference run):
 
-The Queue Depth panel shows both queues spiking to ~450 as 500 tasks are dispatched simultaneously — Relier's default queue in green, vanilla's queue in orange. The Task Completion Rate panel shows both lines climbing steeply then diverging immediately after the first SIGKILL: Relier's green line keeps climbing uninterrupted as Phoenix resurrects orphaned tasks within 7–8 seconds, while Vanilla's yellow line flatlines at 460 — the 40 tasks lost across 5 kills never recover. The Resurrections counter steps up once per kill cycle, confirming Phoenix is detecting and recovering each event individually.
+The Queue Depth panel shows both queues spiking to ~450 as 500 tasks are dispatched simultaneously. Relier's default queue in green, vanilla's queue in orange. The Task Completion Rate panel shows both lines climbing steeply then diverging immediately after the first SIGKILL: Relier's green line keeps climbing uninterrupted as Phoenix resurrects orphaned tasks within 7–8 seconds, while Vanilla's yellow line flatlines at 460, the 40 tasks lost across 5 kills never recover. The Resurrections counter steps up once per kill cycle, confirming Phoenix is detecting and recovering each event individually.
 
 ![Bench dashboard mid-run](assets/images/screenshot-1.png)
 
 **End of run**:
 
-Redis Clients drops to 1 (all workers exited cleanly, only the monitoring connection remains). Redis Memory sits at 2.92 MiB — less than 3 MB across 577 total task completions and 51 resurrections, confirming complete key cleanup with zero accumulation. Failed Tasks shows "No data" — nothing reached the DLQ unexpectedly across the entire benchmark. The Resurrections panel shows a final count of 51, matching the sum of all kill cycles across Tests 4, 5, 6, and 9.
+Redis Clients drops to 1 (all workers exited cleanly, only the monitoring connection remains). Redis Memory sits at 2.92 MiB, less than 3 MB across 577 total task completions and 51 resurrections, confirming complete key cleanup with zero accumulation. Failed Tasks shows "No data" — nothing reached the DLQ unexpectedly across the entire benchmark. The Resurrections panel shows a final count of 51, matching the sum of all kill cycles across Tests 4, 5, 6, and 9.
 
-The Task Completion Rate gap visible in the chart — Relier at 577 cumulative completions, Vanilla flatlined at 460 — is the literal visualisation of the 100% vs 92% delivery rate claim.
+The Task Completion Rate gap visible in the chart. Relier at 577 cumulative completions, Vanilla flatlined at 460, is the literal visualisation of the 100% vs 92% delivery rate claim.
 
 Note: the re-queue spike during each SIGKILL is sub-second, faster than the 5s Grafana dashboard refresh interval, so it does not appear as a visible spike in the queue depth graph. What you see instead is the Relier completion line never flattening — orphaned tasks are already back on a healthy worker before the next scrape fires.
 
