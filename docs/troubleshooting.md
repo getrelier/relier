@@ -242,6 +242,22 @@ celery -A relier.tasks.app worker -l info -Q high_priority,default,low_priority,
 
 ---
 
+### Symptoms: `rl chaos` runs but nothing happens, or the worker logs "unregistered task"
+
+The chaos suite ships in the installed package, so `rl chaos` works from any `pip install relier`, you do not need a repo clone. But two runtime prerequisites trip people up:
+
+1. **The worker must register the chaos target tasks.** `load-spike`, `slow-task`, `task-corrupt`, and `worker-kill --seed` dispatch tasks from `relier.chaos.tasks`, which the default worker command does not import. A worker without it logs `Received unregistered task of type 'relier.chaos.tasks.…'. The message has been ignored and discarded.` and the scenario appears to do nothing. Add `--include=relier.chaos.tasks` to your worker command. On Windows, combine it with `--pool=solo`:
+
+    ```powershell
+    celery -A relier.tasks.app worker -l info -Q high_priority,default,low_priority,re-queue --include=relier.chaos.tasks --pool=solo
+    ```
+
+2. **`worker-kill` and `network-partition` require Docker.** They act on containers via the Docker CLI and only work against the `make dev` stack. On bare metal (any OS, not just Windows) they find no containers and exit early, `worker-kill` prints _"No worker container was killed"_. The other three scenarios have no Docker dependency and run on bare-metal workers, including Windows.
+
+See the [Chaos Guide prerequisites](chaos-guide.md#prerequisites) for the full matrix.
+
+---
+
 ### Symptoms: old tasks reappear after `celery purge` or module rename
 
 `celery purge` only deletes messages from the queue lists. It does not touch Celery's unacknowledged message tracking in Redis. When a bare-metal worker crashes or is killed mid-task, any in-flight messages are held in `_kombu.redis.unacked` and re-delivered to the next worker that connects, even after a purge.

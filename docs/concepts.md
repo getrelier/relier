@@ -113,7 +113,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from celery.result import AsyncResult
 
-from relier.core.exceptions import AdmissionRejectedError
+from relier import AdmissionRejectedError
 from relier.tasks.app import celery_app
 from tasks import send_invoice
 
@@ -164,7 +164,7 @@ curl localhost:8000/tasks/f8a2…
 ```python
 # app.py
 from flask import Flask, jsonify
-from relier.core.exceptions import AdmissionRejectedError
+from relier import AdmissionRejectedError
 from tasks import send_invoice          # same tasks.py as above
 
 app = Flask(__name__)
@@ -188,7 +188,7 @@ def dispatch_invoice(invoice_id: str):
 # views.py
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from relier.core.exceptions import AdmissionRejectedError
+from relier import AdmissionRejectedError
 from .tasks import send_invoice
 
 @require_POST
@@ -318,7 +318,7 @@ Resurrector scans every 2 seconds
   → logs the resurrection in rl:monitoring
 ```
 
-**The result:** the task is back in queue on a healthy worker, typically within **~12 seconds** of a crash (heartbeat TTL of 10s + the 2s scan interval), and within **35 seconds** as a conservative worst-case ceiling. The task's original arguments are preserved exactly as they were at enqueue time.
+**The result:** the task is back in queue on a healthy worker. Measured p99 is **8.9 seconds**. The theoretical ceiling is `heartbeat_ttl + resurrector_scan_interval` = 10s + 2s = **12 seconds** — the resurrector catches most heartbeat expiries within one TTL window rather than waiting for the full interval. The task's original arguments are preserved exactly as they were at enqueue time.
 
 ### The resurrection limit
 
@@ -421,7 +421,7 @@ The hard timeout is **unconditional**. When it fires, the task coroutine is canc
     When `hard_timeout` is not set, Relier's internal async bridge applies a **300-second fallback** deadline. After 300 s the bridge raises `TimeoutError` and Celery marks the task failed, but the coroutine may still be running in the background until its next `await` checkpoint. Always set `hard_timeout` to match your task's expected worst-case duration. See [API reference → `hard_timeout`](api-reference.md#hard_timeout) and [Troubleshooting → Async bridge timeout](troubleshooting.md) for details.
 
 ```python
-from relier.tasks.context import TaskContext
+from relier import TaskContext
 
 async def save_progress(ctx: TaskContext) -> None:
     """Called at soft timeout. You have (hard - soft) seconds to clean up."""

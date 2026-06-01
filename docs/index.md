@@ -1,6 +1,4 @@
-# Relier
-
-**Reliability layer for Celery. Zero job loss.**
+<p><img src="assets/images/logo-docs.png" alt="Relier — Reliability layer for Celery" /></p>
 
 !!! warning "Pre-1.0: public API may change"
     Relier is currently `v0.x.y`. The **core engine** (Phoenix resurrector,
@@ -32,7 +30,7 @@ def process_order(order_id: str):
     send_receipt(order_id)
 
 # After Relier, same function, zero changes to your business logic.
-# Worker dies? Relier re-queues it automatically, within 35 seconds.
+# Worker dies? Relier re-queues it automatically, within ~9 seconds p99.
 # Called twice with the same order_id? Runs once. Card charged once.
 @rl_task(idempotent=True)
 async def process_order(order_id: str):
@@ -77,7 +75,7 @@ Relier solves all 8.
 ## Key Features
 
 ### Zero job loss (Phoenix Pattern)
-Every task registers a heartbeat in Redis. If a worker is killed mid-task, the heartbeat expires. A background resurrector detects this within 35 seconds and re-queues the task on a healthy worker automatically, with the original payload intact.
+Every task registers a heartbeat in Redis. If a worker is killed mid-task, the heartbeat expires. A background resurrector detects this within ~9 seconds p99 and re-queues the task on a healthy worker automatically, with the original payload intact.
 
 ### Safe retries (Idempotency)
 An atomic Redis Lua script ensures a task only executes once, even when retried multiple times after failure. Pass `idempotent=True` and Relier handles the rest.
@@ -90,6 +88,9 @@ Relier intercepts `SIGTERM` (deploys, scale-downs, Kubernetes evictions) and wai
 
 ### Dead Letter Queue
 Tasks that can't be recovered after repeated attempts are quarantined in the DLQ with a full payload, stack trace, and resurrection history. Inspect and re-release them at any time via the CLI.
+
+### Schema versioning (Rolling deploys)
+Every task payload is wrapped in a signed, versioned envelope. When you change a task's signature during a rolling deploy, old workers and new workers can run simultaneously without payload mismatches, register a migration function and Relier upgrades in-flight payloads automatically.
 
 ### Admission control
 A Redis Lua script enforces cluster-wide rate limits atomically. Returns `Retry-After` on rejection. Workers never see traffic above configured capacity.

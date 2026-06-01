@@ -50,7 +50,7 @@ async def send_invoice(invoice_id: str) -> dict:
 ```python
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
-from relier.core.exceptions import AdmissionRejectedError
+from relier import AdmissionRejectedError
 
 from tasks import send_invoice
 
@@ -116,7 +116,7 @@ async def send_invoice(invoice_id: str) -> dict:
 
 ```python
 from flask import Flask, jsonify
-from relier.core.exceptions import AdmissionRejectedError
+from relier import AdmissionRejectedError
 
 from tasks import send_invoice
 
@@ -160,7 +160,7 @@ views (`asgi` Django).
 # views.py
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.http import require_POST
-from relier.core.exceptions import AdmissionRejectedError
+from relier import AdmissionRejectedError
 
 from .tasks import send_invoice
 

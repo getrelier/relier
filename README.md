@@ -1,13 +1,15 @@
-# Relier
+<p align="center">
+  <img src="docs/assets/images/logo-docs.png" alt="Relier — Reliability layer for Celery" />
+</p>
 
-**Your Celery workers will crash tonight. Your tasks should still complete.**
-
-[![CI](https://github.com/getrelier/relier/actions/workflows/ci.yml/badge.svg)](https://github.com/getrelier/relier/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/relier.svg)](https://pypi.org/project/relier/)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Docs](https://img.shields.io/badge/docs-getrelier.github.io-purple.svg)](https://getrelier.github.io/relier)
-[![Status](https://img.shields.io/badge/status-pre--1.0-orange.svg)](#production-status)
+<p align="center">
+  <a href="https://github.com/getrelier/relier/actions/workflows/ci.yml"><img src="https://github.com/getrelier/relier/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://pypi.org/project/relier/"><img src="https://img.shields.io/pypi/v/relier.svg" alt="PyPI"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License: MIT"></a>
+  <a href="https://getrelier.github.io/relier"><img src="https://img.shields.io/badge/docs-getrelier.github.io-purple.svg" alt="Docs"></a>
+  <a href="#production-status"><img src="https://img.shields.io/badge/status-pre--1.0-orange.svg" alt="Status"></a>
+</p>
 
 Relier makes Celery reliable. One decorator wraps your existing tasks with
 crash recovery, exactly-once execution, two-tier timeouts, graceful shutdown,
@@ -54,7 +56,7 @@ async def charge_customer(customer_id: str, amount_cents: int) -> dict:
     return await stripe.charge(customer_id, amount_cents)
 
 await charge_customer.apush("cus_abc", 5000)
-# - Worker dies     -> Phoenix re-queues within ~8s (p99), same args; idempotency
+# - Worker dies     -> Phoenix re-queues within ~9s (p99), same args; idempotency
 #                      stops a double-charge
 # - Network blip    -> cached result returned, no second charge
 # - Stripe hangs    -> cancelled at 10s, quarantined to DLQ with full payload
@@ -71,7 +73,7 @@ swaps `.delay(...)` for `await task.apush(...)` (async) or `task.push(...)`
 
 | Problem | Vanilla Celery | With Relier |
 |---|---|---|
-| Worker OOM-killed mid-task | Lost forever, no trace | Phoenix re-queues within ~8 s (p99) |
+| Worker OOM-killed mid-task | Lost forever, no trace | Phoenix re-queues within ~9 s (p99) |
 | Non-idempotent retries | Your problem to solve | `idempotent=True`  atomic Lua, exactly-once |
 | No task timeouts | Zombie tasks block workers | Two-tier soft/hard timeout with cleanup hooks |
 | Ungraceful deploys | ~40% of in-flight tasks silently lost | SIGTERM drain + handoff to other workers |
@@ -146,6 +148,16 @@ start if either is wrong.
 
 ---
 
+## Is Relier right for you?
+
+If you're already running Celery and want it to stop losing tasks — yes.
+
+If you're starting a new project and open to a different paradigm — consider [Temporal](https://temporal.io) or [Hatchet](https://hatchet.run) first. Relier is a reliability layer for existing Celery deployments, not a reason to choose Celery over modern alternatives.
+
+If you need workflow orchestration, DAGs, or deterministic replay — use Prefect, Airflow, or Temporal. Relier makes individual tasks reliable; it doesn't orchestrate pipelines.
+
+---
+
 ## Quickstart
 
 ```python
@@ -207,32 +219,32 @@ Full guide: [docs/chaos-guide.md](https://getrelier.github.io/relier/chaos-guide
 
 Measured by the built-in bench suite (`docker compose -f docker-compose.bench.yml up --build`) on Linux with prefork workers and synthetic 0.5 s tasks. All claims verified end-to-end not microbenchmarks against a mock.
 
-_Numbers below: Relier `v0.1.5`, captured 2026-05-30 (9/9 claims verified). Re-run with `make bench-docker` to compare on your hardware._
+_Numbers below: Relier `v0.1.6`, captured 2026-05-31 (9/9 claims verified). Re-run with `make bench-docker` to compare on your hardware._
 
 ```
 Linux (Docker, python:3.11-slim, prefork=4) | Redis 7.2 AOF | 500 tasks × 5 kills
 
-Metric                              Relier 0.1.5       Vanilla Celery     Vanilla +acks_late
+Metric                              Relier 0.1.6       Vanilla Celery     Vanilla +acks_late
 ----------------------------------------------------------------------------------------------
 Task delivery rate (5 SIGKILL)      100%   500/500     92.0%  460/500     96.0%  480/500  (0 dup)
-OOM recovery avg / p99              7.1 s / 8.6 s      ∞ lost             partial (visibility)
-Dual-OOM (2 concurrent tasks)       2/2 · 7.5 s        both lost          partial (visibility)
-Idempotent recovery (delayed)       re-ran 3.5 s       ∞ lost             partial (visibility)
+OOM recovery avg / p99              7.1 s / 8.9 s      ∞ lost             partial (visibility)
+Dual-OOM (2 concurrent tasks)       2/2 · 5.5 s        both lost          partial (visibility)
+Idempotent recovery (delayed)       re-ran 4.8 s       ∞ lost             partial (visibility)
 Idempotency (50 submissions)        1 execution        50 executions      50 executions
-Admission control p99 / max         0.483 ms / 1.2 ms  n/a                n/a
+Admission control p99 / max         0.559 ms / 10.2 ms n/a                n/a
 Graceful shutdown (3 cycles)        100%               0%                 0%
-Dispatch overhead (net avg)         +1.48 ms           n/a                n/a
-Cold-start to first task            3.84 s avg         n/a                n/a
-Resurrection under load (5 kill)    5/5 · 7.6 s p99    all lost           partial (visibility)
+Dispatch overhead (net avg)         +1.87 ms           n/a                n/a
+Cold-start to first task            4.07 s avg         n/a                n/a
+Resurrection under load (5 kill)    5/5 · 7.0 s p99    all lost           partial (visibility)
 File descriptor leak                Δ +0 (stable)      n/a                n/a
 ----------------------------------------------------------------------------------------------
 ```
 
-**+1.48 ms per dispatch** pays for: atomic admission check, SHA-256-signed envelope wrap, heartbeat registration. On any task that does real work (a DB query, an HTTP call, an AI inference), this is invisible.
+**+1.87 ms per dispatch** pays for: atomic admission check, SHA-256-signed envelope wrap, heartbeat registration. On any task that does real work (a DB query, an HTTP call, an AI inference), this is invisible.
 
-At 2.32 ms average per dispatch, **a single async producer sustains ~430 `apush()` calls/second** per thread. FastAPI producers fan out well past 1,000/second.
+At 2.7 ms average per dispatch, **a single async producer sustains ~370 `apush()` calls/second** per thread. FastAPI producers fan out well past 1,000/second.
 
-The admission control Lua script stays under 1 ms at p99 (0.483 ms), meaning the tail-latency cost of the admission check is bounded for the vast majority of requests. The "Vanilla +acks_late" column shows what flipping `task_acks_late=True` actually buys you: partial recovery (96.0% vs 92.0%) but not Relier's 100%, because the Redis broker's `visibility_timeout` default (~1 hour) gates redelivery long after most completions would have happened.
+The admission control Lua script stays under 1 ms at p99 (0.559 ms), meaning the tail-latency cost of the admission check is bounded for the vast majority of requests. The "Vanilla +acks_late" column shows what flipping `task_acks_late=True` actually buys you: partial recovery (96.0% vs 92.0%) but not Relier's 100%, because the Redis broker's `visibility_timeout` default (~1 hour) gates redelivery long after most completions would have happened.
 
 ![Bench dashboard end of run](docs/assets/images/screenshot-2.png)
 
@@ -251,7 +263,9 @@ The real Redis cost is per-task **lifecycle ops** (dispatch + register + complet
 | 100M tasks/day | ~1,200 | ~18,000 | comfortable |
 | 1B tasks/day | ~12,000 | ~180,000 | needs sharding |
 
-Long-running tasks are effectively free at the steady-state level; you can have tens of thousands of concurrent ETL jobs holding inflight without saturating Redis. Single-master Redis tops out around 1,000 tasks/sec end-to-end; past that, the path is vertical Redis, Redis Cluster (v0.1.3 ships hash-tagged keys for this), or a RabbitMQ broker. Full breakdown: [docs/benchmarks.md § Scaling ceiling](docs/benchmarks.md#scaling-ceiling-and-per-task-coordination-cost).
+![Redis Commands/sec — Steady-state ops (Test 7). Spikes during task turnover bursts, flat baseline at steady state. Per-task coordination cost below measurement noise.](docs/assets/images/screenshot-1.png)
+
+Long-running tasks are effectively free at the steady-state level; you can have tens of thousands of concurrent ETL jobs holding inflight without saturating Redis. Single-master Redis tops out around 10,000 tasks/sec end-to-end (100k–150k ops/sec ÷ ~15 ops/task); past that, the path is vertical Redis, Redis Cluster (v0.1.3 ships hash-tagged keys for this), or a RabbitMQ broker. Full breakdown: [docs/benchmarks.md § Scaling ceiling](docs/benchmarks.md#scaling-ceiling-and-per-task-coordination-cost).
 
 ---
 
@@ -296,11 +310,11 @@ Full feature reference: [docs/](https://getrelier.github.io/relier/).
 
 ---
 
-## Recent fixes (v0.1.5)
+## Recent fixes (v0.1.6)
 
-- **Faster idempotent-task recovery**: a resurrected or retried run of the same task now reclaims its own idempotency in-flight lock instead of spinning in `IdempotencyInFlightError` until the lock's TTL (~120 s) expires. Cross-task deduplication is unchanged.
-- **No resurrector self-lockout**: when no worker is online to consume a replayed task, the resurrector now holds it (and its lease) until a worker returns, rather than declaring it lost and colliding with its own lease ("claimed by another resurrector").
-- **Bench coverage**: added Test 4b (idempotent recovery under a delayed restart) to guard both fixes — verified at 3.5 s recovery in the latest run.
+- **Teal CLI palette**: all `rl` commands now use a consistent teal/dark theme — structured log output, coloured flags and env vars, dimmed comments, and coloured extra fields in `rl run-resurrector`.
+- **Resurrector claim grace period**: the "never claimed" false-positive warning on cold worker starts is fixed — the resurrector now waits `resurrection_claim_grace_period` seconds (default 30 s) before declaring a re-queued task unclaimed, eliminating false alerts during slow worker startups.
+- **Bench refresh (v0.1.6)**: idempotent recovery verified at 4.8 s, dual-OOM detection tightened to 5.5 s, resurrection under load at 7.0 s p99.
 
 Full history in the [CHANGELOG](CHANGELOG.md).
 

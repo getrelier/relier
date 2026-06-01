@@ -159,7 +159,7 @@ rl run-resurrector
     The Celery worker executes tasks. The Phoenix resurrector is a separate recovery service responsible for heartbeat monitoring, orphan detection, and re-queuing tasks after a worker crash. Keeping recovery isolated from workers means that a cascading worker failure cannot disable the recovery logic at the same time; the resurrector keeps running and draining the orphan backlog even as workers restart.
 
 !!! warning "Workers must import your task modules"
-    **Relier wraps Celery's worker entry system: it does not replace it.** You must provide a module that imports your task definitions so Celery registers them at startup.
+    **Relier wraps Celery's worker entry system, it does not replace it.** You must provide a module that imports your task definitions so Celery registers them at startup.
 
     The simplest way is `--include`:
 
@@ -230,22 +230,17 @@ rl tasks inflight
 rl slo status
 ```
 
-You should see output like:
+**`rl doctor`** — connectivity and configuration check:
 
-<div class="rl-terminal">
-<pre>
-<span class="rl-p">$</span> rl tasks inflight
+![rl doctor output](assets/images/screenshot-doctor.png)
 
-  Worker           Status       In-Flight  ✓ Completed  ✗ Failed  Success Rate
-  <span class="rl-ok">rl-worker-1</span>      <span class="rl-ok">● BUSY</span>       <span class="rl-mag">1</span>          <span class="rl-ok">42</span>           <span class="rl-dim">0</span>         <span class="rl-ok">100.0%</span>
-    <span class="rl-dim">└─</span> <em>send_invoice</em>   <span class="rl-dim">4f8a1b…</span>   <span class="rl-dim">12.4s</span>
-  <span class="rl-ok">rl-worker-2</span>      <span class="rl-dim">○ IDLE</span>       <span class="rl-dim">0</span>          <span class="rl-ok">38</span>           <span class="rl-dim">0</span>         <span class="rl-ok">100.0%</span>
+**`rl tasks inflight`** — live view of workers and in-flight tasks:
 
- ┌ Cluster Health ────────────────────────────────────────────────────────────────────┐
- │ <span class="rl-ok">● 1 Active</span>  <span class="rl-ok">✔ 80 Session (24h)</span>  <span class="rl-info">✔ 80 Lifetime</span>  <span class="rl-warn">✗ 0 Failed</span>  <span class="rl-ok">♻ 0 Resurrected</span>  <span class="rl-dim">☢ 0 Quarantined  Depth: 0  p95: N/A</span> │
- └────────────────────────────────────────────────────────────────────────────────────┘
-</pre>
-</div>
+![rl tasks inflight output](assets/images/screenshot-tasks-inflight.png)
+
+**`rl slo status`** — SLO burn rate across 1h / 6h / 3d windows:
+
+![rl slo status output](assets/images/screenshot-slo.png)
 
 ---
 
@@ -274,20 +269,25 @@ With your worker and resurrector both running, dispatch a task and then kill the
 worker process (`Ctrl+C` or `kill <pid>`). Within about 12 seconds you'll see
 the resurrector log:
 
-```
-PHOENIX Resurrector initializing...
-[23:17:12] INFO     Initialising loop-local Relier Redis connection pool. [loop=2239067885072 -> redis://***@localhost:6379/0]
-           INFO     Redis connectivity verified.
-[23:21:05] WARNING  Worker death detected; replaying orphaned task.  task_id='1cb7407c-88ae-47b1-b3f5-83ad36d31116'
-                    task_name='tasks.send_invoice'  attempt=1  max_attempts=5  ghost_worker='rl-worker-default@b7e3d96be88d'  queue='default'
-                    has_checkpoint=False
-           INFO     Acquired resurrection lease  task_id='1cb7407c-88ae-47b1-b3f5-83ad36d31116'
-                    lease_key='rl:lease:{1cb7407c-88ae-47b1-b3f5-83ad36d31116}'  lease_ttl=180
-           INFO     Submitting resurrected task to broker.  task_id='1cb7407c-88ae-47b1-b3f5-83ad36d31116'  task_name='tasks.send_invoice'
-                    queue='default'
-           INFO     Phoenix recovered 1 orphaned task(s) onto healthy workers  resurrected=1  monitored=0  duration_ms=62
-           INFO     Resurrected task successfully re-queued.  task_id='1cb7407c-88ae-47b1-b3f5-83ad36d31116'  task_name='tasks.send_invoice'
-```
+<div class="rl-terminal">
+<div class="rl-terminal-bar">rl run-resurrector</div>
+<pre>
+<span class="rl-p">PHOENIX</span> Resurrector initializing...
+<span class="rl-dim">[23:17:12]</span> <span class="rl-ok">INFO    </span> Initialising loop-local Relier Redis connection pool. <span class="rl-dim">[loop=2239067885072 → redis://***@localhost:6379/0]</span>
+           <span class="rl-ok">INFO    </span> Redis connectivity verified.
+<span class="rl-dim">[23:21:05]</span> <span class="rl-warn">WARNING </span> Worker death detected; replaying orphaned task.
+                    <span class="rl-key">task_id</span>=<span class="rl-info">'1cb7407c-88ae-47b1-b3f5-83ad36d31116'</span>  <span class="rl-key">task_name</span>=<span class="rl-info">'tasks.send_invoice'</span>  <span class="rl-key">attempt</span>=<span class="rl-info">1</span>  <span class="rl-key">max_attempts</span>=<span class="rl-info">5</span>
+                    <span class="rl-key">ghost_worker</span>=<span class="rl-info">'rl-worker-default@b7e3d96be88d'</span>  <span class="rl-key">queue</span>=<span class="rl-info">'default'</span>  <span class="rl-key">has_checkpoint</span>=<span class="rl-info">False</span>
+           <span class="rl-ok">INFO    </span> Acquired resurrection lease
+                    <span class="rl-key">task_id</span>=<span class="rl-info">'1cb7407c-88ae-47b1-b3f5-83ad36d31116'</span>  <span class="rl-key">lease_key</span>=<span class="rl-info">'rl:lease:{1cb7407c-88ae-47b1-b3f5-83ad36d31116}'</span>  <span class="rl-key">lease_ttl</span>=<span class="rl-info">180</span>
+           <span class="rl-ok">INFO    </span> Submitting resurrected task to broker.
+                    <span class="rl-key">task_id</span>=<span class="rl-info">'1cb7407c-88ae-47b1-b3f5-83ad36d31116'</span>  <span class="rl-key">task_name</span>=<span class="rl-info">'tasks.send_invoice'</span>  <span class="rl-key">queue</span>=<span class="rl-info">'default'</span>
+           <span class="rl-ok">INFO    </span> Phoenix recovered 1 orphaned task(s) onto healthy workers
+                    <span class="rl-key">resurrected</span>=<span class="rl-info">1</span>  <span class="rl-key">monitored</span>=<span class="rl-info">0</span>  <span class="rl-key">duration_ms</span>=<span class="rl-info">62</span>
+           <span class="rl-ok">INFO    </span> Resurrected task successfully re-queued.
+                    <span class="rl-key">task_id</span>=<span class="rl-info">'1cb7407c-88ae-47b1-b3f5-83ad36d31116'</span>  <span class="rl-key">task_name</span>=<span class="rl-info">'tasks.send_invoice'</span>
+</pre>
+</div>
 
 The task completes on a healthy worker. No data loss, no duplicate execution
 (idempotency blocks the re-run from charging twice), no manual intervention.

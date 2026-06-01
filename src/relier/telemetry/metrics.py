@@ -16,7 +16,7 @@ import typing
 
 from opentelemetry import metrics
 
-meter = metrics.get_meter("relier", version="0.1.0")
+meter = metrics.get_meter("relier", version="0.1.6")
 
 # ===========================================================================
 # Counters
