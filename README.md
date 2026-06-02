@@ -80,7 +80,7 @@ swaps `.delay(...)` for `await task.apush(...)` (async) or `task.push(...)`
 | No visibility | `celery inspect`, then squint | `rl tasks inflight --follow`, structured output |
 | Traffic spikes | Queue floods, cascade failures | Atomic admission control, `Retry-After` |
 | Poison-pill tasks | Crash workers forever | Quarantined to DLQ after `max_resurrections` |
-| Schema drift on rolling deploy | Old payloads on new code fail silently | Versioned envelope + sequential migrations |
+| Schema drift on rolling deploy | Old payloads on new code fail silently | Versioned envelope + sequential migrations — old and new workers run simultaneously safely |
 
 All eight covered. Same Celery programming model. Same Redis broker. No new
 infrastructure to operate beyond what you already have.
