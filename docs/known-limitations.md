@@ -2,8 +2,8 @@
 
 Known coordination / scaling constraints. Not blocking for most production
 workloads — the bench
-shows per-task steady-state Redis cost is below measurement noise and
-capacity scales with task turnover rate, comfortable to ~1,000 tasks/sec
+shows per-task steady-state Redis cost is just the heartbeat refresh
+(~0.4 ops/sec/task) and capacity scales with task turnover rate, comfortable to ~1,000 tasks/sec
 end-to-end on single-master Redis (see `docs/benchmarks.md` § "Scaling
 ceiling and per-task coordination cost"). These ship when a customer
 hits a workload shape that needs them.
@@ -37,8 +37,8 @@ magnitude fewer keys are possible if liveness is tracked per-worker.
 **Updated after high-scale bench (10k tasks × 0.05s, 2026-06-03).**
 
 The original estimate ("throughput win is effectively zero") was wrong at
-high concurrency with short tasks. The 10k run recorded CPU avg 43.2%
-(Relier) vs 1.2% (vanilla). Root causes, in order of impact:
+high concurrency with short tasks. The 10k run recorded CPU avg 32.5%
+(Relier) vs 1.1% (vanilla). Root causes, in order of impact:
 
 1. **Asyncio background task storm.** Every in-flight task spawns a
    background coroutine refreshing every `heartbeat_ttl / 2 = 5s`. At
