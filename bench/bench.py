@@ -241,6 +241,26 @@ def _wait_for_list(key: str, expected: int, timeout: float = 300.0) -> int:
     return _r.llen(key)
 
 
+def _wait_for_unique(
+    key: str, expected: int, timeout: float = 300.0
+) -> tuple[int, int]:
+    """Wait until *expected* distinct values land in list *key*.
+
+    Returns ``(total_entries, unique_entries)``. Used where a task may execute
+    more than once (e.g. an at-least-once handoff with a non-idempotent probe):
+    delivery is counted by distinct task key, while the gap between total and
+    unique is the duplicate count.
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        entries = _r.lrange(key, 0, -1)
+        if len(set(entries)) >= expected:
+            return len(entries), len(set(entries))
+        time.sleep(0.5)
+    entries = _r.lrange(key, 0, -1)
+    return len(entries), len(set(entries))
+
+
 def _redis_mem_mb() -> float:
     return int(_r.info("memory")["used_memory"]) / 1_048_576
 
@@ -1008,6 +1028,7 @@ def test_graceful_shutdown() -> None:
     from bench.vanilla_app import delivery_probe_vanilla
 
     relier_cycle_pcts: list[float] = []
+    relier_cycle_dups: list[int] = []
     vanilla_cycle_pcts: list[float] = []
 
     for cycle in range(SHUTDOWN_CYCLES):
@@ -1030,13 +1051,20 @@ def test_graceful_shutdown() -> None:
         wk2 = _start_worker(
             "bench.worker_app", "default,high_priority,low_priority,re-queue"
         )
-        r_done = _wait_for_list(
+        # Count delivery by *distinct* task key. Graceful drain + handoff is
+        # at-least-once: a drained task can be completed by the old worker and
+        # re-run by the replacement. The probe is intentionally non-idempotent,
+        # so total executions can exceed dispatches — the gap is the duplicate
+        # count, reported separately. Delivery is capped at 100% by construction.
+        r_total, r_unique = _wait_for_unique(
             f"{BENCH_NS}:relier:delivery_done", SHUTDOWN_TASKS, timeout=300
         )
         _kill(wk2)
         _kill(res)
-        r_pct = round(r_done / SHUTDOWN_TASKS * 100, 1)
+        r_dups = r_total - r_unique
+        r_pct = round(min(r_unique, SHUTDOWN_TASKS) / SHUTDOWN_TASKS * 100, 1)
         relier_cycle_pcts.append(r_pct)
+        relier_cycle_dups.append(r_dups)
 
         # -- Vanilla --
         _r.delete(f"{BENCH_NS}:vanilla:delivery_done")
@@ -1053,24 +1081,40 @@ def test_graceful_shutdown() -> None:
         v_pct = round(v_done / SHUTDOWN_TASKS * 100, 1)
         vanilla_cycle_pcts.append(v_pct)
 
+        dup_note = (
+            f"  [yellow]({r_dups} handoff dup{'s' if r_dups != 1 else ''})[/yellow]"
+            if r_dups
+            else ""
+        )
         console.print(
             f"  Cycle {cycle + 1}/{SHUTDOWN_CYCLES}:  "
-            f"relier {r_done}/{SHUTDOWN_TASKS} = {r_pct}%   "
+            f"relier {r_unique}/{SHUTDOWN_TASKS} = {r_pct}%{dup_note}   "
             f"vanilla {v_done}/{SHUTDOWN_TASKS} = {v_pct}%"
         )
 
     avg_r = round(mean(relier_cycle_pcts), 1)
     min_r = round(min(relier_cycle_pcts), 1)
     avg_v = round(mean(vanilla_cycle_pcts), 1)
+    total_dups = sum(relier_cycle_dups)
 
     results["graceful_shutdown"] = {
         "cycles": SHUTDOWN_CYCLES,
         "relier_avg_pct": avg_r,
         "relier_min_pct": min_r,
+        "relier_handoff_duplicates": total_dups,
         "vanilla_avg_pct": avg_v,
         "relier_claim_met": min_r >= 95.0,
     }
-    console.print(f"  Relier avg {avg_r}%  worst {min_r}%   Vanilla avg {avg_v}%")
+    dup_summary = (
+        f"   [yellow]{total_dups} handoff duplicate"
+        f"{'s' if total_dups != 1 else ''}[/yellow] "
+        "(non-idempotent probe; idempotent=True dedupes)"
+        if total_dups
+        else ""
+    )
+    console.print(
+        f"  Relier avg {avg_r}%  worst {min_r}%   Vanilla avg {avg_v}%{dup_summary}"
+    )
 
 
 # -- Test 7: Resource overhead ------------------------------------------------
@@ -1574,9 +1618,13 @@ def print_results() -> None:
 
     if "graceful_shutdown" in results:
         d = results["graceful_shutdown"]
+        dups = d.get("relier_handoff_duplicates", 0)
+        relier_cell = f"avg {d['relier_avg_pct']}%  worst {d['relier_min_pct']}%"
+        if dups:
+            relier_cell += f"\n{dups} handoff dup(s) — dedupe w/ idempotent=True"
         table.add_row(
             f"Graceful shutdown  ({d['cycles']} cycles)",
-            f"avg {d['relier_avg_pct']}%  worst {d['relier_min_pct']}%",
+            relier_cell,
             f"avg {d['vanilla_avg_pct']}%",
             _yn(d["relier_claim_met"]),
         )
