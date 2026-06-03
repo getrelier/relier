@@ -3,6 +3,7 @@ name: Nightly Chaos
 on:
   schedule:
     - cron: "0 2 * * *"  # 2am UTC every night
+    - cron: "0 2 * * 1"  # 2am UTC every Monday (triggers high-scale job)
   workflow_dispatch:
     inputs:
       scale:
@@ -68,6 +69,21 @@ jobs:
         if: always()
         run: docker compose -f docker-compose.bench.yml down -v
 
+      - name: Notify Slack on success
+        if: success()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK" ]; then
+            echo "::warning::SLACK_WEBHOOK secret is not set — skipping Slack notification."
+            exit 0
+          fi
+          curl -X POST "$SLACK_WEBHOOK" \
+            -H 'Content-type: application/json' \
+            -d "{
+              \"text\": \":white_check_mark: *Relier nightly chaos PASSED* (9/9 claims)\nBranch: ${{ github.ref }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+            }"
+
       - name: Notify Slack on failure
         if: failure()
         env:
@@ -80,7 +96,7 @@ jobs:
           curl -X POST "$SLACK_WEBHOOK" \
             -H 'Content-type: application/json' \
             -d "{
-              \"text\": \" *Relier nightly chaos FAILED*\nBranch: ${{ github.ref }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+              \"text\": \":x: *Relier nightly chaos FAILED*\nBranch: ${{ github.ref }}\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
             }"
 
   chaos-high-scale:
@@ -141,6 +157,21 @@ jobs:
         if: always()
         run: docker compose -f docker-compose.bench.yml down -v
 
+      - name: Notify Slack on success
+        if: success()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK" ]; then
+            echo "::warning::SLACK_WEBHOOK secret is not set — skipping Slack notification."
+            exit 0
+          fi
+          curl -X POST "$SLACK_WEBHOOK" \
+            -H 'Content-type: application/json' \
+            -d "{
+              \"text\": \":white_check_mark: *Relier high-scale chaos PASSED* (10k tasks × 8 workers)\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+            }"
+
       - name: Notify Slack on failure
         if: failure()
         env:
@@ -153,5 +184,5 @@ jobs:
           curl -X POST "$SLACK_WEBHOOK" \
             -H 'Content-type: application/json' \
             -d "{
-              \"text\": \" *Relier Monday high-scale chaos FAILED*\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+              \"text\": \":x: *Relier Monday high-scale chaos FAILED*\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
             }"
