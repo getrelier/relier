@@ -261,16 +261,26 @@ def _redis_keys_bytes(keys: list[str]) -> int:
     return total
 
 
-def _worker_rss_mb(pid: int) -> float:
+def _worker_rss(pid: int) -> tuple[float, int]:
+    """Total RSS (MB) across a worker process + its children, and the proc count.
+
+    A prefork worker is a parent + N child processes, so we return both the pool
+    total and the count — the caller reports per-process (total / count) as the
+    headline and the pool total as context, rather than a single number that
+    silently scales with concurrency. RSS includes copy-on-write shared pages,
+    so the pool total slightly overcounts truly-unique memory.
+    """
     try:
         proc = psutil.Process(pid)
-        total = proc.memory_info().rss
-        for child in proc.children(recursive=True):
+        total = 0
+        count = 0
+        for p in (proc, *proc.children(recursive=True)):
             with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied):
-                total += child.memory_info().rss
-        return round(total / 1_048_576, 1)
+                total += p.memory_info().rss
+                count += 1
+        return round(total / 1_048_576, 1), max(count, 1)
     except (psutil.NoSuchProcess, psutil.AccessDenied):
-        return 0.0
+        return 0.0, 1
 
 
 def _pN(samples: list[float], n: int) -> float:
@@ -1099,7 +1109,8 @@ def test_resource_overhead() -> None:
     )
     time.sleep(WORKER_BOOT_WAIT)
 
-    relier_rss_idle = _worker_rss_mb(wk.pid)
+    relier_rss_total, relier_procs = _worker_rss(wk.pid)
+    relier_rss_per_proc = round(relier_rss_total / relier_procs, 1)
     fd_idle = _worker_open_fds(wk.pid)
 
     delivery_probe.push("ro-r-probe", RESOURCE_PROBE_S)
@@ -1129,7 +1140,8 @@ def test_resource_overhead() -> None:
     )
 
     console.print(
-        f"    Idle RSS : {relier_rss_idle} MB  |  open fds: {fd_idle} → {fd_after}  Δ {fd_str}"
+        f"    Idle RSS : {relier_rss_per_proc} MB/proc × {relier_procs} "
+        f"= {relier_rss_total} MB total  |  open fds: {fd_idle} → {fd_after}  Δ {fd_str}"
     )
     console.print(
         f"    Redis keys added per task : {rl_keys_added}  ({relier_redis_bytes} bytes)"
@@ -1140,7 +1152,8 @@ def test_resource_overhead() -> None:
     vwk = _start_worker("bench.vanilla_app", "vanilla")
     time.sleep(WORKER_BOOT_WAIT)
 
-    vanilla_rss_idle = _worker_rss_mb(vwk.pid)
+    vanilla_rss_total, vanilla_procs = _worker_rss(vwk.pid)
+    vanilla_rss_per_proc = round(vanilla_rss_total / vanilla_procs, 1)
 
     delivery_probe_vanilla.delay("ro-v-probe", RESOURCE_PROBE_S)
     time.sleep(RESOURCE_SAMPLE_WAIT)
@@ -1150,12 +1163,17 @@ def test_resource_overhead() -> None:
     )
     _kill(vwk)
 
-    console.print(f"    Idle RSS : {vanilla_rss_idle} MB")
+    console.print(
+        f"    Idle RSS : {vanilla_rss_per_proc} MB/proc × {vanilla_procs} "
+        f"= {vanilla_rss_total} MB total"
+    )
     console.print("    Redis keys added per task : 0  (0 bytes)")
 
-    rss_delta = round(relier_rss_idle - vanilla_rss_idle, 1)
+    rss_delta_per_proc = round(relier_rss_per_proc - vanilla_rss_per_proc, 1)
+    rss_delta_total = round(relier_rss_total - vanilla_rss_total, 1)
     console.print(
-        f"  Reliability stack adds: +{rss_delta} MB worker RAM  |  "
+        f"  Reliability stack adds: +{rss_delta_per_proc} MB per worker process "
+        f"(+{rss_delta_total} MB across the {relier_procs}-proc pool)  |  "
         f"+{relier_redis_bytes} bytes Redis per task  ({rl_keys_added} keys)"
     )
 
@@ -1261,9 +1279,14 @@ def test_resource_overhead() -> None:
 
     fd_leak_detected = fd_delta is not None and fd_delta > 5
     results["resource_overhead"] = {
-        "relier_rss_idle_mb": relier_rss_idle,
-        "vanilla_rss_idle_mb": vanilla_rss_idle,
-        "rss_delta_mb": rss_delta,
+        "relier_rss_per_proc_mb": relier_rss_per_proc,
+        "relier_rss_total_mb": relier_rss_total,
+        "relier_procs": relier_procs,
+        "vanilla_rss_per_proc_mb": vanilla_rss_per_proc,
+        "vanilla_rss_total_mb": vanilla_rss_total,
+        "vanilla_procs": vanilla_procs,
+        "rss_delta_per_proc_mb": rss_delta_per_proc,
+        "rss_delta_total_mb": rss_delta_total,
         "relier_redis_bytes_per_task": relier_redis_bytes,
         "vanilla_redis_bytes_per_task": 0,
         "rl_keys_per_task": rl_keys_added,
@@ -1593,9 +1616,11 @@ def print_results() -> None:
     if "resource_overhead" in results:
         d = results["resource_overhead"]
         table.add_row(
-            "Worker RAM (idle)",
-            f"{d['relier_rss_idle_mb']} MB  (+{d['rss_delta_mb']} MB vs vanilla)",
-            f"{d['vanilla_rss_idle_mb']} MB",
+            "Worker RAM (idle, per process)",
+            f"{d['relier_rss_per_proc_mb']} MB/proc  (+{d['rss_delta_per_proc_mb']} MB)\n"
+            f"{d['relier_rss_total_mb']} MB across {d['relier_procs']} procs",
+            f"{d['vanilla_rss_per_proc_mb']} MB/proc\n"
+            f"{d['vanilla_rss_total_mb']} MB total",
             "--",
         )
         table.add_row(
