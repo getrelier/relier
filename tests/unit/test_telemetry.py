@@ -246,7 +246,10 @@ class TestSetup:
         """Verify setup_telemetry exits early if otel_enabled is False."""
         with patch("relier.telemetry.setup.get_settings") as mock_settings:
             mock_settings.return_value.otel_enabled = False
-            with patch("relier.telemetry.setup.TracerProvider") as mock_tp:
+            # Patched at the source module: setup_telemetry imports the SDK
+            # lazily (inside the enabled guard), so it is not a setup-module
+            # attribute. Disabled path must never reach this import.
+            with patch("opentelemetry.sdk.trace.TracerProvider") as mock_tp:
                 setup_telemetry()
                 assert not mock_tp.called
 
@@ -258,9 +261,12 @@ class TestSetup:
             settings.otel_exporter_otlp_endpoint = "http://localhost:4317"
             settings.env = "test"
 
+            # Patched at their source modules because setup_telemetry imports
+            # the SDK lazily inside the enabled guard (keeps disabled workers
+            # from loading the gRPC exporter).
             with (
-                patch("relier.telemetry.setup.TracerProvider") as mock_tp,
-                patch("relier.telemetry.setup.MeterProvider") as mock_mp,
+                patch("opentelemetry.sdk.trace.TracerProvider") as mock_tp,
+                patch("opentelemetry.sdk.metrics.MeterProvider") as mock_mp,
                 patch("opentelemetry.trace.set_tracer_provider"),
                 patch("opentelemetry.metrics.set_meter_provider"),
             ):
