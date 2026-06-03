@@ -2,8 +2,8 @@
 
 Known coordination / scaling constraints. Not blocking for most production
 workloads — the bench
-shows per-task steady-state Redis cost is below measurement noise and
-capacity scales with task turnover rate, comfortable to ~1,000 tasks/sec
+shows per-task steady-state Redis cost is just the heartbeat refresh
+(~0.4 ops/sec/task) and capacity scales with task turnover rate, comfortable to ~1,000 tasks/sec
 end-to-end on single-master Redis (see `docs/benchmarks.md` § "Scaling
 ceiling and per-task coordination cost"). These ship when a customer
 hits a workload shape that needs them.
@@ -37,15 +37,17 @@ magnitude fewer keys are possible if liveness is tracked per-worker.
 **Updated after high-scale bench (10k tasks × 0.05s, 2026-06-03).**
 
 The original estimate ("throughput win is effectively zero") was wrong at
-high concurrency with short tasks. The 10k run recorded CPU avg 43.2%
-(Relier) vs 1.2% (vanilla). Root causes, in order of impact:
+high concurrency with short tasks. The 10k run recorded CPU avg 32.5%
+(Relier) vs 1.1% (vanilla). Root causes, in order of impact:
 
-1. **Asyncio background task storm.** Every in-flight task spawns a
-   background coroutine refreshing every `heartbeat_ttl / 2 = 5s`. At
-   10,000 concurrent 50ms tasks the event loop schedules and cancels 10,000
-   coroutines per cycle — almost none fire before the task completes. The
-   scheduling overhead dominates. Worker-level heartbeats collapse this to
-   one coroutine per worker.
+1. **Asyncio background task storm.** Each worker runs a single persistent
+   asyncio event loop — Relier does **not** spin up a new loop per task. But
+   every in-flight task schedules its own background coroutine on that loop
+   to refresh the heartbeat every `heartbeat_ttl / 2 = 5s`. At 10,000
+   concurrent 50ms tasks that one loop is scheduling and cancelling 10,000
+   short-lived coroutines per cycle — almost none fire before the task
+   completes, so the scheduling churn (not loop creation) dominates.
+   Worker-level heartbeats collapse this to one coroutine per worker.
 
 2. **Resurrection scanner is O(n_tasks).** The scanner reads a ZSET with
    one entry per in-flight task. At 10k inflight it's scanning 10,000
@@ -91,7 +93,7 @@ of how many masters you have.
 
 ### Why it matters
 
-Pairs with Issue #4 (hash tags, shipped in v0.1.3) to make Relier
+Pairs with Issue #4 (hash tags, already shipped) to make Relier
 horizontally scalable. Without this, a customer running Redis Cluster
 still has a single hot key gating resurrection.
 

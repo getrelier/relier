@@ -56,7 +56,7 @@ async def charge_customer(customer_id: str, amount_cents: int) -> dict:
     return await stripe.charge(customer_id, amount_cents)
 
 await charge_customer.apush("cus_abc", 5000)
-# - Worker dies     -> Phoenix re-queues within ~9s (p99), same args; idempotency
+# - Worker dies     -> Phoenix re-queues within ~7s (p99), same args; idempotency
 #                      stops a double-charge
 # - Network blip    -> cached result returned, no second charge
 # - Stripe hangs    -> cancelled at 10s, quarantined to DLQ with full payload
@@ -73,7 +73,7 @@ swaps `.delay(...)` for `await task.apush(...)` (async) or `task.push(...)`
 
 | Problem | Vanilla Celery | With Relier |
 |---|---|---|
-| Worker OOM-killed mid-task | Lost forever, no trace | Phoenix re-queues within ~9 s (p99) |
+| Worker OOM-killed mid-task | Lost forever, no trace | Phoenix re-queues within ~7 s (p99) |
 | Non-idempotent retries | Your problem to solve | `idempotent=True`  atomic Lua prevents concurrent duplicate execution |
 | No task timeouts | Zombie tasks block workers | Two-tier soft/hard timeout with cleanup hooks |
 | Ungraceful deploys | ~40% of in-flight tasks silently lost | SIGTERM drain + handoff to other workers |
@@ -219,7 +219,7 @@ Full guide: [docs/chaos-guide.md](https://getrelier.github.io/relier/chaos-guide
 
 Measured by the built-in bench suite (`docker compose -f docker-compose.bench.yml up --build`) on Linux with prefork workers and synthetic 0.5 s tasks. All claims verified end-to-end not microbenchmarks against a mock.
 
-_Numbers below: Relier `v0.1.6`, captured 2026-05-31 (9/9 claims verified). Re-run with `make bench-docker` to compare on your hardware._
+_Numbers below: Relier `v0.1.6`, captured 2026-06-03 (9/9 claims verified). Re-run with `make bench-docker` to compare on your hardware._
 
 ```
 Linux (Docker, python:3.11-slim, prefork=4) | Redis 7.2 AOF | 500 tasks × 5 kills
@@ -227,24 +227,25 @@ Linux (Docker, python:3.11-slim, prefork=4) | Redis 7.2 AOF | 500 tasks × 5 kil
 Metric                              Relier 0.1.6       Vanilla Celery     Vanilla +acks_late
 ----------------------------------------------------------------------------------------------
 Task delivery rate (5 SIGKILL)      100%   500/500     92.0%  460/500     96.0%  480/500  (0 dup)
-OOM recovery avg / p99              7.1 s / 8.9 s      ∞ lost             partial (visibility)
-Dual-OOM (2 concurrent tasks)       2/2 · 5.5 s        both lost          partial (visibility)
-Idempotent recovery (delayed)       re-ran 4.8 s       ∞ lost             partial (visibility)
+OOM recovery avg / p99              6.9 s / 7.0 s      ∞ lost             partial (visibility)
+Dual-OOM (2 concurrent tasks)       2/2 · 7.0 s        both lost          partial (visibility)
+Idempotent recovery (delayed)       re-ran 1.0 s       ∞ lost             partial (visibility)
 Idempotency (50 submissions)        1 execution        50 executions      50 executions
-Admission control p99 / max         0.559 ms / 10.2 ms n/a                n/a
+Admission control p99 / max         0.323 ms / 1.15 ms n/a                n/a
 Graceful shutdown (3 cycles)        100%               0%                 0%
-Dispatch overhead (net avg)         +1.87 ms           n/a                n/a
-Cold-start to first task            4.07 s avg         n/a                n/a
-Resurrection under load (5 kill)    5/5 · 7.0 s p99    all lost           partial (visibility)
+Dispatch overhead (net avg)         +0.99 ms           n/a                n/a
+Cold-start to first task            1.00 s avg         n/a                n/a
+Resurrection under load (5 kill)    5/5 · 1.1 s p99    all lost           partial (visibility)
+Worker RAM (idle, per process)      +16 MB/proc        n/a                n/a
 File descriptor leak                Δ +0 (stable)      n/a                n/a
 ----------------------------------------------------------------------------------------------
 ```
 
-**+1.87 ms per dispatch** pays for: atomic admission check, SHA-256-signed envelope wrap, heartbeat registration. On any task that does real work (a DB query, an HTTP call, an AI inference), this is invisible.
+**+0.99 ms per dispatch** pays for: atomic admission check, SHA-256-signed envelope wrap, heartbeat registration. On any task that does real work (a DB query, an HTTP call, an AI inference), this is invisible.
 
-At 2.7 ms average per dispatch, **a single async producer sustains ~370 `apush()` calls/second** per thread. FastAPI producers fan out well past 1,000/second.
+At 1.76 ms average per dispatch, **a single async producer sustains ~570 `apush()` calls/second** per thread. FastAPI producers fan out well past 1,000/second.
 
-The admission control Lua script stays under 1 ms at p99 (0.559 ms), meaning the tail-latency cost of the admission check is bounded for the vast majority of requests. The "Vanilla +acks_late" column shows what flipping `task_acks_late=True` actually buys you: partial recovery (96.0% vs 92.0%) but not Relier's 100%, because the Redis broker's `visibility_timeout` default (~1 hour) gates redelivery long after most completions would have happened.
+The admission control Lua script stays under 1 ms at p99 (0.323 ms), meaning the tail-latency cost of the admission check is bounded for the vast majority of requests. The "Vanilla +acks_late" column shows what flipping `task_acks_late=True` actually buys you: partial recovery (96.0% vs 92.0%) but not Relier's 100%, because the Redis broker's `visibility_timeout` default (~1 hour) gates redelivery long after most completions would have happened.
 
 ![Bench dashboard end of run](docs/assets/images/screenshot-1.png)
 
@@ -252,7 +253,7 @@ Full methodology, per-test breakdowns, and Docker Compose instructions: [docs/be
 
 ### Scaling
 
-Test 7 in the bench measures Redis ops/sec with N tasks inflight vs the same workers idle. The per-task steady-state delta came in **below measurement noise**; idle workers actually issue slightly more Redis traffic (BRPOP polling) than busy workers do.
+Test 7 reports Redis ops/sec with N tasks inflight and the same workers idle, both **as measured** — it doesn't subtract them, because a worker busy inside a task polls the broker *less* than an idle one, so the inflight figure can read below idle. Relier's own per-task steady-state cost is the heartbeat refresh: 2 ops every `heartbeat_ttl/2` s = **0.4 ops/sec/task** (~400/s at 1k inflight, ~4,000/s at 10k) — deterministic and tiny.
 
 The real Redis cost is per-task **lifecycle ops** (dispatch + register + complete), about ~13–16 ops per task end-to-end. Capacity scales with **task turnover rate**, not inflight count:
 
@@ -263,9 +264,9 @@ The real Redis cost is per-task **lifecycle ops** (dispatch + register + complet
 | 100M tasks/day | ~1,200 | ~18,000 | comfortable |
 | 1B tasks/day | ~12,000 | ~180,000 | needs sharding |
 
-![Redis Commands/sec — Steady-state ops (Test 7). Spikes during task turnover bursts, flat baseline at steady state. Per-task coordination cost below measurement noise.](docs/assets/images/screenshot-2.png)
+![Redis Commands/sec — Steady-state ops (Test 7). Spikes during task turnover bursts, flat baseline at steady state. Per-task steady-state heartbeat cost ~0.4 ops/sec.](docs/assets/images/screenshot-2.png)
 
-Long-running tasks are effectively free at the steady-state level; you can have tens of thousands of concurrent ETL jobs holding inflight without saturating Redis. Single-master Redis tops out around 10,000 tasks/sec end-to-end (100k–150k ops/sec ÷ ~15 ops/task); past that, the path is vertical Redis, Redis Cluster (v0.1.3 ships hash-tagged keys for this), or a RabbitMQ broker. Full breakdown: [docs/benchmarks.md § Scaling ceiling](docs/benchmarks.md#scaling-ceiling-and-per-task-coordination-cost).
+Long-running tasks are cheap at the steady-state level — just the 0.4 ops/sec/task heartbeat — so you can hold tens of thousands of concurrent ETL jobs inflight without saturating Redis. Single-master Redis tops out around 10,000 tasks/sec end-to-end (100k–150k ops/sec ÷ ~15 ops/task); past that, the path is vertical Redis, Redis Cluster (Relier ships hash-tagged keys for this), or a RabbitMQ broker. Full breakdown: [docs/benchmarks.md § Scaling ceiling](docs/benchmarks.md#scaling-ceiling-and-per-task-coordination-cost).
 
 ---
 
@@ -314,7 +315,7 @@ Full feature reference: [docs/](https://getrelier.github.io/relier/).
 
 - **Teal CLI palette**: all `rl` commands now use a consistent teal/dark theme — structured log output, coloured flags and env vars, dimmed comments, and coloured extra fields in `rl run-resurrector`.
 - **Resurrector claim grace period**: the "never claimed" false-positive warning on cold worker starts is fixed — the resurrector now waits `resurrection_claim_grace_period` seconds (default 30 s) before declaring a re-queued task unclaimed, eliminating false alerts during slow worker startups.
-- **Bench refresh (v0.1.6)**: idempotent recovery verified at 4.8 s, dual-OOM detection tightened to 5.5 s, resurrection under load at 7.0 s p99.
+- **Bench refresh (v0.1.6)**: idempotent recovery re-runs 1.0 s after restart, dual-OOM resurrects both tasks in 7.0 s, resurrection under load at p99 1.1 s (5 inflight) and 6.3 s (25 inflight, `--scale`).
 
 Full history in the [CHANGELOG](CHANGELOG.md).
 
