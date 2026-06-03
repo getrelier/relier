@@ -2,78 +2,78 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://getrelier.github.io/relier/</loc>
-         <lastmod>2026-06-01</lastmod>
+         <lastmod>2026-06-03</lastmod>
     </url>
     <url>
          <loc>https://getrelier.github.io/relier/api-reference/</loc>
-         <lastmod>2026-06-01</lastmod>
+         <lastmod>2026-06-03</lastmod>
     </url>
     <url>
          <loc>https://getrelier.github.io/relier/architecture/</loc>
-         <lastmod>2026-06-01</lastmod>
+         <lastmod>2026-06-03</lastmod>
     </url>
     <url>
          <loc>https://getrelier.github.io/relier/benchmarks/</loc>
-         <lastmod>2026-06-01</lastmod>
+         <lastmod>2026-06-03</lastmod>
     </url>
     <url>
          <loc>https://getrelier.github.io/relier/celery-primer/</loc>
-         <lastmod>2026-06-01</lastmod>
+         <lastmod>2026-06-03</lastmod>
     </url>
     <url>
          <loc>https://getrelier.github.io/relier/chaos-guide/</loc>
-         <lastmod>2026-06-01</lastmod>
+         <lastmod>2026-06-03</lastmod>
     </url>
     <url>
          <loc>https://getrelier.github.io/relier/cli-reference/</loc>
-         <lastmod>2026-06-01</lastmod>
+         <lastmod>2026-06-03</lastmod>
     </url>
     <url>
          <loc>https://getrelier.github.io/relier/concepts/</loc>
-         <lastmod>2026-06-01</lastmod>
+         <lastmod>2026-06-03</lastmod>
     </url>
     <url>
          <loc>https://getrelier.github.io/relier/configuration/</loc>
-         <lastmod>2026-06-01</lastmod>
+         <lastmod>2026-06-03</lastmod>
     </url>
     <url>
          <loc>https://getrelier.github.io/relier/deployment/</loc>
-         <lastmod>2026-06-01</lastmod>
+         <lastmod>2026-06-03</lastmod>
     </url>
     <url>
          <loc>https://getrelier.github.io/relier/durability/</loc>
-         <lastmod>2026-06-01</lastmod>
+         <lastmod>2026-06-03</lastmod>
     </url>
     <url>
          <loc>https://getrelier.github.io/relier/integrations/</loc>
-         <lastmod>2026-06-01</lastmod>
+         <lastmod>2026-06-03</lastmod>
     </url>
     <url>
          <loc>https://getrelier.github.io/relier/metrics/</loc>
-         <lastmod>2026-06-01</lastmod>
+         <lastmod>2026-06-03</lastmod>
     </url>
     <url>
          <loc>https://getrelier.github.io/relier/patterns/</loc>
-         <lastmod>2026-06-01</lastmod>
+         <lastmod>2026-06-03</lastmod>
     </url>
     <url>
          <loc>https://getrelier.github.io/relier/quickstart/</loc>
-         <lastmod>2026-06-01</lastmod>
+         <lastmod>2026-06-03</lastmod>
     </url>
     <url>
          <loc>https://getrelier.github.io/relier/rl/</loc>
-         <lastmod>2026-06-01</lastmod>
+         <lastmod>2026-06-03</lastmod>
     </url>
     <url>
          <loc>https://getrelier.github.io/relier/rolling-deploys/</loc>
-         <lastmod>2026-06-01</lastmod>
+         <lastmod>2026-06-03</lastmod>
     </url>
     <url>
          <loc>https://getrelier.github.io/relier/running/</loc>
-         <lastmod>2026-06-01</lastmod>
+         <lastmod>2026-06-03</lastmod>
     </url>
     <url>
          <loc>https://getrelier.github.io/relier/troubleshooting/</loc>
-         <lastmod>2026-06-01</lastmod>
+         <lastmod>2026-06-03</lastmod>
     </url>
 </urlset>

@@ -1699,8 +1699,8 @@ does. Use these as templates; adapt to your problem.</p>
 <hr />
 <h2 id="pattern-1-safe-to-retry-external-api-call">Pattern 1: Safe-to-retry external API call<a class="headerlink" href="#pattern-1-safe-to-retry-external-api-call" title="Permanent link">&para;</a></h2>
 <p>The most common pattern. The task hits an external service that <em>should</em> be
-idempotent but you don't want to rely on luck. Relier guarantees exactly-once
-execution on your side.</p>
+idempotent but you don't want to rely on luck. Relier prevents concurrent
+duplicate execution on your side.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nd">@rl_task</span><span class="p">(</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">queue</span><span class="o">=</span><span class="s2">&quot;default&quot;</span><span class="p">,</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">idempotent</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>

@@ -2346,7 +2346,7 @@ index growing, which means workers aren't pulling fast enough.</p>
 <li><strong>A bug in your task code.</strong> If your task does the wrong thing, idempotency
   caches the wrong result. Test your tasks.</li>
 <li><strong>An external service mis-honouring idempotency.</strong> Stripe, your DB,
-  whatever you call, Relier guarantees exactly-once on its side, but if the
+  whatever you call, Relier prevents concurrent duplicate execution on its side, but if the
   downstream system charges twice from a retry, that's a downstream bug.</li>
 <li><strong>Total data-centre loss without offsite backups.</strong> Enable
   <code>BACKUP_S3_BUCKET</code> if you care about this.</li>
