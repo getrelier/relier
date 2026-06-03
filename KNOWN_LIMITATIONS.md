@@ -40,12 +40,14 @@ The original estimate ("throughput win is effectively zero") was wrong at
 high concurrency with short tasks. The 10k run recorded CPU avg 32.5%
 (Relier) vs 1.1% (vanilla). Root causes, in order of impact:
 
-1. **Asyncio background task storm.** Every in-flight task spawns a
-   background coroutine refreshing every `heartbeat_ttl / 2 = 5s`. At
-   10,000 concurrent 50ms tasks the event loop schedules and cancels 10,000
-   coroutines per cycle — almost none fire before the task completes. The
-   scheduling overhead dominates. Worker-level heartbeats collapse this to
-   one coroutine per worker.
+1. **Asyncio background task storm.** Each worker runs a single persistent
+   asyncio event loop — Relier does **not** spin up a new loop per task. But
+   every in-flight task schedules its own background coroutine on that loop
+   to refresh the heartbeat every `heartbeat_ttl / 2 = 5s`. At 10,000
+   concurrent 50ms tasks that one loop is scheduling and cancelling 10,000
+   short-lived coroutines per cycle — almost none fire before the task
+   completes, so the scheduling churn (not loop creation) dominates.
+   Worker-level heartbeats collapse this to one coroutine per worker.
 
 2. **Resurrection scanner is O(n_tasks).** The scanner reads a ZSET with
    one entry per in-flight task. At 10k inflight it's scanning 10,000
@@ -91,7 +93,7 @@ of how many masters you have.
 
 ### Why it matters
 
-Pairs with Issue #4 (hash tags, shipped in v0.1.3) to make Relier
+Pairs with Issue #4 (hash tags, already shipped) to make Relier
 horizontally scalable. Without this, a customer running Redis Cluster
 still has a single hot key gating resurrection.
 

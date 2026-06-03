@@ -294,7 +294,7 @@ For workloads above ~1k tasks/sec end-to-end, three paths:
 
 1. **Vertical Redis.** `cache.r6g.xlarge` doubles your ceiling; `r6g.4xlarge`
    quadruples it. Standard cloud move; works up to ~5–10k tasks/sec.
-2. **Redis Cluster.** v0.1.3 ships hash-tagged keys so per-task
+2. **Redis Cluster.** Relier ships hash-tagged keys so per-task
    coordination state colocates on one shard. A 4-master cluster gives you
    ~4–5× the single-node throughput. Sharding the global expiry index is
    the natural next step when this becomes the bottleneck.
@@ -312,11 +312,14 @@ Test 7 reports it from the protocol rather than the measured delta. As a
 At high concurrency with short tasks the picture changes. The high-scale
 run (10,000 tasks × 0.05s) recorded **CPU avg 32.5% (Relier) vs 1.1%
 (vanilla)**. The dominant cost is not Redis ops — it is the **asyncio
-background task storm**: every in-flight task spawns a background coroutine
-refreshing every 5s. At 10,000 concurrent 50ms tasks, almost none of those
-coroutines fire before the task completes, but the asyncio scheduler still
-schedules and cancels 10,000 of them. The resurrection scanner compounds
-this by scanning a 10,000-entry ZSET every 2s.
+background task storm**. Each worker runs a single persistent asyncio event
+loop — Relier does **not** spin up a new loop per task. But every in-flight
+task schedules its own background coroutine on that loop to refresh the
+heartbeat every 5s. At 10,000 concurrent 50ms tasks, almost none of those
+coroutines fire before the task completes, yet the one loop still schedules
+and cancels 10,000 short-lived coroutines per cycle. The churn — not loop
+creation — is the cost. The resurrection scanner compounds it by scanning a
+10,000-entry ZSET every 2s.
 
 Note: the CPU metric is system-wide (`psutil.cpu_percent`) and includes
 the Redis server processing ~150,000 ops in a short burst. It is not a

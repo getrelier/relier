@@ -219,7 +219,7 @@ Full guide: [docs/chaos-guide.md](https://getrelier.github.io/relier/chaos-guide
 
 Measured by the built-in bench suite (`docker compose -f docker-compose.bench.yml up --build`) on Linux with prefork workers and synthetic 0.5 s tasks. All claims verified end-to-end not microbenchmarks against a mock.
 
-_Numbers below: Relier `v0.1.6`, captured 2026-05-31 (9/9 claims verified). Re-run with `make bench-docker` to compare on your hardware._
+_Numbers below: Relier `v0.1.6`, captured 2026-06-03 (9/9 claims verified). Re-run with `make bench-docker` to compare on your hardware._
 
 ```
 Linux (Docker, python:3.11-slim, prefork=4) | Redis 7.2 AOF | 500 tasks × 5 kills
@@ -266,7 +266,7 @@ The real Redis cost is per-task **lifecycle ops** (dispatch + register + complet
 
 ![Redis Commands/sec — Steady-state ops (Test 7). Spikes during task turnover bursts, flat baseline at steady state. Per-task steady-state heartbeat cost ~0.4 ops/sec.](docs/assets/images/screenshot-2.png)
 
-Long-running tasks are cheap at the steady-state level — just the 0.4 ops/sec/task heartbeat — so you can hold tens of thousands of concurrent ETL jobs inflight without saturating Redis. Single-master Redis tops out around 10,000 tasks/sec end-to-end (100k–150k ops/sec ÷ ~15 ops/task); past that, the path is vertical Redis, Redis Cluster (v0.1.3 ships hash-tagged keys for this), or a RabbitMQ broker. Full breakdown: [docs/benchmarks.md § Scaling ceiling](docs/benchmarks.md#scaling-ceiling-and-per-task-coordination-cost).
+Long-running tasks are cheap at the steady-state level — just the 0.4 ops/sec/task heartbeat — so you can hold tens of thousands of concurrent ETL jobs inflight without saturating Redis. Single-master Redis tops out around 10,000 tasks/sec end-to-end (100k–150k ops/sec ÷ ~15 ops/task); past that, the path is vertical Redis, Redis Cluster (Relier ships hash-tagged keys for this), or a RabbitMQ broker. Full breakdown: [docs/benchmarks.md § Scaling ceiling](docs/benchmarks.md#scaling-ceiling-and-per-task-coordination-cost).
 
 ---
 
