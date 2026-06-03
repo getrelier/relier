@@ -141,6 +141,12 @@ waits 40% of task time, then sends `SIGTERM`.
 Relier drains in-flight tasks then hands the rest off to a replacement worker.
 Vanilla terminates immediately. Repeated 1 cycle (Ollama) or 3 cycles (synthetic).
 
+Delivery is counted by **distinct task key**, so the rate is capped at 100%. Drain + handoff
+is *at-least-once*: a drained task can be completed by the old worker and re-run by the
+replacement. The probe is intentionally non-idempotent, so any such re-run is reported
+separately as a "handoff duplicate" rather than inflating the delivery rate past 100% —
+in production, `@rl_task(idempotent=True)` dedupes these.
+
 ### Test 7 · Resource overhead
 Measures idle worker RSS and the number of Redis keys + bytes written per in-flight Relier
 task. Also checks for file-descriptor leaks (open fds before vs after a task completes).
