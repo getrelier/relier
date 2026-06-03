@@ -55,8 +55,8 @@ SHUTDOWN_CYCLES = 3 if SYNTHETIC else 1
 SHUTDOWN_WORK_S = SYNTHETIC_TASK_SLEEP_S if SYNTHETIC else 10.0
 
 # ── Resource overhead test ────────────────────────────────────────────────────
-RESOURCE_PROBE_S = SYNTHETIC_TASK_SLEEP_S * 6 if SYNTHETIC else 10.0
-RESOURCE_SAMPLE_WAIT = 2 if SYNTHETIC else 4
+RESOURCE_PROBE_S = max(SYNTHETIC_TASK_SLEEP_S * 6, 3.0) if SYNTHETIC else 10.0
+RESOURCE_SAMPLE_WAIT = max(2, int(RESOURCE_PROBE_S / 2)) if SYNTHETIC else 4
 
 # ── Steady-state Redis ops/sec (Test 7 sub-test) ─────────────────────────────
 # Measurement window; 60 s is long enough to average out bursts.
