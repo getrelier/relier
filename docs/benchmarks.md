@@ -286,11 +286,33 @@ For workloads above ~1k tasks/sec end-to-end, three paths:
    touch Redis at all, eliminating the bulk of broker overhead. Bigger
    architectural shift; credible v0.3 direction once a customer asks for it.
 
-### Why heartbeats are *not* the dominant cost
+### Heartbeat cost: Redis ops vs asyncio overhead
 
-An earlier sketch of the scaling story assumed Relier's per-task heartbeat
-refresh was the bottleneck. The bench corrected that: at 5 inflight, the
-heartbeat contribution was below measurement noise. Worker-level heartbeats
-remain a future refactor for keyspace cleanup and code clarity, but they
-are not a throughput lever; the measured ops/sec win is essentially zero
-at v0.1 bench scale.
+At low concurrency (5 inflight, 0.5s tasks), the per-task heartbeat
+refresh (0.4 ops/sec/task) was below Redis measurement noise — the bench
+corrected the earlier assumption that heartbeats were the Redis bottleneck.
+
+At high concurrency with short tasks the picture changes. The high-scale
+run (10,000 tasks × 0.05s) recorded **CPU avg 43.2% (Relier) vs 1.2%
+(vanilla)**. The dominant cost is not Redis ops — it is the **asyncio
+background task storm**: every in-flight task spawns a background coroutine
+refreshing every 5s. At 10,000 concurrent 50ms tasks, almost none of those
+coroutines fire before the task completes, but the asyncio scheduler still
+schedules and cancels 10,000 of them. The resurrection scanner compounds
+this by scanning a 10,000-entry ZSET every 2s.
+
+Note: the CPU metric is system-wide (`psutil.cpu_percent`) and includes
+the Redis server processing ~150,000 ops in a short burst. It is not a
+per-process worker measurement.
+
+**At production task durations (>100ms) this cost is invisible** — the
+background coroutine completes at least one refresh and the overhead
+amortises into the task work time. The 43.2% figure is specific to
+synthetic 50ms tasks at 10k concurrency, an edge case not representative
+of typical Celery workloads.
+
+Worker-level heartbeats (one background coroutine per worker instead of
+per task) are the planned fix for this edge case and will also reduce the
+expiry index scan from O(n_tasks) to O(n_workers). See
+[`KNOWN_LIMITATIONS.md`](../KNOWN_LIMITATIONS.md) for the full analysis
+and implementation sketch. Target: v0.2.

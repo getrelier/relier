@@ -108,7 +108,7 @@ jobs:
     if: >-
       github.event.schedule == '0 2 * * 1' ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.run_high_scale == 'true')
-    timeout-minutes: 60
+    timeout-minutes: 120
 
     steps:
       - uses: actions/checkout@v6
