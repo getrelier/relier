@@ -36,7 +36,7 @@ _r = redis_lib.from_url(REDIS_URL, decode_responses=True)
     hard_timeout=100,
 )
 async def embed_document(doc_id: str, text: str) -> dict:
-    """Embed a document chunk. Idempotent: same doc_id runs exactly once."""
+    """Embed a document chunk. Idempotent: concurrent duplicates are blocked."""
     if SYNTHETIC:
         await asyncio.sleep(SYNTHETIC_TASK_SLEEP_S)
         dim = 768  # nomic-embed-text output dimension

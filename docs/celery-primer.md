@@ -153,7 +153,7 @@ charge_customer.delay("cus_abc", 5000)
 # =====================================================================
 @rl_task(
     queue="high_priority",
-    idempotent=True,           # exactly-once via atomic Redis Lua
+    idempotent=True,           # idempotent execution via atomic Redis Lua
     soft_timeout=8,            # warning at 8s, cleanup hook can fire
     hard_timeout=10,           # killed at 10s
 )

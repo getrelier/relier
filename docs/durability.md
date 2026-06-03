@@ -450,7 +450,7 @@ Honest list:
 - **A bug in your task code.** If your task does the wrong thing, idempotency
   caches the wrong result. Test your tasks.
 - **An external service mis-honouring idempotency.** Stripe, your DB,
-  whatever you call, Relier guarantees exactly-once on its side, but if the
+  whatever you call, Relier prevents concurrent duplicate execution on its side, but if the
   downstream system charges twice from a retry, that's a downstream bug.
 - **Total data-centre loss without offsite backups.** Enable
   `BACKUP_S3_BUCKET` if you care about this.
