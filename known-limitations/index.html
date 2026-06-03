@@ -1846,7 +1846,7 @@ magnitude fewer keys are possible if liveness is tracked per-worker.</p>
 <li>Add <code>rl:worker:{worker_id}:tasks</code> — hash of tasks the worker owns</li>
 <li>Resurrector scans dead <strong>workers</strong> then enumerates the worker's task set,
   instead of scanning per-task expiry</li>
-<li>Design doc lives on the <code>feature/worker-level-heartbeats</code> branch</li>
+<li>Design doc and discussion: <a href="https://github.com/getrelier/relier/issues/55">#55</a></li>
 </ul>
 <h3 id="honest-roi">Honest ROI<a class="headerlink" href="#honest-roi" title="Permanent link">&para;</a></h3>
 <p><strong>Updated after high-scale bench (10k tasks × 0.05s, 2026-06-03).</strong></p>
