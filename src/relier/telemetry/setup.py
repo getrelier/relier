@@ -12,13 +12,6 @@ the SDK falls back to the no-op providers shipped with ``opentelemetry-api``.
 import logging
 
 from opentelemetry import metrics, trace
-from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 from relier import __version__
 from relier.config import get_settings
@@ -41,6 +34,21 @@ def setup_telemetry(service_name: str = "relier") -> None:
     if not settings.otel_enabled:
         logger.debug("OpenTelemetry export disabled (RELIER_OTEL_ENABLED=false).")
         return
+
+    # Imported lazily, inside the enabled guard: the OTLP gRPC exporter pulls in
+    # grpcio (tens of MB of native code per process). With the default
+    # otel_enabled=false, eager top-level imports would load that into every
+    # worker process for nothing — multiplied across the prefork pool. Deferring
+    # them here keeps disabled workers lean.
+    from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (
+        OTLPMetricExporter,
+    )
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+    from opentelemetry.sdk.resources import Resource
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
     endpoint = settings.otel_exporter_otlp_endpoint
 
