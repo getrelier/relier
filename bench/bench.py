@@ -33,6 +33,12 @@ Prerequisites (Ollama mode only):
 import os as _os
 import sys as _sys
 
+if "--scale" in _sys.argv:
+    # Scale implies synthetic — high-volume runs are only feasible with sleep
+    # tasks, not real Ollama workloads.
+    _os.environ["BENCH_SCALE"] = "scale"
+    _os.environ["BENCH_SYNTHETIC"] = "1"
+
 if "--synthetic" in _sys.argv:
     _os.environ["BENCH_SYNTHETIC"] = "1"
 
@@ -61,6 +67,7 @@ from bench.config import (  # noqa: E402
     ADMISSION_SAMPLES,
     BATCH_SIZE,
     BENCH_NS,
+    COLD_START_TRIALS,
     DELIVERY_KILL_CYCLES,
     IDEMPOTENCY_RELIER_WAIT_S,
     IDEMPOTENCY_SUBMISSIONS,
@@ -68,11 +75,13 @@ from bench.config import (  # noqa: E402
     OOM_CYCLES,
     OOM_KILL_WAIT,
     OOM_PROBE_S,
+    OVERHEAD_SAMPLES,
     PHOENIX_LOAD_WORKERS,
     REDIS_OPS_MEASURE_S,
     REDIS_URL,
     RESOURCE_PROBE_S,
     RESOURCE_SAMPLE_WAIT,
+    SCALE,
     SHUTDOWN_CYCLES,
     SHUTDOWN_TASKS,
     SHUTDOWN_WORK_S,
@@ -341,11 +350,15 @@ def preflight() -> bool:
     )
     console.print(f"  [cyan]INFO[/cyan] Platform: {_sys.platform}{pool_note}")
     if SYNTHETIC:
+        profile = "[magenta]scale[/magenta]" if SCALE == "scale" else "standard"
+        console.print(f"  [cyan]INFO[/cyan] Profile: {profile}")
         console.print(
-            f"  [cyan]INFO[/cyan] Scale: {BATCH_SIZE} tasks x {DELIVERY_KILL_CYCLES} kills  |  "
+            f"  [cyan]INFO[/cyan] Scale: {OVERHEAD_SAMPLES} overhead dispatches  |  "
+            f"{BATCH_SIZE} tasks x {DELIVERY_KILL_CYCLES} kills  |  "
             f"{OOM_CYCLES} OOM cycles  |  {IDEMPOTENCY_SUBMISSIONS} dedup submissions  |  "
             f"{ADMISSION_SAMPLES} admission samples  |  "
             f"{SHUTDOWN_TASKS} tasks x {SHUTDOWN_CYCLES} shutdown cycles  |  "
+            f"{COLD_START_TRIALS} cold-start trials  |  "
             f"{PHOENIX_LOAD_WORKERS} inflight load workers  |  "
             f"{REDIS_OPS_MEASURE_S}s ops window"
         )
@@ -362,7 +375,7 @@ async def test_overhead() -> None:
     from bench.relier_tasks import fast_noop
     from bench.vanilla_app import fast_noop_vanilla
 
-    N = 200
+    N = OVERHEAD_SAMPLES
 
     relier_times: list[float] = []
     for i in range(N):
@@ -387,6 +400,7 @@ async def test_overhead() -> None:
     overhead = round(r_avg - v_avg, 2)
 
     results["overhead"] = {
+        "samples": N,
         "relier_avg_ms": r_avg,
         "relier_p50_ms": r_p50,
         "relier_p95_ms": r_p95,
@@ -1260,7 +1274,7 @@ def test_resource_overhead() -> None:
 
 def test_cold_start_latency() -> None:
     """Measure how long from worker process start to first task pickup."""
-    N_TRIALS = 3
+    N_TRIALS = COLD_START_TRIALS
     console.print(
         f"\n[bold cyan]Test 8 * Cold-start to first-task latency  ({N_TRIALS} trials)[/bold cyan]"
     )
@@ -1439,8 +1453,12 @@ def print_results() -> None:
         title="Relier vs Vanilla Celery -- Benchmark Results",
         show_lines=True,
     )
+    try:
+        from relier import __version__ as _relier_version
+    except Exception:
+        _relier_version = "dev"
     table.add_column("Metric", style="bold", min_width=30)
-    table.add_column("Relier v1.0", justify="center", min_width=26)
+    table.add_column(f"Relier v{_relier_version}", justify="center", min_width=26)
     # Vanilla column stacks defaults + ack_late=True for the delivery row, so
     # the "just flip the flag" comparison is visible alongside vanilla's loss.
     table.add_column("Vanilla Celery", justify="center", min_width=30)
@@ -1553,7 +1571,7 @@ def print_results() -> None:
     if "overhead" in results:
         d = results["overhead"]
         table.add_row(
-            "Overhead per task  (200 dispatches)",
+            f"Overhead per task  ({d.get('samples', '?')} dispatches)",
             f"{d['overhead_ms']} ms net\np50 {d['relier_p50_ms']}  p95 {d['relier_p95_ms']}  p99 {d['relier_p99_ms']} ms",
             f"{d['vanilla_avg_ms']} ms baseline\np50 {d['vanilla_p50_ms']}  p95 {d['vanilla_p95_ms']} ms",
             _yn(d["claim_met"]),
@@ -1669,10 +1687,12 @@ def main() -> None:
             "Examples:\n"
             "  python -m bench.bench                # Ollama AI workloads\n"
             "  python -m bench.bench --synthetic    # Fast, high-volume, no GPU required\n"
+            "  python -m bench.bench --scale        # High-volume on EVERY test (implies --synthetic)\n"
             "\n"
-            "Scale overrides (synthetic mode):\n"
+            "Scale overrides (any BENCH_* env var wins over the profile):\n"
             "  BENCH_BATCH_SIZE=1000 python -m bench.bench --synthetic\n"
             "  BENCH_SYNTHETIC_SLEEP=0.25 python -m bench.bench --synthetic\n"
+            "  BENCH_PHOENIX_LOAD_WORKERS=10 python -m bench.bench --scale\n"
         ),
     )
     parser.add_argument(
@@ -1685,9 +1705,20 @@ def main() -> None:
             "No GPU required."
         ),
     )
+    parser.add_argument(
+        "--scale",
+        action="store_true",
+        help=(
+            "High-volume profile applied to every test (not just delivery): "
+            "larger dedup/admission/overhead sample sizes, more OOM and shutdown "
+            "cycles, more inflight load workers. Implies --synthetic."
+        ),
+    )
     parser.parse_args()
 
     mode_str = "SYNTHETIC" if SYNTHETIC else "OLLAMA"
+    if SCALE == "scale":
+        mode_str += " · SCALE"
     console.print(
         Panel(
             f"[bold white]Relier Benchmark Suite[/bold white]  [{mode_str}]\n"

@@ -76,9 +76,35 @@ python -m bench.bench
 
 # Synthetic mode: asyncio.sleep tasks, no GPU required, runs in minutes
 python -m bench.bench --synthetic
+
+# Scale mode: high-volume on EVERY test, not just delivery (implies --synthetic)
+python -m bench.bench --scale
 ```
 
 The runner manages all worker subprocesses itself; no need to start anything manually.
+
+### Scale profile
+
+`--scale` (or `BENCH_SCALE=scale`) raises the sample size on every test so the
+p99s, dedup rates, and recovery counts all rest on a meaningful N rather than a
+token sample. It implies `--synthetic`. Values per profile:
+
+| Test | standard (synthetic) | scale |
+|------|----------------------|-------|
+| Dispatch overhead | 200 dispatches | 2 000 |
+| Admission control | 5 000 samples | 50 000 |
+| Duplicate prevention | 50 submissions | 2 000 |
+| OOM recovery | 5 cycles | 20 |
+| Delivery rate | 500 tasks × 5 kills | 10 000 × 10 |
+| Graceful shutdown | 20 tasks × 3 cycles | 200 × 5 |
+| Cold-start | 3 trials | 10 |
+| Resurrection under load | 5 inflight | 25 |
+| Synthetic task sleep | 0.5 s | 0.05 s |
+
+Any `BENCH_*` env var still overrides the profile value. The
+`BENCH_PHOENIX_LOAD_WORKERS` knob is process-bound (one Celery worker process
+each), so it tops out at 25 in scale mode — raise it only if the host can
+sustain that many concurrent workers.
 
 ## How each test works
 
@@ -142,10 +168,19 @@ replacement worker, reports p50 / p99 / first / last. Claim: p99 < 120 s.
 |---------|---------|-------------|
 | `RELIER_REDIS_URL` | `redis://localhost:6379/0` | Redis URL |
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama base URL |
-| `BENCH_BATCH_SIZE` | `30` (Ollama) / `500` (synthetic) | Tasks for delivery-rate test |
+| `BENCH_SCALE` | `standard` | Set to `scale` for the high-volume profile (see above) |
+| `BENCH_BATCH_SIZE` | `30` (Ollama) / `500` (synthetic) / `10000` (scale) | Tasks for delivery-rate test |
+| `BENCH_DELIVERY_KILL_CYCLES` | `1` (Ollama) / `5` (synthetic) / `10` (scale) | Worker kills during delivery test |
+| `BENCH_OOM_CYCLES` | `1` (Ollama) / `5` (synthetic) / `20` (scale) | OOM kill/resurrect cycles |
+| `BENCH_IDEMPOTENCY_SUBMISSIONS` | `10` (Ollama) / `50` (synthetic) / `2000` (scale) | Duplicate-dispatch count |
+| `BENCH_ADMISSION_SAMPLES` | `1000` (Ollama) / `5000` (synthetic) / `50000` (scale) | Admission-control samples |
+| `BENCH_OVERHEAD_SAMPLES` | `200` / `2000` (scale) | Dispatch-overhead samples |
+| `BENCH_SHUTDOWN_TASKS` | `15` (Ollama) / `20` (synthetic) / `200` (scale) | Tasks per graceful-shutdown cycle |
+| `BENCH_SHUTDOWN_CYCLES` | `1` (Ollama) / `3` (synthetic) / `5` (scale) | Graceful-shutdown cycles |
+| `BENCH_COLD_START_TRIALS` | `3` / `10` (scale) | Cold-start latency trials |
 | `BENCH_WORKER_CONCURRENCY` | `4` | Worker concurrency (Linux/Mac prefork) |
-| `BENCH_SYNTHETIC_SLEEP` | `0.5` | Task sleep duration in synthetic mode (seconds) |
+| `BENCH_SYNTHETIC_SLEEP` | `0.5` / `0.05` (scale) | Task sleep duration in synthetic mode (seconds) |
 | `BENCH_OPS_MEASURE_S` | `60` | Test 7 steady-state ops measurement window |
-| `BENCH_PHOENIX_LOAD_WORKERS` | `5` (synthetic) / `20` (Ollama) | Concurrent inflight tasks for Tests 7 and 9 |
+| `BENCH_PHOENIX_LOAD_WORKERS` | `20` (Ollama) / `5` (synthetic) / `25` (scale) | Concurrent inflight tasks for Tests 7 and 9 |
 
 Edit `bench/config.py` to change any constant directly.

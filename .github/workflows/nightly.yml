@@ -11,7 +11,7 @@ on:
         required: false
         default: "500"
       run_high_scale:
-        description: "Also run the high-scale (10k × 8) chaos job on this manual run"
+        description: "Also run the high-scale (full-suite scale profile) chaos job on this manual run"
         type: boolean
         required: false
         default: false
@@ -134,16 +134,18 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-groups
 
-      - name: High-scale bench (10k tasks × 8 workers)
+      - name: High-scale bench (full-suite scale profile)
+        # BENCH_SCALE=scale raises N on EVERY test (10k delivery, 2k dedup,
+        # 50k admission, 20 OOM cycles, 200×5 shutdown, 25 inflight, …), not
+        # just the delivery batch. It also sets BATCH_SIZE=10000 and
+        # SYNTHETIC_SLEEP=0.05 itself, so those no longer need to be pinned here.
         env:
           RELIER_REDIS_URL: redis://localhost:6380/0
-          BENCH_SYNTHETIC: "1"
-          BENCH_BATCH_SIZE: "10000"
-          BENCH_SYNTHETIC_SLEEP: "0.05"
+          BENCH_SCALE: "scale"
           BENCH_WORKER_CONCURRENCY: "8"
           RELIER_OTEL_ENABLED: "false"
         run: |
-          uv run python -m bench.bench --synthetic
+          uv run python -m bench.bench --scale
 
       - name: Upload high-scale results
         if: always()
@@ -169,7 +171,7 @@ jobs:
           curl -X POST "$SLACK_WEBHOOK" \
             -H 'Content-type: application/json' \
             -d "{
-              \"text\": \":white_check_mark: *Relier high-scale chaos PASSED* (10k tasks × 8 workers)\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+              \"text\": \":white_check_mark: *Relier high-scale chaos PASSED* (full-suite scale profile)\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
             }"
 
       - name: Notify Slack on failure
