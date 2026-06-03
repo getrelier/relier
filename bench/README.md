@@ -145,6 +145,12 @@ Vanilla terminates immediately. Repeated 1 cycle (Ollama) or 3 cycles (synthetic
 Measures idle worker RSS and the number of Redis keys + bytes written per in-flight Relier
 task. Also checks for file-descriptor leaks (open fds before vs after a task completes).
 
+RSS is reported **per worker process** (headline) alongside the pool total, for both Relier
+and vanilla — a prefork worker is a parent + N children, so a single aggregate number
+silently scales with `--concurrency` and overstates the footprint. The per-process delta is
+the honest "what the reliability stack costs each worker." (RSS counts copy-on-write shared
+pages, so the pool total is a slight overcount of truly-unique memory.)
+
 Sub-test: **steady-state Redis ops/sec.** Runs `PHOENIX_LOAD_WORKERS` solo-pool workers,
 measures a 30 s idle baseline (workers running, no tasks), then a 60 s window with N tasks
 inflight. Both are reported **as measured** — the bench deliberately does *not* subtract
