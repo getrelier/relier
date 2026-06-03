@@ -314,5 +314,5 @@ of typical Celery workloads.
 Worker-level heartbeats (one background coroutine per worker instead of
 per task) are the planned fix for this edge case and will also reduce the
 expiry index scan from O(n_tasks) to O(n_workers). See
-[`KNOWN_LIMITATIONS.md`](../KNOWN_LIMITATIONS.md) for the full analysis
+[Known Limitations](known-limitations.md) for the full analysis
 and implementation sketch. Target: v0.2.
