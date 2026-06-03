@@ -73,6 +73,7 @@ nav:
     - Durability, HA, & Failure Boundaries: durability.md
     - Chaos Guide: chaos-guide.md
     - Benchmarks: benchmarks.md
+    - Known Limitations: known-limitations.md
 
 markdown_extensions:
   - admonition
