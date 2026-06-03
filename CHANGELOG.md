@@ -402,7 +402,7 @@ stable, the public API surface may still shift in `0.y.0` bumps.
 - **Phoenix resurrector** — heartbeat-based crash detection, atomic
   re-queue with lease + fence-token protocol, distributed coordination
   lock to prevent double-resurrection.
-- **Idempotency** — exactly-once execution via atomic Redis Lua,
+- **Idempotency** — idempotent execution via atomic Redis Lua,
   claim / in-flight / completed states with TTL-bounded locks.
 - **Schema envelope** — versioned, signed payloads with sequential
   migrations for safe rolling deploys.

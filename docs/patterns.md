@@ -8,8 +8,8 @@ does. Use these as templates; adapt to your problem.
 ## Pattern 1: Safe-to-retry external API call
 
 The most common pattern. The task hits an external service that *should* be
-idempotent but you don't want to rely on luck. Relier guarantees exactly-once
-execution on your side.
+idempotent but you don't want to rely on luck. Relier prevents concurrent
+duplicate execution on your side.
 
 ```python
 @rl_task(
