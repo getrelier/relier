@@ -147,9 +147,14 @@ task. Also checks for file-descriptor leaks (open fds before vs after a task com
 
 Sub-test: **steady-state Redis ops/sec.** Runs `PHOENIX_LOAD_WORKERS` solo-pool workers,
 measures a 30 s idle baseline (workers running, no tasks), then a 60 s window with N tasks
-inflight. The delta is the per-task steady-state coordination cost. In practice this comes
-out below measurement noise — see `docs/benchmarks.md` § "Scaling ceiling and per-task
-coordination cost" for the interpretation.
+inflight. Both are reported **as measured** — the bench deliberately does *not* subtract
+baseline from total, because busy workers poll the broker less than idle ones, so the
+inflight figure routinely lands *below* baseline and a subtraction would floor to a
+meaningless ~0. The per-task coordination cost Relier actually adds is the heartbeat
+refresh: 2 ops (EXPIRE + ZADD) every `heartbeat_ttl/2` seconds, i.e. 0.4 ops/sec/task at
+the default `heartbeat_ttl=10`. That figure is derived from the protocol and extrapolated
+linearly (~400/s at 1k inflight, ~4 000/s at 10k) rather than inferred from the noisy
+broker-polling delta.
 
 ### Test 8 · Cold-start to first-task latency
 Dispatches a task while the worker is *not* running, starts a fresh worker, and measures

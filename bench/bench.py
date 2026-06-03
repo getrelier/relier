@@ -1160,17 +1160,20 @@ def test_resource_overhead() -> None:
     )
 
     # ── Steady-state Redis ops/sec ─────────────────────────────────────────────
-    # Strategy: measure idle-worker baseline first (workers running, no tasks),
-    # then measure with N tasks inflight. Subtracting the baseline isolates ops
-    # that scale with inflight task count — the per-task coordination cost.
+    # We report two *measured* numbers — idle-worker baseline (workers running,
+    # no tasks) and total with N tasks inflight — plus the *deterministic*
+    # Relier per-task coordination cost derived from the heartbeat protocol.
     #
-    # NB the per-task figure here is NOT pure heartbeat refresh. Heartbeat
-    # refresh is exactly 1 pipeline of 2 ops every heartbeat_ttl/2 seconds
-    # (~0.4 ops/sec/task at the default heartbeat_ttl=10). The remainder comes
-    # from Celery's task_acks_late visibility tracking and the result backend
-    # writes that fire on every task start (task_track_started=True) — both
-    # are the cost of "no task loss on worker crash" and are not optimisable
-    # without weakening that guarantee.
+    # We deliberately do NOT subtract baseline from total. Busy workers poll the
+    # broker LESS than idle ones (they're inside the task), so total routinely
+    # comes out *below* baseline and a subtraction floors to a meaningless ~0.
+    # Broker polling dominates and masks coordination cost; it cannot be
+    # isolated by subtraction here.
+    #
+    # What IS attributable to Relier per task is the heartbeat refresh: one
+    # pipeline of 2 ops (EXPIRE + ZADD) every heartbeat_ttl/2 seconds — see
+    # PhoenixRegistry._refresh_loop. At the default heartbeat_ttl=10 that is
+    # 2 ops / 5 s = 0.4 ops/sec/task, which extrapolates linearly and honestly.
     console.print(
         f"\n  [bold]Steady-state Redis ops/sec[/bold]  "
         f"({PHOENIX_LOAD_WORKERS} concurrent inflight tasks, {REDIS_OPS_MEASURE_S}s window)"
@@ -1221,29 +1224,39 @@ def test_resource_overhead() -> None:
         PHOENIX_LOAD_WORKERS,
     )
     total_ops_ps = (ops_after - ops_before) / REDIS_OPS_MEASURE_S
-    # Per-task coordination ops = total minus the per-worker polling baseline.
-    # Includes Relier heartbeat refresh (~0.4 ops/sec/task) plus Celery's
-    # task_acks_late visibility tracking and result backend writes that
-    # fire on every task start (the bulk of the figure).
-    per_task_coord_ps = max(total_ops_ps - baseline_ops_ps, 0.0)
-    per_task_ps = round(per_task_coord_ps / max(actual_inflight, 1), 3)
-    ops_1k = round(per_task_ps * 1000)
-    ops_10k = round(per_task_ps * 10000)
 
-    console.print(f"    Baseline (idle workers) : {round(baseline_ops_ps, 1)} ops/sec")
+    # Deterministic per-task Relier coordination cost from the heartbeat
+    # protocol: 2 ops (EXPIRE + ZADD) every heartbeat_ttl/2 seconds.
+    try:
+        from relier.config import get_settings
+
+        heartbeat_ttl = get_settings().heartbeat_ttl
+    except Exception:
+        heartbeat_ttl = 10
+    hb_per_task_ps = round(2 / (heartbeat_ttl / 2.0), 3)
+    hb_1k = round(hb_per_task_ps * 1000)
+    hb_10k = round(hb_per_task_ps * 10000)
+
     console.print(
-        f"    With tasks inflight     : {round(total_ops_ps, 1)} ops/sec  "
-        f"({actual_inflight} inflight)"
+        f"    Idle baseline (workers, no tasks) : {round(baseline_ops_ps, 1)} ops/sec"
     )
     console.print(
-        f"    Per-task coordination   : {round(per_task_coord_ps, 1)} ops/sec  "
-        f"({per_task_ps} ops/sec/task)"
+        f"    {actual_inflight} tasks inflight (measured)   : "
+        f"{round(total_ops_ps, 1)} ops/sec"
     )
-    console.print("    [dim]  ~0.4 ops/sec/task is Relier heartbeats;[/dim]")
-    console.print("    [dim]  the rest is Celery late-ACK + result tracking.[/dim]")
+    if total_ops_ps < baseline_ops_ps:
+        console.print(
+            "    [dim](inflight < idle: busy workers poll the broker less, so "
+            "broker polling — not coordination — dominates this number.)[/dim]"
+        )
     console.print(
-        f"    Extrapolated            : ~{ops_1k} at 1k inflight  /  "
-        f"~{ops_10k} at 10k inflight"
+        f"    Relier heartbeat cost (ttl={heartbeat_ttl}s): "
+        f"2 ops / {heartbeat_ttl / 2.0:g}s = "
+        f"[green]{hb_per_task_ps} ops/sec/task[/green]"
+    )
+    console.print(
+        f"    [dim]  -> ~{hb_1k} ops/sec at 1k inflight  /  "
+        f"~{hb_10k} ops/sec at 10k inflight[/dim]"
     )
 
     fd_leak_detected = fd_delta is not None and fd_delta > 5
@@ -1261,11 +1274,11 @@ def test_resource_overhead() -> None:
         "claim_met": not fd_leak_detected,
         "redis_ops_baseline_per_sec": round(baseline_ops_ps, 1),
         "redis_ops_total_per_sec": round(total_ops_ps, 1),
-        "redis_ops_per_task_coord_per_sec": round(per_task_coord_ps, 1),
         "redis_ops_actual_inflight": actual_inflight,
-        "redis_ops_per_task_per_sec": per_task_ps,
-        "redis_ops_1k_extrapolated": ops_1k,
-        "redis_ops_10k_extrapolated": ops_10k,
+        "redis_heartbeat_ttl_s": heartbeat_ttl,
+        "redis_ops_heartbeat_per_task_per_sec": hb_per_task_ps,
+        "redis_ops_heartbeat_1k": hb_1k,
+        "redis_ops_heartbeat_10k": hb_10k,
     }
 
 
@@ -1602,16 +1615,17 @@ def print_results() -> None:
             "n/a",
             "--",
         )
-        if d.get("redis_ops_per_task_coord_per_sec") is not None:
+        if d.get("redis_ops_heartbeat_per_task_per_sec") is not None:
             table.add_row(
                 f"Redis ops/sec  ({d['redis_ops_actual_inflight']} inflight measured)",
                 (
-                    f"baseline {d['redis_ops_baseline_per_sec']} ops/sec\n"
-                    f"total    {d['redis_ops_total_per_sec']} ops/sec\n"
-                    f"per-task {d['redis_ops_per_task_coord_per_sec']} ops/sec "
-                    f"({d['redis_ops_per_task_per_sec']} /task)\n"
-                    f"~{d['redis_ops_1k_extrapolated']} at 1k / "
-                    f"~{d['redis_ops_10k_extrapolated']} at 10k (extrap)"
+                    f"idle baseline {d['redis_ops_baseline_per_sec']} ops/sec\n"
+                    f"{d['redis_ops_actual_inflight']} inflight  "
+                    f"{d['redis_ops_total_per_sec']} ops/sec\n"
+                    f"heartbeat {d['redis_ops_heartbeat_per_task_per_sec']} ops/sec/task "
+                    f"(ttl {d['redis_heartbeat_ttl_s']}s)\n"
+                    f"~{d['redis_ops_heartbeat_1k']}/s at 1k / "
+                    f"~{d['redis_ops_heartbeat_10k']}/s at 10k"
                 ),
                 "0",
                 "--",
@@ -1679,6 +1693,13 @@ async def _async_tests() -> None:
 
 def main() -> None:
     import argparse
+    import logging as _logging
+
+    # Admission control logs a WARNING per rejected request; Test 2 fires tens
+    # of thousands of checks against one key, so most get rejected and would
+    # flood the console. The bench reads outcomes from Redis, not logs (worker
+    # subprocess logs already go to DEVNULL), so quiet Relier's own logger.
+    _logging.getLogger("relier").setLevel(_logging.ERROR)
 
     parser = argparse.ArgumentParser(
         description="Relier benchmark suite -- validates every claim in docs/benchmarks.md",
