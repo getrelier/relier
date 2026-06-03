@@ -16,6 +16,8 @@
         <link rel="prev" href="../chaos-guide/">
       
       
+        <link rel="next" href="../known-limitations/">
+      
       
         
       
@@ -1419,10 +1421,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#why-heartbeats-are-not-the-dominant-cost" class="md-nav__link">
+  <a href="#heartbeat-cost-redis-ops-vs-asyncio-overhead" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Why heartbeats are not the dominant cost
+        Heartbeat cost: Redis ops vs asyncio overhead
       
     </span>
   </a>
@@ -1438,6 +1440,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../known-limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Known Limitations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1727,10 +1757,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#why-heartbeats-are-not-the-dominant-cost" class="md-nav__link">
+  <a href="#heartbeat-cost-redis-ops-vs-asyncio-overhead" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Why heartbeats are not the dominant cost
+        Heartbeat cost: Redis ops vs asyncio overhead
       
     </span>
   </a>
@@ -2231,13 +2261,31 @@ modern Redis deployment.</p>
    touch Redis at all, eliminating the bulk of broker overhead. Bigger
    architectural shift; credible v0.3 direction once a customer asks for it.</li>
 </ol>
-<h3 id="why-heartbeats-are-not-the-dominant-cost">Why heartbeats are <em>not</em> the dominant cost<a class="headerlink" href="#why-heartbeats-are-not-the-dominant-cost" title="Permanent link">&para;</a></h3>
-<p>An earlier sketch of the scaling story assumed Relier's per-task heartbeat
-refresh was the bottleneck. The bench corrected that: at 5 inflight, the
-heartbeat contribution was below measurement noise. Worker-level heartbeats
-remain a future refactor for keyspace cleanup and code clarity, but they
-are not a throughput lever; the measured ops/sec win is essentially zero
-at v0.1 bench scale.</p>
+<h3 id="heartbeat-cost-redis-ops-vs-asyncio-overhead">Heartbeat cost: Redis ops vs asyncio overhead<a class="headerlink" href="#heartbeat-cost-redis-ops-vs-asyncio-overhead" title="Permanent link">&para;</a></h3>
+<p>At low concurrency (5 inflight, 0.5s tasks), the per-task heartbeat
+refresh (0.4 ops/sec/task) was below Redis measurement noise — the bench
+corrected the earlier assumption that heartbeats were the Redis bottleneck.</p>
+<p>At high concurrency with short tasks the picture changes. The high-scale
+run (10,000 tasks × 0.05s) recorded <strong>CPU avg 43.2% (Relier) vs 1.2%
+(vanilla)</strong>. The dominant cost is not Redis ops — it is the <strong>asyncio
+background task storm</strong>: every in-flight task spawns a background coroutine
+refreshing every 5s. At 10,000 concurrent 50ms tasks, almost none of those
+coroutines fire before the task completes, but the asyncio scheduler still
+schedules and cancels 10,000 of them. The resurrection scanner compounds
+this by scanning a 10,000-entry ZSET every 2s.</p>
+<p>Note: the CPU metric is system-wide (<code>psutil.cpu_percent</code>) and includes
+the Redis server processing ~150,000 ops in a short burst. It is not a
+per-process worker measurement.</p>
+<p><strong>At production task durations (&gt;100ms) this cost is invisible</strong> — the
+background coroutine completes at least one refresh and the overhead
+amortises into the task work time. The 43.2% figure is specific to
+synthetic 50ms tasks at 10k concurrency, an edge case not representative
+of typical Celery workloads.</p>
+<p>Worker-level heartbeats (one background coroutine per worker instead of
+per task) are the planned fix for this edge case and will also reduce the
+expiry index scan from O(n_tasks) to O(n_workers). See
+<a href="../known-limitations/">Known Limitations</a> for the full analysis
+and implementation sketch. Target: v0.2.</p>
 
 
 
@@ -2288,6 +2336,22 @@ at v0.1 bench scale.</p>
             </div>
           </a>
         
+        
+          
+          <a href="../known-limitations/" class="md-footer__link md-footer__link--next" aria-label="Next: Known Limitations">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Known Limitations
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
         
       </nav>
     
