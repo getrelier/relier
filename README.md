@@ -249,6 +249,27 @@ The admission control Lua script stays under 1 ms at p99 (0.323 ms), meaning the
 
 ![Bench dashboard end of run](docs/assets/images/screenshot-1.png)
 
+### At scale
+
+The default run above kills 5 workers across 500 tasks. The `--scale` profile raises the sample size on *every* test — so dedup, recovery, and admission numbers rest on a meaningful N, not a token handful — and still passes 9/9:
+
+```
+Linux (Docker, prefork) | synthetic 0.05 s tasks | python -m bench.bench --scale
+
+Metric                                   Relier 0.1.7            Vanilla Celery
+-------------------------------------------------------------------------------------------------
+Delivery rate (10,000 tasks, 10 kills)   100%  10,000/10,000     99.07% default · 99.86% acks_late (0 dup)
+Duplicate prevention (2,000 submissions) 1/2,000 ran             2,000/2,000 ran
+Worker OOM recovery (20 cycles)          7.0 s avg / 7.0 s p99   ∞ lost
+Admission control p99 (50,000 samples)   0.248 ms (p99.9 0.338)  n/a
+Graceful shutdown (5 cycles)             100%                    8.4%
+Resurrection under load (25 inflight)    25/25 · 6.3 s p99       ∞ all lost
+Worker RAM (idle, per process)           +14.1 MB/proc           n/a
+-------------------------------------------------------------------------------------------------
+```
+
+The headline guarantees don't soften under 20× the load: delivery stays at 100%, dedup holds at 1-of-2,000, and resurrection recovers all **25** simultaneously-killed in-flight tasks within the same heartbeat-bound window (p99 6.3 s) — recovery does not degrade with the number of concurrent deaths.
+
 Full methodology, per-test breakdowns, and Docker Compose instructions: [docs/benchmarks.md](docs/benchmarks.md).
 
 ### Scaling
