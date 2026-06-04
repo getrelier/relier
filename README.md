@@ -219,12 +219,12 @@ Full guide: [docs/chaos-guide.md](https://getrelier.github.io/relier/chaos-guide
 
 Measured by the built-in bench suite (`docker compose -f docker-compose.bench.yml up --build`) on Linux with prefork workers and synthetic 0.5 s tasks. All claims verified end-to-end not microbenchmarks against a mock.
 
-_Numbers below: Relier `v0.1.6`, captured 2026-06-03 (9/9 claims verified). Re-run with `make bench-docker` to compare on your hardware._
+_Numbers below: Relier `v0.1.7`, captured 2026-06-03 (9/9 claims verified). Re-run with `make bench-docker` to compare on your hardware._
 
 ```
 Linux (Docker, python:3.11-slim, prefork=4) | Redis 7.2 AOF | 500 tasks × 5 kills
 
-Metric                              Relier 0.1.6       Vanilla Celery     Vanilla +acks_late
+Metric                              Relier 0.1.7       Vanilla Celery     Vanilla +acks_late
 ----------------------------------------------------------------------------------------------
 Task delivery rate (5 SIGKILL)      100%   500/500     92.0%  460/500     96.0%  480/500  (0 dup)
 OOM recovery avg / p99              6.9 s / 7.0 s      ∞ lost             partial (visibility)
@@ -311,10 +311,11 @@ Full feature reference: [docs/](https://getrelier.github.io/relier/).
 
 ---
 
-## Recent fixes (v0.1.6)
+## Recent fixes (v0.1.7)
 
-- **Teal CLI palette**: all `rl` commands now use a consistent teal/dark theme — structured log output, coloured flags and env vars, dimmed comments, and coloured extra fields in `rl run-resurrector`.
-- **Resurrector claim grace period**: the "never claimed" false-positive warning on cold worker starts is fixed — the resurrector now waits `resurrection_claim_grace_period` seconds (default 30 s) before declaring a re-queued task unclaimed, eliminating false alerts during slow worker startups.
+- **PyPI project links (v0.1.7)**: `pyproject.toml` now declares `[project.urls]` (Homepage, Documentation, Repository, Issues, Changelog), so the PyPI sidebar links straight to the docs, repo, and changelog. Packaging metadata only — no code or behaviour change, benchmarks unchanged.
+- **Teal CLI palette (v0.1.6)**: all `rl` commands now use a consistent teal/dark theme — structured log output, coloured flags and env vars, dimmed comments, and coloured extra fields in `rl run-resurrector`.
+- **Resurrector claim grace period (v0.1.6)**: the "never claimed" false-positive warning on cold worker starts is fixed — the resurrector now waits `resurrection_claim_grace_period` seconds (default 30 s) before declaring a re-queued task unclaimed, eliminating false alerts during slow worker startups.
 - **Bench refresh (v0.1.6)**: idempotent recovery re-runs 1.0 s after restart, dual-OOM resurrects both tasks in 7.0 s, resurrection under load at p99 1.1 s (5 inflight) and 6.3 s (25 inflight, `--scale`).
 
 Full history in the [CHANGELOG](CHANGELOG.md).

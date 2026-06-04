@@ -7,7 +7,7 @@ Run it yourself: `docker compose -f docker-compose.bench.yml up --build`
 
 ## Results
 
-| Metric | Relier 0.1.6 | Vanilla (default) | Vanilla (`task_acks_late=True`) | Verified |
+| Metric | Relier 0.1.7 | Vanilla (default) | Vanilla (`task_acks_late=True`) | Verified |
 |--------|-------------|-------------------|---------------------------------|----------|
 | Task delivery rate (500 tasks, 5 kills) | **100%** (500/500) | 92.0% (460/500) | 96.0% (480/500), 0 duplicates | ✓ |
 | Worker OOM recovery (5 cycles) | **6.9 s avg · 7.0 s p99** | ∞ lost | partial (see note below) | ✓ |
@@ -31,7 +31,7 @@ Tested on: Linux (Docker, python:3.11-slim-bookworm), Redis 7.2 with AOF + noevi
 
 The same suite at `--scale` (synthetic 0.05 s tasks) raises the sample size on *every* test, not just delivery, so the dedup and recovery numbers rest on a meaningful N rather than a token handful:
 
-| Metric | Relier 0.1.6 | Vanilla |
+| Metric | Relier 0.1.7 | Vanilla |
 |--------|-------------|---------|
 | Delivery rate (10,000 tasks, 10 kills) | **100%** (10,000/10,000) | 99.07% default · 99.86% `acks_late` (0 duplicates) |
 | Duplicate prevention (2,000 submissions) | **1/2,000 ran** | 2,000/2,000 ran |

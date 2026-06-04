@@ -15,6 +15,20 @@ intended for adopters who need a single place to read migration impact.
 
 
 
+## [0.1.7] — 2026-06-04
+
+Patch release adding PyPI packaging metadata. No public API changes, no
+behavioural changes, no benchmark impact — the bench numbers carry forward
+from 0.1.6 unchanged.
+
+### Packaging
+
+- **`[project.urls]` added to `pyproject.toml`.** The package now declares
+  Homepage, Documentation, Repository, Issues, and Changelog URLs, so the PyPI
+  project sidebar links directly to the docs site, the GitHub repo, the issue
+  tracker, and this changelog instead of showing no project links.
+
+
 ## [0.1.6] — 2026-05-31
 
 Patch release: documentation polish and CLI colour-palette rebrand to black /
@@ -431,7 +445,8 @@ stable, the public API surface may still shift in `0.y.0` bumps.
   `admission`, `chaos`, `config`, `admin` command groups, plus
   `doctor`, `run-resurrector`, `bench`, `man`.
 
-[Unreleased]: https://github.com/getrelier/relier/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/getrelier/relier/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/getrelier/relier/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/getrelier/relier/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/getrelier/relier/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/getrelier/relier/compare/v0.1.3...v0.1.4
