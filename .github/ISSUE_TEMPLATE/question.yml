@@ -52,4 +52,4 @@ body:
     id: relier-version
     attributes:
       label: Relier version
-      placeholder: "0.1.0"
+      placeholder: "0.1.7"
