@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    command: >
+      redis-server
+      --save ""
+      --appendonly no
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  worker:
+    build: .
+    command: >
+      celery -A celery_app worker
+      --loglevel=info
+      --concurrency=8
+      --queues=default,high_priority,low_priority
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      replicas: 2
+    restart: unless-stopped
+    stop_grace_period: 35s  # > RELIER_GRACEFUL_SHUTDOWN_TIMEOUT
+
+  beat:
+    build: .
+    command: celery -A celery_app beat --loglevel=info
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    # Beat must run as a single replica — never scale horizontally
